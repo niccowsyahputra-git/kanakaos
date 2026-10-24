@@ -404,6 +404,27 @@ export const volunteerNeedSchema = z.object({
 
 export type VolunteerNeedInput = z.input<typeof volunteerNeedSchema>;
 
+// Akun login untuk relawan (role otomatis VOLUNTEER)
+export const volunteerAccountSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(3, "Nama minimal 3 karakter")
+    .max(100, "Nama maksimal 100 karakter"),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email("Email tidak valid")
+    .max(100, "Email maksimal 100 karakter"),
+  password: z
+    .string()
+    .min(8, "Password minimal 8 karakter")
+    .max(100, "Password maksimal 100 karakter"),
+});
+
+export type VolunteerAccountInput = z.input<typeof volunteerAccountSchema>;
+
 export const redFlagSchema = z.object({
   volunteerId: z.string().cuid("ID relawan tidak valid"),
   reason: z

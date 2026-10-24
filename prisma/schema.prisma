@@ -363,6 +363,7 @@ model User {
   reviewedExpenses  FinanceExpense[]   @relation("ExpenseReviewer")
   approvedExpenses  FinanceExpense[]   @relation("ExpenseApprover")
   employee          Employee?
+  volunteer         Volunteer?
 }
 
 model Guardian {
@@ -607,6 +608,9 @@ model Volunteer {
   // Lowongan/kebutuhan relawan yang dilamar (opsional)
   needId              String?
   need                VolunteerNeed?  @relation(fields: [needId], references: [id], onDelete: SetNull)
+  // Akun login yang tertaut (1 relawan : 1 user)
+  userId              String?         @unique
+  user                User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 

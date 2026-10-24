@@ -22,6 +22,10 @@ import {
   EditVolunteerDialog,
   type EditableVolunteer,
 } from "@/components/volunteers/edit-volunteer-dialog";
+import {
+  VolunteerAccountBadge,
+  CreateVolunteerAccountDialog,
+} from "@/components/volunteers/volunteer-account";
 
 export const dynamic = "force-dynamic";
 
@@ -139,13 +143,19 @@ export default async function VolunteersPage() {
   const [volunteers, needs] = await Promise.all([
     prisma.volunteer.findMany({
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-      include: { need: { select: { title: true } } },
+      include: {
+        need: { select: { title: true } },
+        user: { select: { email: true, isActive: true } },
+      },
     }),
     prisma.volunteerNeed.findMany({
       orderBy: [{ status: "desc" }, { createdAt: "desc" }],
       select: { id: true, title: true, status: true },
     }),
   ]);
+
+  // Akun login hanya dibuatkan oleh Super Admin (sama seperti pegawai)
+  const isSuperAdmin = session.user.role === "SUPER_ADMIN";
 
   return (
     <div className="space-y-6">
@@ -199,6 +209,12 @@ export default async function VolunteersPage() {
                     </div>
                   </div>
                   <CertIndicator hasCert={volunteer.hasSafeguardingCert} />
+                  {volunteer.user && (
+                    <VolunteerAccountBadge
+                      email={volunteer.user.email}
+                      isActive={volunteer.user.isActive}
+                    />
+                  )}
                   {volunteer.redFlagNotes && (
                     <p className="whitespace-pre-line rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
                       🚩 {volunteer.redFlagNotes}
@@ -215,6 +231,16 @@ export default async function VolunteersPage() {
                       status={volunteer.status}
                       hasSafeguardingCert={volunteer.hasSafeguardingCert}
                     />
+                    {isSuperAdmin &&
+                      volunteer.status === "APPROVED" &&
+                      volunteer.hasSafeguardingCert &&
+                      !volunteer.userId && (
+                        <CreateVolunteerAccountDialog
+                          volunteerId={volunteer.id}
+                          volunteerName={volunteer.name}
+                          volunteerEmail={volunteer.email}
+                        />
+                      )}
                   </div>
                 </CardContent>
               </Card>
@@ -230,6 +256,7 @@ export default async function VolunteersPage() {
                   <TableHead>Kontak</TableHead>
                   <TableHead>Keahlian</TableHead>
                   <TableHead>Kebutuhan</TableHead>
+                  <TableHead>Akun</TableHead>
                   <TableHead>Safeguarding</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
@@ -249,6 +276,16 @@ export default async function VolunteersPage() {
                     <TableCell>{volunteer.phone ?? "-"}</TableCell>
                     <TableCell>{volunteer.skill ?? "-"}</TableCell>
                     <TableCell>{volunteer.need?.title ?? "-"}</TableCell>
+                    <TableCell>
+                      {volunteer.user ? (
+                        <VolunteerAccountBadge
+                          email={volunteer.user.email}
+                          isActive={volunteer.user.isActive}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <CertIndicator
                         hasCert={volunteer.hasSafeguardingCert}
@@ -272,6 +309,16 @@ export default async function VolunteersPage() {
                           status={volunteer.status}
                           hasSafeguardingCert={volunteer.hasSafeguardingCert}
                         />
+                        {isSuperAdmin &&
+                          volunteer.status === "APPROVED" &&
+                          volunteer.hasSafeguardingCert &&
+                          !volunteer.userId && (
+                            <CreateVolunteerAccountDialog
+                              volunteerId={volunteer.id}
+                              volunteerName={volunteer.name}
+                              volunteerEmail={volunteer.email}
+                            />
+                          )}
                       </div>
                     </TableCell>
                   </TableRow>

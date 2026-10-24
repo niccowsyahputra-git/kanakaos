@@ -1,17 +1,20 @@
 "use server";
 
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireStaffSession } from "@/lib/auth-guard";
+import { requireStaffSession, requireSuperAdminSession } from "@/lib/auth-guard";
 import { notifyRoles } from "@/lib/notify";
 import { logAudit } from "@/lib/audit";
 import {
   volunteerSchema,
   volunteerUpdateSchema,
+  volunteerAccountSchema,
   redFlagSchema,
   type VolunteerInput,
   type VolunteerUpdateInput,
+  type VolunteerAccountInput,
   type RedFlagInput,
 } from "@/lib/validations";
 
@@ -22,9 +25,18 @@ type ActionResult =
 const FORBIDDEN_ERROR =
   "Hanya Super Admin dan Pekerja Sosial yang boleh mengelola relawan";
 
+const ACCOUNT_FORBIDDEN_ERROR =
+  "Hanya Super Admin yang boleh membuat akun login relawan";
+
 function revalidateVolunteerPages() {
   revalidatePath("/dashboard/volunteers");
   revalidatePath("/dashboard/volunteers/needs");
+}
+
+/** Status akun login relawan mengikuti status relawan */
+async function syncLinkedAccount(userId: string | null, isActive: boolean) {
+  if (!userId) return;
+  await prisma.user.update({ where: { id: userId }, data: { isActive } });
 }
 
 /** Pastikan kebutuhan relawan yang dipilih memang ada */
@@ -163,7 +175,7 @@ export async function approveVolunteer(
   try {
     const volunteer = await prisma.volunteer.findUnique({
       where: { id: idParsed.data },
-      select: { id: true, name: true, hasSafeguardingCert: true },
+      select: { id: true, name: true, hasSafeguardingCert: true, userId: true },
     });
     if (!volunteer) {
       return { success: false, error: "Relawan tidak ditemukan" };
@@ -182,6 +194,8 @@ export async function approveVolunteer(
       where: { id: idParsed.data },
       data: { status: "APPROVED", hasSafeguardingCert: true },
     });
+    // Relawan yang di-approve / diaktifkan lagi: akun login ikut aktif
+    await syncLinkedAccount(volunteer.userId, true);
 
     await logAudit({
       userId: session.user.id,
@@ -215,7 +229,10 @@ export async function rejectVolunteer(id: string): Promise<ActionResult> {
     const volunteer = await prisma.volunteer.update({
       where: { id: idParsed.data },
       data: { status: "REJECTED" },
+      select: { id: true, name: true, userId: true },
     });
+    // Relawan ditolak: akun login dinonaktifkan
+    await syncLinkedAccount(volunteer.userId, false);
 
     await logAudit({
       userId: session.user.id,
@@ -252,7 +269,7 @@ export async function suspendVolunteer(
   try {
     const volunteer = await prisma.volunteer.findUnique({
       where: { id: parsed.data.volunteerId },
-      select: { id: true, name: true, redFlagNotes: true },
+      select: { id: true, name: true, redFlagNotes: true, userId: true },
     });
     if (!volunteer) {
       return { success: false, error: "Relawan tidak ditemukan" };
@@ -272,6 +289,9 @@ export async function suspendVolunteer(
         redFlagNotes: combinedNotes,
       },
     });
+
+    // Relawan di-suspend: akun login langsung dinonaktifkan (child safeguarding)
+    await syncLinkedAccount(volunteer.userId, false);
 
     // Red flag = isu safeguarding serius, ketua panti harus tahu segera
     await notifyRoles(
@@ -298,5 +318,98 @@ export async function suspendVolunteer(
   } catch (error) {
     console.error("suspendVolunteer error:", error);
     return { success: false, error: "Gagal men-suspend relawan" };
+  }
+}
+
+/**
+ * Buatkan akun login untuk relawan (mirip pegawai). Role otomatis VOLUNTEER.
+ * Syarat: relawan APPROVED dan bersertifikat child safeguarding.
+ * 1 relawan : 1 akun; akun nonaktif otomatis saat suspend/reject (syncLinkedAccount).
+ */
+export async function createUserForVolunteer(
+  volunteerId: string,
+  values: VolunteerAccountInput
+): Promise<ActionResult> {
+  const session = await requireSuperAdminSession();
+  if (!session) return { success: false, error: ACCOUNT_FORBIDDEN_ERROR };
+
+  const idParsed = z.string().cuid().safeParse(volunteerId);
+  if (!idParsed.success) {
+    return { success: false, error: "ID relawan tidak valid" };
+  }
+
+  const parsed = volunteerAccountSchema.safeParse(values);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.errors[0].message };
+  }
+
+  try {
+    const volunteer = await prisma.volunteer.findUnique({
+      where: { id: idParsed.data },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        hasSafeguardingCert: true,
+        userId: true,
+      },
+    });
+    if (!volunteer) {
+      return { success: false, error: "Relawan tidak ditemukan" };
+    }
+    if (volunteer.userId) {
+      return { success: false, error: "Relawan ini sudah punya akun login" };
+    }
+    // Child safeguarding: akun hanya untuk relawan aktif yang bersertifikat
+    if (volunteer.status !== "APPROVED") {
+      return {
+        success: false,
+        error: "Hanya relawan berstatus APPROVED yang bisa dibuatkan akun",
+      };
+    }
+    if (!volunteer.hasSafeguardingCert) {
+      return {
+        success: false,
+        error:
+          "Relawan belum bersertifikat child safeguarding. Verifikasi dulu sebelum membuat akun",
+      };
+    }
+
+    const existing = await prisma.user.findUnique({
+      where: { email: parsed.data.email },
+      select: { id: true },
+    });
+    if (existing) {
+      return { success: false, error: "Email sudah terdaftar" };
+    }
+
+    const user = await prisma.user.create({
+      data: {
+        name: parsed.data.name,
+        email: parsed.data.email,
+        password: await bcrypt.hash(parsed.data.password, 10),
+        role: "VOLUNTEER",
+      },
+    });
+    await prisma.volunteer.update({
+      where: { id: volunteer.id },
+      data: { userId: user.id },
+    });
+
+    await logAudit({
+      userId: session.user.id,
+      userName: session.user.name ?? "Unknown",
+      action: "CREATE",
+      entity: "User",
+      entityId: user.id,
+      detail: `Membuat akun login ${user.email} (VOLUNTEER) untuk relawan ${volunteer.name}`,
+    });
+
+    revalidateVolunteerPages();
+    revalidatePath("/dashboard/admin/settings");
+    return { success: true, id: user.id };
+  } catch (error) {
+    console.error("createUserForVolunteer error:", error);
+    return { success: false, error: "Gagal membuat akun untuk relawan" };
   }
 }
