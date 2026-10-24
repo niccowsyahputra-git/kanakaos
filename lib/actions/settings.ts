@@ -6,13 +6,16 @@ import { requireSuperAdminSession } from "@/lib/auth-guard";
 import { logAudit } from "@/lib/audit";
 import {
   generalSettingsSchema,
+  landingSettingsSchema,
   notificationSettingsSchema,
+  type LandingSettingsInput,
   type NotificationSettingsInput,
 } from "@/lib/validations";
 import {
   uploadFileToCloudinary,
   isCloudinaryConfigured,
 } from "@/lib/cloudinary";
+import { LANDING_CONFIG_KEYS } from "@/lib/site-settings";
 
 type ActionResult =
   | { success: true; warning?: string }
@@ -24,7 +27,25 @@ type ExportResult =
 
 const FORBIDDEN_ERROR = "Hanya Super Admin yang boleh mengubah pengaturan";
 
-const MAX_LOGO_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_LOGO_SIZE = 3 * 1024 * 1024; // 3MB (upload ke Cloudinary)
+const MAX_LOGO_DB_SIZE = 1024 * 1024; // 1MB (disimpan di database)
+
+/** Deteksi format gambar dari isi file (bukan dari MIME kiriman browser) */
+function detectLogoMime(bytes: Buffer): "image/png" | "image/jpeg" | null {
+  if (bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return "image/png";
+  }
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  return null;
+}
+
+/** Revalidasi halaman yang menampilkan identitas & konten yayasan */
+function revalidateSitePages() {
+  revalidatePath("/dashboard/admin/settings");
+  revalidatePath("/", "layout");
+}
 
 async function upsertConfig(configKey: string, configValue: string) {
   await prisma.systemConfig.upsert({
@@ -43,9 +64,8 @@ export async function saveGeneralSettings(
   const parsed = generalSettingsSchema.safeParse({
     yayasanName: formData.get("yayasanName"),
     yayasanAddress: formData.get("yayasanAddress") ?? "",
-    vision: formData.get("vision") ?? "",
-    mission: formData.get("mission") ?? "",
-    description: formData.get("description") ?? "",
+    yayasanPhone: formData.get("yayasanPhone") ?? "",
+    yayasanEmail: formData.get("yayasanEmail") ?? "",
     deedNumber: formData.get("deedNumber") ?? "",
     skKemenkumham: formData.get("skKemenkumham") ?? "",
     npwp: formData.get("npwp") ?? "",
@@ -58,36 +78,46 @@ export async function saveGeneralSettings(
     return { success: false, error: parsed.error.errors[0].message };
   }
 
-  let warning: string | undefined;
-
   try {
-    // Upload logo jika ada
+    // Upload logo jika ada. Tanpa Cloudinary, logo disimpan di database dan
+    // disajikan lewat /api/yayasan-logo.
     const logo = formData.get("logo");
     if (logo instanceof File && logo.size > 0) {
-      const allowedLogo = ["image/jpeg", "image/png"];
-      if (!allowedLogo.includes(logo.type)) {
+      if (logo.size > MAX_LOGO_SIZE) {
+        return { success: false, error: "Ukuran logo maksimal 3MB" };
+      }
+      const bytes = Buffer.from(await logo.arrayBuffer());
+      const mime = detectLogoMime(bytes);
+      if (!mime) {
         return { success: false, error: "Logo harus berformat JPG, JPEG, atau PNG" };
       }
-      if (logo.size > MAX_LOGO_SIZE) {
-        return { success: false, error: "Ukuran logo maksimal 5MB" };
-      }
-      if (!isCloudinaryConfigured()) {
-        warning = "Logo tidak tersimpan: Cloudinary belum dikonfigurasi";
-      } else {
-        const logoUrl = await uploadFileToCloudinary(
-          Buffer.from(await logo.arrayBuffer()),
-          "yayasan/branding",
-          "logo"
-        );
+      if (isCloudinaryConfigured()) {
+        const logoUrl = await uploadFileToCloudinary(bytes, "yayasan/branding", "logo");
         await upsertConfig("YAYASAN_LOGO_URL", logoUrl);
+        await upsertConfig("YAYASAN_LOGO_DATA", "");
+      } else {
+        if (bytes.length > MAX_LOGO_DB_SIZE) {
+          return {
+            success: false,
+            error: "Ukuran logo maksimal 1MB (perkecil/kompres gambar terlebih dahulu)",
+          };
+        }
+        await upsertConfig(
+          "YAYASAN_LOGO_DATA",
+          `data:${mime};base64,${bytes.toString("base64")}`
+        );
+        // Parameter versi agar cache browser langsung memuat logo baru
+        await upsertConfig("YAYASAN_LOGO_URL", `/api/yayasan-logo?v=${Date.now()}`);
       }
+    } else if (formData.get("removeLogo") === "true") {
+      await upsertConfig("YAYASAN_LOGO_URL", "");
+      await upsertConfig("YAYASAN_LOGO_DATA", "");
     }
 
     await upsertConfig("YAYASAN_NAME", parsed.data.yayasanName);
     await upsertConfig("YAYASAN_ADDRESS", parsed.data.yayasanAddress ?? "");
-    await upsertConfig("YAYASAN_VISION", parsed.data.vision ?? "");
-    await upsertConfig("YAYASAN_MISSION", parsed.data.mission ?? "");
-    await upsertConfig("YAYASAN_DESCRIPTION", parsed.data.description ?? "");
+    await upsertConfig("YAYASAN_PHONE", parsed.data.yayasanPhone ?? "");
+    await upsertConfig("YAYASAN_EMAIL", parsed.data.yayasanEmail ?? "");
     await upsertConfig("YAYASAN_DEED_NUMBER", parsed.data.deedNumber ?? "");
     await upsertConfig(
       "YAYASAN_SK_KEMENKUMHAM",
@@ -110,11 +140,48 @@ export async function saveGeneralSettings(
       detail: "Mengubah pengaturan umum yayasan",
     });
 
-    revalidatePath("/dashboard/admin/settings");
-    return { success: true, warning };
+    revalidateSitePages();
+    return { success: true };
   } catch (error) {
     console.error("saveGeneralSettings error:", error);
     return { success: false, error: "Gagal menyimpan pengaturan umum" };
+  }
+}
+
+export async function saveLandingSettings(
+  values: LandingSettingsInput
+): Promise<ActionResult> {
+  const session = await requireSuperAdminSession();
+  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+
+  const parsed = landingSettingsSchema.safeParse(values);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.errors[0].message };
+  }
+
+  try {
+    const { programs, ...texts } = parsed.data;
+    for (const [field, value] of Object.entries(texts)) {
+      await upsertConfig(
+        LANDING_CONFIG_KEYS[field as keyof typeof texts],
+        value
+      );
+    }
+    await upsertConfig(LANDING_CONFIG_KEYS.programs, JSON.stringify(programs));
+
+    await logAudit({
+      userId: session.user.id,
+      userName: session.user.name ?? "Unknown",
+      action: "UPDATE",
+      entity: "SystemConfig",
+      detail: "Mengubah konten halaman publik",
+    });
+
+    revalidateSitePages();
+    return { success: true };
+  } catch (error) {
+    console.error("saveLandingSettings error:", error);
+    return { success: false, error: "Gagal menyimpan konten halaman publik" };
   }
 }
 
@@ -251,7 +318,8 @@ export async function backupDatabase(): Promise<ExportResult> {
         prisma.volunteer.findMany(),
         prisma.partner.findMany(),
         prisma.systemConfig.findMany({
-          where: { NOT: { configKey: "AI_API_KEY" } }, // secret tidak ikut backup
+          // secret & data logo (base64 besar) tidak ikut backup
+          where: { configKey: { notIn: ["AI_API_KEY", "YAYASAN_LOGO_DATA"] } },
         }),
         prisma.case.findMany(),
         prisma.caseIntervention.findMany(),

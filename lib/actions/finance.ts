@@ -13,6 +13,7 @@ import {
   emailReceiptSchema,
 } from "@/lib/validations";
 import { ReceiptPdf, type ReceiptData } from "@/lib/receipt-pdf";
+import { getReceiptYayasan } from "@/lib/site-settings";
 
 type ActionResult =
   | { success: true; id?: string; warning?: string }
@@ -135,10 +136,10 @@ export async function reprintReceipt(donationId: string): Promise<FileResult> {
 
     const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
     const verifyUrl = `${baseUrl}/verify/${encodeURIComponent(donation.receiptNumber)}`;
-    const qrCodeDataUrl = await QRCode.toDataURL(verifyUrl, {
-      width: 144,
-      margin: 1,
-    });
+    const [qrCodeDataUrl, yayasan] = await Promise.all([
+      QRCode.toDataURL(verifyUrl, { width: 144, margin: 1 }),
+      getReceiptYayasan(),
+    ]);
 
     const receiptData: ReceiptData = {
       receiptNumber: donation.receiptNumber,
@@ -149,6 +150,7 @@ export async function reprintReceipt(donationId: string): Promise<FileResult> {
       purpose: donation.purpose,
       date: donation.createdAt,
       qrCodeDataUrl,
+      yayasan,
     };
 
     const pdfBuffer = await renderToBuffer(

@@ -8,6 +8,7 @@ import {
   StyleSheet,
 } from "@react-pdf/renderer";
 import { numberToWords, formatRupiah } from "@/lib/utils";
+import type { ReceiptYayasan } from "@/lib/site-settings";
 
 export type ReceiptItem = {
   itemName: string;
@@ -29,6 +30,8 @@ export type ReceiptData = {
   items?: ReceiptItem[];
   /** Data URL QR code (digenerate dengan library `qrcode`) */
   qrCodeDataUrl: string;
+  /** Identitas yayasan untuk kop & tanda tangan */
+  yayasan: ReceiptYayasan;
 };
 
 const typeLabel: Record<ReceiptData["type"], string> = {
@@ -71,6 +74,11 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontFamily: "Helvetica-Bold",
+  },
+  logoImage: {
+    width: 44,
+    height: 44,
+    objectFit: "contain",
   },
   yayasanName: {
     fontSize: 14,
@@ -202,27 +210,40 @@ function formatDateId(date: Date): string {
 
 export function ReceiptPdf({ data }: { data: ReceiptData }) {
   const isInKind = data.type === "IN_KIND";
+  const { yayasan } = data;
+  const contactLine = [
+    yayasan.address,
+    yayasan.phone && `Telp. ${yayasan.phone}`,
+    yayasan.email,
+  ]
+    .filter(Boolean)
+    .join(" — ");
 
   return (
     <Document
       title={`Kwitansi ${data.receiptNumber}`}
-      author="Yayasan Kanaka"
+      author={yayasan.name}
     >
       {/* A5 landscape: ukuran kwitansi umum, hemat kertas */}
       <Page size="A5" orientation="landscape" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            {/* Logo placeholder (diganti gambar asli di Phase 6) */}
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>K</Text>
-            </View>
+            {yayasan.logoSrc ? (
+              // eslint-disable-next-line jsx-a11y/alt-text
+              <Image style={styles.logoImage} src={yayasan.logoSrc} />
+            ) : (
+              <View style={styles.logoPlaceholder}>
+                <Text style={styles.logoText}>
+                  {yayasan.name.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
             <View>
-              <Text style={styles.yayasanName}>Yayasan Kanaka</Text>
-              <Text style={styles.yayasanAddress}>
-                Jl. Melati No. 10, Denpasar, Bali — Telp. (0361) 555-0101 —
-                kanakaos.id
-              </Text>
+              <Text style={styles.yayasanName}>{yayasan.name}</Text>
+              {contactLine && (
+                <Text style={styles.yayasanAddress}>{contactLine}</Text>
+              )}
             </View>
           </View>
           <View style={styles.receiptTitleBox}>
@@ -313,7 +334,7 @@ export function ReceiptPdf({ data }: { data: ReceiptData }) {
 
           <View style={styles.signatureBox}>
             <Text style={styles.signatureDate}>
-              Denpasar, {formatDateId(data.date)}
+              {formatDateId(data.date)}
             </Text>
             {/* Placeholder tanda tangan (gambar asli di Phase 6) */}
             <View style={styles.signaturePlaceholder}>
@@ -322,7 +343,7 @@ export function ReceiptPdf({ data }: { data: ReceiptData }) {
               </Text>
             </View>
             <Text style={styles.signatureName}>Bendahara Yayasan</Text>
-            <Text style={styles.signatureRole}>Yayasan Kanaka</Text>
+            <Text style={styles.signatureRole}>{yayasan.name}</Text>
           </View>
         </View>
 

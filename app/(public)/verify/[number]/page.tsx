@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getSiteSettings } from "@/lib/site-settings";
 import { formatRupiah } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,9 +7,10 @@ import { ShieldCheck, ShieldX } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Verifikasi Kwitansi — Yayasan Kanaka",
-};
+export async function generateMetadata() {
+  const { identity } = await getSiteSettings();
+  return { title: `Verifikasi Kwitansi — ${identity.name}` };
+}
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("id-ID", { dateStyle: "long" }).format(date);
@@ -34,13 +36,16 @@ export default async function VerifyReceiptPage({
     // biarkan raw jika decode gagal
   }
 
-  const [donation, yayasanRow] = await Promise.all([
+  const [donation, { identity }] = await Promise.all([
     prisma.donation.findFirst({
       where: { receiptNumber: { in: [params.number, receiptNumber] } },
     }),
-    prisma.systemConfig.findUnique({ where: { configKey: "YAYASAN_NAME" } }),
+    getSiteSettings(),
   ]);
-  const yayasanName = yayasanRow?.configValue || "Yayasan Kanaka";
+  const yayasanName = identity.name;
+  const contacts = [identity.email, identity.phone].filter(Boolean);
+  const contactText =
+    contacts.length > 0 ? `di ${contacts.join(" atau ")}` : "melalui pengurus yayasan";
 
   return (
     <div className="mx-auto w-full max-w-lg px-4 py-12 md:py-20">
@@ -97,7 +102,7 @@ export default async function VerifyReceiptPage({
 
             <p className="text-xs text-muted-foreground">
               Terima kasih telah memverifikasi. Jika ada ketidaksesuaian data,
-              hubungi kami di halo@kanakaos.id
+              hubungi kami {contactText}
             </p>
           </CardContent>
         </Card>
@@ -115,8 +120,8 @@ export default async function VerifyReceiptPage({
               Nomor yang dicari:{" "}
               <span className="font-mono">{receiptNumber}</span>
               <br />
-              Jika Anda yakin kwitansi ini asli, segera hubungi kami di
-              halo@kanakaos.id atau (0361) 555-0101 — bisa jadi ada indikasi
+              Jika Anda yakin kwitansi ini asli, segera hubungi kami{" "}
+              {contactText} — bisa jadi ada indikasi
               pemalsuan kwitansi atas nama yayasan.
             </p>
           </CardContent>

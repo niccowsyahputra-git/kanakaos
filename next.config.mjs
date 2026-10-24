@@ -10,6 +10,10 @@ const nextConfig = {
     ],
   },
   experimental: {
+    // Default 1MB terlalu kecil untuk upload logo yayasan (maks 3MB + field form)
+    serverActions: {
+      bodySizeLimit: "4mb",
+    },
     serverComponentsExternalPackages: [
       "@libsql/client",
       "@prisma/adapter-libsql",

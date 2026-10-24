@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
-import { Loader2, Save, FileDown, DatabaseBackup } from "lucide-react";
+import { Loader2, Save, FileDown, DatabaseBackup, Trash2 } from "lucide-react";
 
 import {
   saveGeneralSettings,
@@ -20,13 +20,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AISettingsForm } from "@/components/admin/ai-settings-form";
+import { LandingSettingsForm } from "@/components/admin/landing-settings-form";
+import type { LandingContent } from "@/lib/site-content";
 
 export type SettingsValues = {
   yayasanName: string;
   yayasanAddress: string;
-  vision: string;
-  mission: string;
-  description: string;
+  yayasanPhone: string;
+  yayasanEmail: string;
   deedNumber: string;
   skKemenkumham: string;
   npwp: string;
@@ -50,12 +51,14 @@ export type AIConfigView = {
 
 export function SettingsTabs({
   initial,
+  landing,
   aiConfig,
   defaultTab = "general",
   usersSection,
   auditSection,
 }: {
   initial: SettingsValues;
+  landing: LandingContent;
   aiConfig: AIConfigView;
   defaultTab?: string;
   usersSection: React.ReactNode;
@@ -65,9 +68,11 @@ export function SettingsTabs({
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [yayasanName, setYayasanName] = useState(initial.yayasanName);
   const [yayasanAddress, setYayasanAddress] = useState(initial.yayasanAddress);
-  const [vision, setVision] = useState(initial.vision);
-  const [mission, setMission] = useState(initial.mission);
-  const [description, setDescription] = useState(initial.description);
+  const [yayasanPhone, setYayasanPhone] = useState(initial.yayasanPhone);
+  const [yayasanEmail, setYayasanEmail] = useState(initial.yayasanEmail);
+  const [logoPreview, setLogoPreview] = useState(initial.logoUrl);
+  const [logoDirty, setLogoDirty] = useState(false);
+  const [removeLogo, setRemoveLogo] = useState(false);
   const [deedNumber, setDeedNumber] = useState(initial.deedNumber);
   const [skKemenkumham, setSkKemenkumham] = useState(initial.skKemenkumham);
   const [npwp, setNpwp] = useState(initial.npwp);
@@ -88,14 +93,28 @@ export function SettingsTabs({
   const [isExporting, startExporting] = useTransition();
   const [isBackingUp, startBackingUp] = useTransition();
 
+  function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoPreview(URL.createObjectURL(file));
+    setLogoDirty(true);
+    setRemoveLogo(false);
+  }
+
+  function handleRemoveLogo() {
+    if (logoInputRef.current) logoInputRef.current.value = "";
+    setLogoPreview("");
+    setLogoDirty(true);
+    setRemoveLogo(true);
+  }
+
   function handleSaveGeneral() {
     startSavingGeneral(async () => {
       const formData = new FormData();
       formData.set("yayasanName", yayasanName);
       formData.set("yayasanAddress", yayasanAddress);
-      formData.set("vision", vision);
-      formData.set("mission", mission);
-      formData.set("description", description);
+      formData.set("yayasanPhone", yayasanPhone);
+      formData.set("yayasanEmail", yayasanEmail);
       formData.set("deedNumber", deedNumber);
       formData.set("skKemenkumham", skKemenkumham);
       formData.set("npwp", npwp);
@@ -105,14 +124,14 @@ export function SettingsTabs({
       formData.set("domicileLetter", domicileLetter);
       const logoFile = logoInputRef.current?.files?.[0];
       if (logoFile) formData.set("logo", logoFile);
+      else if (removeLogo) formData.set("removeLogo", "true");
 
       const result = await saveGeneralSettings(formData);
       if (result.success) {
-        if (result.warning) {
-          toast.warning("Pengaturan tersimpan", { description: result.warning });
-        } else {
-          toast.success("Pengaturan umum tersimpan");
-        }
+        toast.success("Pengaturan umum tersimpan");
+        if (logoInputRef.current) logoInputRef.current.value = "";
+        setLogoDirty(false);
+        setRemoveLogo(false);
       } else {
         toast.error(result.error);
       }
@@ -161,8 +180,9 @@ export function SettingsTabs({
 
   return (
     <Tabs defaultValue={defaultTab} className="w-full">
-      <TabsList className="grid h-auto w-full grid-cols-3 sm:grid-cols-6">
+      <TabsList className="grid h-auto w-full grid-cols-4 sm:grid-cols-7">
         <TabsTrigger value="general">Umum</TabsTrigger>
+        <TabsTrigger value="landing">Halaman Publik</TabsTrigger>
         <TabsTrigger value="notification">Notifikasi</TabsTrigger>
         <TabsTrigger value="users">Pengguna</TabsTrigger>
         <TabsTrigger value="audit">Audit Log</TabsTrigger>
@@ -176,7 +196,7 @@ export function SettingsTabs({
           <CardHeader>
             <CardTitle className="text-lg">Pengaturan Umum</CardTitle>
             <CardDescription>
-              Identitas yayasan yang tampil di kwitansi & laporan.
+              Identitas yayasan yang tampil di website, kwitansi & laporan.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -199,38 +219,27 @@ export function SettingsTabs({
                 rows={3}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="yayasan-desc">Deskripsi Yayasan</Label>
-              <Textarea
-                id="yayasan-desc"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Gambaran singkat tentang yayasan"
-                rows={3}
-                maxLength={2000}
-              />
-            </div>
-            <div className="flex flex-col gap-4 md:flex-row">
-              <div className="w-full space-y-2 md:w-1/2">
-                <Label htmlFor="yayasan-vision">Visi</Label>
-                <Textarea
-                  id="yayasan-vision"
-                  value={vision}
-                  onChange={(e) => setVision(e.target.value)}
-                  placeholder="Visi yayasan"
-                  rows={3}
-                  maxLength={1000}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="yayasan-phone">No. Telp / WhatsApp</Label>
+                <Input
+                  id="yayasan-phone"
+                  type="tel"
+                  value={yayasanPhone}
+                  onChange={(e) => setYayasanPhone(e.target.value)}
+                  placeholder="mis. 0812-3456-7890"
+                  maxLength={30}
                 />
               </div>
-              <div className="w-full space-y-2 md:w-1/2">
-                <Label htmlFor="yayasan-mission">Misi</Label>
-                <Textarea
-                  id="yayasan-mission"
-                  value={mission}
-                  onChange={(e) => setMission(e.target.value)}
-                  placeholder="Misi yayasan (bisa poin per baris)"
-                  rows={3}
-                  maxLength={2000}
+              <div className="space-y-2">
+                <Label htmlFor="yayasan-email">Email Yayasan</Label>
+                <Input
+                  id="yayasan-email"
+                  type="email"
+                  value={yayasanEmail}
+                  onChange={(e) => setYayasanEmail(e.target.value)}
+                  placeholder="halo@yayasan.org"
+                  maxLength={150}
                 />
               </div>
             </div>
@@ -311,7 +320,7 @@ export function SettingsTabs({
               <Label htmlFor="yayasan-logo">
                 Logo Yayasan{" "}
                 <span className="font-normal text-muted-foreground">
-                  (JPG, JPEG, PNG — maks 5MB)
+                  (JPG, JPEG, PNG — maks 1MB)
                 </span>
               </Label>
               <Input
@@ -319,22 +328,38 @@ export function SettingsTabs({
                 ref={logoInputRef}
                 type="file"
                 accept="image/jpeg,image/png"
+                onChange={handleLogoChange}
                 className="cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1 file:text-sm"
               />
             </div>
-            {initial.logoUrl && (
+            {logoPreview && (
               <div className="flex items-center gap-3 rounded-md border p-3">
                 <Image
-                  src={initial.logoUrl}
+                  src={logoPreview}
                   alt="Logo yayasan"
                   width={48}
                   height={48}
+                  unoptimized
                   className="h-12 w-12 rounded object-contain"
                 />
-                <span className="text-sm text-muted-foreground">
-                  Logo saat ini
+                <span className="flex-1 text-sm text-muted-foreground">
+                  {logoDirty ? "Logo baru (belum disimpan)" : "Logo saat ini"}
                 </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={handleRemoveLogo}
+                >
+                  <Trash2 className="h-4 w-4" /> Hapus
+                </Button>
               </div>
+            )}
+            {removeLogo && (
+              <p className="text-xs text-muted-foreground">
+                Logo akan dihapus setelah pengaturan disimpan.
+              </p>
             )}
             <div className="flex justify-end">
               <Button
@@ -351,6 +376,11 @@ export function SettingsTabs({
             </div>
           </CardContent>
         </Card>
+      </TabsContent>
+
+      {/* ============ TAB: HALAMAN PUBLIK ============ */}
+      <TabsContent value="landing">
+        <LandingSettingsForm initial={landing} />
       </TabsContent>
 
       {/* ============ TAB 2: NOTIFICATION ============ */}

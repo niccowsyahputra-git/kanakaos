@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdminSession } from "@/lib/auth-guard";
 import { getAIConfig } from "@/lib/ai-service";
+import { getSiteSettings } from "@/lib/site-settings";
 import {
   SettingsTabs,
   type SettingsValues,
@@ -17,9 +18,8 @@ export const dynamic = "force-dynamic";
 const SETTING_KEYS = [
   "YAYASAN_NAME",
   "YAYASAN_ADDRESS",
-  "YAYASAN_VISION",
-  "YAYASAN_MISSION",
-  "YAYASAN_DESCRIPTION",
+  "YAYASAN_PHONE",
+  "YAYASAN_EMAIL",
   "YAYASAN_DEED_NUMBER",
   "YAYASAN_SK_KEMENKUMHAM",
   "YAYASAN_NPWP",
@@ -46,7 +46,7 @@ export default async function SettingsPage({
   const session = await requireSuperAdminSession();
   if (!session) redirect("/dashboard");
 
-  const validTabs = ["general", "notification", "users", "audit", "ai", "backup"];
+  const validTabs = ["general", "landing", "notification", "users", "audit", "ai", "backup"];
   const defaultTab = validTabs.includes(searchParams.tab ?? "")
     ? searchParams.tab
     : "general";
@@ -56,14 +56,16 @@ export default async function SettingsPage({
   });
   const map = new Map(rows.map((row) => [row.configKey, row.configValue]));
 
-  const aiConfig = await getAIConfig();
+  const [aiConfig, siteSettings] = await Promise.all([
+    getAIConfig(),
+    getSiteSettings(),
+  ]);
 
   const initial: SettingsValues = {
     yayasanName: map.get("YAYASAN_NAME") ?? "Yayasan Kanaka",
     yayasanAddress: map.get("YAYASAN_ADDRESS") ?? "",
-    vision: map.get("YAYASAN_VISION") ?? "",
-    mission: map.get("YAYASAN_MISSION") ?? "",
-    description: map.get("YAYASAN_DESCRIPTION") ?? "",
+    yayasanPhone: map.get("YAYASAN_PHONE") ?? "",
+    yayasanEmail: map.get("YAYASAN_EMAIL") ?? "",
     deedNumber: map.get("YAYASAN_DEED_NUMBER") ?? "",
     skKemenkumham: map.get("YAYASAN_SK_KEMENKUMHAM") ?? "",
     npwp: map.get("YAYASAN_NPWP") ?? "",
@@ -85,12 +87,13 @@ export default async function SettingsPage({
           Pengaturan Sistem
         </h2>
         <p className="text-sm text-muted-foreground">
-          Identitas yayasan, notifikasi, manajemen user, audit log, AI, dan
+          Identitas yayasan, halaman publik, notifikasi, manajemen user, audit log, AI, dan
           backup data.
         </p>
       </div>
       <SettingsTabs
         initial={initial}
+        landing={siteSettings.landing}
         defaultTab={defaultTab}
         usersSection={
           <UsersSection

@@ -1,50 +1,64 @@
 import Link from "next/link";
+import { getSiteSettings, type YayasanIdentity } from "@/lib/site-settings";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, Home } from "lucide-react";
 
-export const metadata = {
-  title: "Terima Kasih — Yayasan Kanaka",
-};
+export const dynamic = "force-dynamic";
 
-const PAYMENT_INSTRUCTIONS: Record<
-  string,
-  { title: string; lines: string[] }
-> = {
-  TRANSFER_BANK: {
-    title: "Instruksi Transfer Bank",
-    lines: [
-      "Bank BCA — No. Rekening: 123 456 7890",
-      "a.n. Yayasan Kanaka",
-      "Mohon sertakan berita transfer: DONASI [Nama Anda]",
-    ],
-  },
-  QRIS: {
-    title: "Instruksi Pembayaran QRIS",
-    lines: [
-      "Scan kode QRIS kami di kantor yayasan, atau",
-      "hubungi WhatsApp (0361) 555-0101 untuk menerima kode QRIS",
-      "a.n. Yayasan Kanaka",
-    ],
-  },
-  E_WALLET: {
-    title: "Instruksi E-Wallet",
-    lines: [
-      "OVO / GoPay / Dana: 0812-3456-7890",
-      "a.n. Yayasan Kanaka",
-      "Mohon konfirmasi setelah transfer via WhatsApp",
-    ],
-  },
-};
+export async function generateMetadata() {
+  const { identity } = await getSiteSettings();
+  return { title: `Terima Kasih — ${identity.name}` };
+}
 
-export default function DonateThanksPage({
+function paymentInstructions(
+  yayasan: YayasanIdentity
+): Record<string, { title: string; lines: string[] }> {
+  const holder = `a.n. ${yayasan.name}`;
+  return {
+    TRANSFER_BANK: {
+      title: "Instruksi Transfer Bank",
+      lines: [
+        "Bank BCA — No. Rekening: 123 456 7890",
+        holder,
+        "Mohon sertakan berita transfer: DONASI [Nama Anda]",
+      ],
+    },
+    QRIS: {
+      title: "Instruksi Pembayaran QRIS",
+      lines: [
+        "Scan kode QRIS kami di kantor yayasan, atau",
+        yayasan.phone
+          ? `hubungi WhatsApp ${yayasan.phone} untuk menerima kode QRIS`
+          : "hubungi pengurus yayasan untuk menerima kode QRIS",
+        holder,
+      ],
+    },
+    E_WALLET: {
+      title: "Instruksi E-Wallet",
+      lines: [
+        "OVO / GoPay / Dana: 0812-3456-7890",
+        holder,
+        "Mohon konfirmasi setelah transfer via WhatsApp",
+      ],
+    },
+  };
+}
+
+export default async function DonateThanksPage({
   searchParams,
 }: {
   searchParams: { method?: string };
 }) {
+  const { identity } = await getSiteSettings();
+  const allInstructions = paymentInstructions(identity);
   const instructions =
-    PAYMENT_INSTRUCTIONS[searchParams.method ?? ""] ??
-    PAYMENT_INSTRUCTIONS.TRANSFER_BANK;
+    allInstructions[searchParams.method ?? ""] ??
+    allInstructions.TRANSFER_BANK;
+  const contacts = [
+    identity.phone && `WhatsApp ${identity.phone}`,
+    identity.email,
+  ].filter(Boolean);
 
   return (
     <div className="mx-auto w-full max-w-lg px-4 py-12 md:py-20">
@@ -73,10 +87,11 @@ export default function DonateThanksPage({
             </ul>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Konfirmasi pembayaran: WhatsApp (0361) 555-0101 atau
-            halo@kanakaos.id
-          </p>
+          {contacts.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Konfirmasi pembayaran: {contacts.join(" atau ")}
+            </p>
+          )}
 
           <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link href="/">

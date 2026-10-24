@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_PROGRAMS, PROGRAM_ICON_KEYS } from "@/lib/site-content";
 
 // Helper: teks opsional dengan batas panjang (kosong -> undefined)
 const optionalText = (max: number) =>
@@ -489,9 +490,20 @@ export const generalSettingsSchema = z.object({
     .max(500, "Alamat maksimal 500 karakter")
     .optional()
     .or(z.literal("").transform(() => undefined)),
-  vision: optionalText(1000),
-  mission: optionalText(2000),
-  description: optionalText(2000),
+  yayasanPhone: z
+    .string()
+    .trim()
+    .max(30, "No. telepon maksimal 30 karakter")
+    .regex(/^[0-9+()\-\s]*$/, "No. telepon hanya boleh berisi angka, spasi, +, -, ( )")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  yayasanEmail: z
+    .string()
+    .trim()
+    .email("Email yayasan tidak valid")
+    .max(150, "Email maksimal 150 karakter")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   deedNumber: optionalText(100),
   skKemenkumham: optionalText(150),
   npwp: z
@@ -505,6 +517,35 @@ export const generalSettingsSchema = z.object({
   activityPermit: optionalText(150),
   domicileLetter: optionalText(150),
 });
+
+// Konten halaman publik (landing page)
+const landingText = (max: number, label: string) =>
+  z.string().trim().max(max, `${label} maksimal ${max} karakter`);
+
+export const landingSettingsSchema = z.object({
+  heroBadge: landingText(100, "Label atas judul"),
+  heroTitle: landingText(200, "Judul").min(3, "Judul minimal 3 karakter"),
+  heroSubtitle: landingText(500, "Sub judul"),
+  aboutTitle: landingText(100, "Judul Tentang Kami"),
+  about: landingText(2000, "Tentang Kami"),
+  vision: landingText(1000, "Visi"),
+  mission: landingText(2000, "Misi"),
+  programsTitle: landingText(100, "Judul Program"),
+  programs: z
+    .array(
+      z.object({
+        icon: z.enum(PROGRAM_ICON_KEYS),
+        title: landingText(80, "Nama program").min(1, "Nama program wajib diisi"),
+        description: landingText(300, "Deskripsi program"),
+      })
+    )
+    .max(MAX_PROGRAMS, `Maksimal ${MAX_PROGRAMS} program`),
+  ctaTitle: landingText(150, "Judul ajakan donasi"),
+  ctaSubtitle: landingText(500, "Teks ajakan donasi"),
+  copyright: landingText(200, "Copyright"),
+});
+
+export type LandingSettingsInput = z.input<typeof landingSettingsSchema>;
 
 export const notificationSettingsSchema = z.object({
   notifEmail: z

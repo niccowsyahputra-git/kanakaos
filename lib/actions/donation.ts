@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { donationSchema, type DonationInput } from "@/lib/validations";
 import { ReceiptPdf, type ReceiptData } from "@/lib/receipt-pdf";
+import { getReceiptYayasan } from "@/lib/site-settings";
 import { donationCategoryLabel } from "@/components/donations/donation-labels";
 import {
   uploadFileToCloudinary,
@@ -171,10 +172,10 @@ export async function processDonation(
     // c. Render PDF kwitansi (QR berisi link verifikasi publik)
     const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
     const verifyUrl = `${baseUrl}/verify/${encodeURIComponent(receiptNumber)}`;
-    const qrCodeDataUrl = await QRCode.toDataURL(verifyUrl, {
-      width: 144,
-      margin: 1,
-    });
+    const [qrCodeDataUrl, yayasan] = await Promise.all([
+      QRCode.toDataURL(verifyUrl, { width: 144, margin: 1 }),
+      getReceiptYayasan(),
+    ]);
 
     const receiptData: ReceiptData = {
       receiptNumber,
@@ -195,6 +196,7 @@ export async function processDonation(
           }))
         : undefined,
       qrCodeDataUrl,
+      yayasan,
     };
 
     const pdfBuffer = await renderToBuffer(
