@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Loader2, Send, CheckCircle2 } from "lucide-react";
+import { Loader2, Send, CheckCircle2, Users, CalendarClock } from "lucide-react";
 
 import { applyVolunteer } from "@/lib/actions/public";
 import { cn } from "@/lib/utils";
@@ -73,9 +73,93 @@ function CheckboxGroup({
   );
 }
 
-export function VolunteerApplyForm() {
+export type OpenVolunteerNeed = {
+  id: string;
+  title: string;
+  description: string | null;
+  quantity: number;
+  schedule: string | null;
+};
+
+/** Pilihan kebutuhan relawan yang sedang dibuka (opsional) */
+function NeedPicker({
+  needs,
+  selected,
+  onSelect,
+}: {
+  needs: OpenVolunteerNeed[];
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
+  const options = [
+    ...needs,
+    {
+      id: "",
+      title: "Umum / belum memilih bidang tertentu",
+      description: null,
+      quantity: 0,
+      schedule: null,
+    },
+  ];
+  return (
+    <div className="flex flex-col gap-2" role="radiogroup">
+      {options.map((need) => {
+        const isChecked = selected === need.id;
+        return (
+          <button
+            key={need.id || "general"}
+            type="button"
+            role="radio"
+            aria-checked={isChecked}
+            onClick={() => onSelect(need.id)}
+            className={cn(
+              "flex items-start gap-3 rounded-lg border-2 p-3 text-left text-sm transition-colors",
+              isChecked
+                ? "border-primary bg-primary/10"
+                : "border-muted hover:bg-accent"
+            )}
+          >
+            <span
+              className={cn(
+                "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                isChecked ? "border-primary" : "border-muted-foreground"
+              )}
+            >
+              {isChecked && <span className="h-2 w-2 rounded-full bg-primary" />}
+            </span>
+            <span className="min-w-0 space-y-1">
+              <span className="block font-medium">{need.title}</span>
+              {need.description && (
+                <span className="block whitespace-pre-line text-muted-foreground">
+                  {need.description}
+                </span>
+              )}
+              {need.id && (
+                <span className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    Dibutuhkan {need.quantity} orang
+                  </span>
+                  {need.schedule && (
+                    <span className="inline-flex items-center gap-1">
+                      <CalendarClock className="h-3 w-3" />
+                      {need.schedule}
+                    </span>
+                  )}
+                </span>
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function VolunteerApplyForm({ needs }: { needs: OpenVolunteerNeed[] }) {
   const ktpRef = useRef<HTMLInputElement>(null);
   const skckRef = useRef<HTMLInputElement>(null);
+  const [needId, setNeedId] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -110,6 +194,7 @@ export function VolunteerApplyForm() {
       for (const slot of availability) formData.append("availability", slot);
       formData.set("motivation", motivation);
       formData.set("agreePolicy", String(agreePolicy));
+      if (needId) formData.set("needId", needId);
       const ktp = ktpRef.current?.files?.[0];
       if (ktp) formData.set("ktp", ktp);
       const skck = skckRef.current?.files?.[0];
@@ -151,6 +236,16 @@ export function VolunteerApplyForm() {
   return (
     <Card>
       <CardContent className="flex flex-col gap-5 p-4 md:p-6">
+        {needs.length > 0 && (
+          <div className="space-y-2">
+            <Label className="text-base">Bidang Relawan yang Dibutuhkan</Label>
+            <p className="text-xs text-muted-foreground">
+              Pilih bidang yang sedang kami buka, atau pilih umum.
+            </p>
+            <NeedPicker needs={needs} selected={needId} onSelect={setNeedId} />
+          </div>
+        )}
+
         <div className="space-y-2">
           <Label htmlFor="vol-name">Nama Lengkap</Label>
           <Input

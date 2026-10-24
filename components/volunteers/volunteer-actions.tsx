@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Flag, Loader2, Check, X } from "lucide-react";
+import { Flag, Loader2, Check, X, ShieldCheck } from "lucide-react";
 
 import {
   approveVolunteer,
@@ -27,24 +27,42 @@ export function VolunteerActions({
   volunteerId,
   volunteerName,
   status,
+  hasSafeguardingCert,
 }: {
   volunteerId: string;
   volunteerName: string;
   status: VolunteerStatus;
+  hasSafeguardingCert: boolean;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reason, setReason] = useState("");
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [certConfirmed, setCertConfirmed] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  function handleApprove() {
+  function approve(confirmCertificate: boolean) {
     startTransition(async () => {
-      const result = await approveVolunteer(volunteerId);
+      const result = await approveVolunteer(volunteerId, {
+        confirmCertificate,
+      });
       if (result.success) {
         toast.success(`${volunteerName} disetujui sebagai relawan`);
+        setApproveOpen(false);
+        setCertConfirmed(false);
       } else {
         toast.error(result.error);
       }
     });
+  }
+
+  // Sertifikat belum tercatat: minta konfirmasi verifikasi dulu
+  function handleApprove() {
+    if (hasSafeguardingCert) {
+      approve(false);
+    } else {
+      setCertConfirmed(false);
+      setApproveOpen(true);
+    }
   }
 
   function handleReject() {
@@ -73,6 +91,58 @@ export function VolunteerActions({
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
+      <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-green-700" />
+              Approve {volunteerName}
+            </DialogTitle>
+            <DialogDescription>
+              Sertifikat <b>child safeguarding</b> relawan ini belum tercatat.
+              Sesuai kebijakan perlindungan anak, relawan hanya boleh
+              di-approve setelah sertifikatnya diverifikasi.
+            </DialogDescription>
+          </DialogHeader>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3">
+            <input
+              type="checkbox"
+              checked={certConfirmed}
+              onChange={(e) => setCertConfirmed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-primary"
+            />
+            <span className="text-sm">
+              Saya sudah memverifikasi sertifikat child safeguarding relawan
+              ini. Status sertifikat akan dicatat sebagai <b>Bersertifikat</b>.
+            </span>
+          </label>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setApproveOpen(false)}
+              disabled={isPending}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={() => approve(true)}
+              disabled={isPending || !certConfirmed}
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Memproses...
+                </>
+              ) : (
+                "Verifikasi & Approve"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {status === "PENDING" && (
         <>
           <Button

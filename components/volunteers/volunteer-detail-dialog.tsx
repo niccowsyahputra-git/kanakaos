@@ -25,6 +25,7 @@ type VolunteerDetail = {
   motivation: string | null;
   ktpUrl: string | null;
   skckUrl: string | null;
+  needTitle: string | null;
   createdAtLabel: string;
 };
 
@@ -79,6 +80,7 @@ export function VolunteerDetailDialog({
           <DetailRow label="Alamat" value={volunteer.address} />
           <DetailRow label="Keahlian" value={volunteer.skill} />
           <DetailRow label="Ketersediaan" value={volunteer.availability} />
+          <DetailRow label="Kebutuhan Relawan" value={volunteer.needTitle} />
         </dl>
 
         {volunteer.motivation && (

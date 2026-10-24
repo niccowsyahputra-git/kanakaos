@@ -343,13 +343,66 @@ export const volunteerSchema = z.object({
   skill: z
     .string()
     .trim()
-    .max(100, "Keahlian maksimal 100 karakter")
+    .max(200, "Keahlian maksimal 200 karakter")
     .optional()
     .or(z.literal("").transform(() => undefined)),
   hasSafeguardingCert: z.boolean().default(false),
+  needId: z
+    .string()
+    .cuid("Kebutuhan relawan tidak valid")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
 });
 
 export type VolunteerInput = z.input<typeof volunteerSchema>;
+
+// Edit / lengkapi data relawan (termasuk pendaftar PENDING dari form publik)
+export const volunteerUpdateSchema = volunteerSchema.extend({
+  id: z.string().cuid("ID relawan tidak valid"),
+  email: z
+    .string()
+    .trim()
+    .email("Email tidak valid")
+    .max(100, "Email maksimal 100 karakter")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  dob: z
+    .string()
+    .optional()
+    .or(z.literal("").transform(() => undefined))
+    .refine((v) => {
+      if (!v) return true;
+      const date = new Date(v);
+      if (Number.isNaN(date.getTime())) return false;
+      const age =
+        (Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+      return age >= 17 && age <= 80;
+    }, "Usia relawan harus 17-80 tahun"),
+  address: optionalText(300),
+  occupation: optionalText(100),
+  availability: optionalText(200),
+  motivation: optionalText(1000),
+});
+
+export type VolunteerUpdateInput = z.input<typeof volunteerUpdateSchema>;
+
+// Kebutuhan relawan yayasan (bidang, jumlah, jadwal)
+export const volunteerNeedSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(3, "Bidang minimal 3 karakter")
+    .max(100, "Bidang maksimal 100 karakter"),
+  description: optionalText(1000),
+  quantity: z.coerce
+    .number({ invalid_type_error: "Jumlah kebutuhan tidak valid" })
+    .int("Jumlah kebutuhan harus bilangan bulat")
+    .min(1, "Jumlah kebutuhan minimal 1 orang")
+    .max(1000, "Jumlah kebutuhan maksimal 1000 orang"),
+  schedule: optionalText(200),
+});
+
+export type VolunteerNeedInput = z.input<typeof volunteerNeedSchema>;
 
 export const redFlagSchema = z.object({
   volunteerId: z.string().cuid("ID relawan tidak valid"),
@@ -978,6 +1031,11 @@ export const volunteerApplySchema = z.object({
       message: "Anda wajib menyetujui Kebijakan Perlindungan Anak",
     }),
   }),
+  needId: z
+    .string()
+    .cuid("Kebutuhan relawan tidak valid")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
 });
 
 // ---------- Phase 7 Batch 6: Profile & Notifications ----------

@@ -127,12 +127,27 @@ export async function applyVolunteer(
     availability: formData.getAll("availability"),
     motivation: formData.get("motivation"),
     agreePolicy: formData.get("agreePolicy") === "true",
+    needId: formData.get("needId") ?? undefined,
   });
   if (!parsed.success) {
     return { success: false, error: parsed.error.errors[0].message };
   }
 
   try {
+    // Kebutuhan yang dipilih harus masih dibuka (OPEN)
+    if (parsed.data.needId) {
+      const need = await prisma.volunteerNeed.findUnique({
+        where: { id: parsed.data.needId },
+        select: { status: true },
+      });
+      if (!need || need.status !== "OPEN") {
+        return {
+          success: false,
+          error: "Kebutuhan relawan yang dipilih sudah ditutup. Silakan pilih yang lain",
+        };
+      }
+    }
+
     // Cegah pendaftaran ganda dengan email yang sama & masih pending
     const existing = await prisma.volunteer.findFirst({
       where: { email: parsed.data.email, status: "PENDING" },
@@ -181,6 +196,7 @@ export async function applyVolunteer(
         motivation: parsed.data.motivation,
         ktpUrl,
         skckUrl,
+        needId: parsed.data.needId ?? null,
         // status default PENDING -> masuk antrean screening staff
       },
     });

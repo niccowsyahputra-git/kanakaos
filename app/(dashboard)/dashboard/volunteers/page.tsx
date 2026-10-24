@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireStaffSession } from "@/lib/auth-guard";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -11,11 +13,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ShieldCheck, ShieldAlert } from "lucide-react";
+import { Megaphone, ShieldCheck, ShieldAlert } from "lucide-react";
 import { VolunteerStatus } from "@prisma/client";
 import { VolunteerActions } from "@/components/volunteers/volunteer-actions";
 import { AddVolunteerDialog } from "@/components/volunteers/add-volunteer-dialog";
 import { VolunteerDetailDialog } from "@/components/volunteers/volunteer-detail-dialog";
+import {
+  EditVolunteerDialog,
+  type EditableVolunteer,
+} from "@/components/volunteers/edit-volunteer-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +43,7 @@ function toDetail(volunteer: {
   motivation: string | null;
   ktpUrl: string | null;
   skckUrl: string | null;
+  need: { title: string } | null;
   createdAt: Date;
 }) {
   return {
@@ -51,7 +58,39 @@ function toDetail(volunteer: {
     motivation: volunteer.motivation,
     ktpUrl: volunteer.ktpUrl,
     skckUrl: volunteer.skckUrl,
+    needTitle: volunteer.need?.title ?? null,
     createdAtLabel: formatDate(volunteer.createdAt) ?? "-",
+  };
+}
+
+// Data untuk form edit / lengkapi data relawan
+function toEditable(volunteer: {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  dob: Date | null;
+  address: string | null;
+  occupation: string | null;
+  skill: string | null;
+  availability: string | null;
+  motivation: string | null;
+  hasSafeguardingCert: boolean;
+  needId: string | null;
+}): EditableVolunteer {
+  return {
+    id: volunteer.id,
+    name: volunteer.name,
+    phone: volunteer.phone,
+    email: volunteer.email,
+    dob: volunteer.dob ? volunteer.dob.toISOString().slice(0, 10) : null,
+    address: volunteer.address,
+    occupation: volunteer.occupation,
+    skill: volunteer.skill,
+    availability: volunteer.availability,
+    motivation: volunteer.motivation,
+    hasSafeguardingCert: volunteer.hasSafeguardingCert,
+    needId: volunteer.needId,
   };
 }
 
@@ -97,9 +136,16 @@ export default async function VolunteersPage() {
     redirect("/dashboard");
   }
 
-  const volunteers = await prisma.volunteer.findMany({
-    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-  });
+  const [volunteers, needs] = await Promise.all([
+    prisma.volunteer.findMany({
+      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+      include: { need: { select: { title: true } } },
+    }),
+    prisma.volunteerNeed.findMany({
+      orderBy: [{ status: "desc" }, { createdAt: "desc" }],
+      select: { id: true, title: true, status: true },
+    }),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -110,7 +156,15 @@ export default async function VolunteersPage() {
             Screening & pengawasan relawan untuk child safeguarding.
           </p>
         </div>
-        <AddVolunteerDialog />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <Link href="/dashboard/volunteers/needs">
+              <Megaphone className="h-4 w-4" />
+              Kebutuhan Relawan
+            </Link>
+          </Button>
+          <AddVolunteerDialog needs={needs} />
+        </div>
       </div>
 
       {volunteers.length === 0 ? (
@@ -133,6 +187,11 @@ export default async function VolunteersPage() {
                         {volunteer.skill ?? "-"}
                         {volunteer.phone ? ` · ${volunteer.phone}` : ""}
                       </p>
+                      {volunteer.need && (
+                        <p className="text-xs text-primary">
+                          Kebutuhan: {volunteer.need.title}
+                        </p>
+                      )}
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       <VolunteerDetailDialog volunteer={toDetail(volunteer)} />
@@ -145,11 +204,18 @@ export default async function VolunteersPage() {
                       🚩 {volunteer.redFlagNotes}
                     </p>
                   )}
-                  <VolunteerActions
-                    volunteerId={volunteer.id}
-                    volunteerName={volunteer.name}
-                    status={volunteer.status}
-                  />
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <EditVolunteerDialog
+                      volunteer={toEditable(volunteer)}
+                      needs={needs}
+                    />
+                    <VolunteerActions
+                      volunteerId={volunteer.id}
+                      volunteerName={volunteer.name}
+                      status={volunteer.status}
+                      hasSafeguardingCert={volunteer.hasSafeguardingCert}
+                    />
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -163,6 +229,7 @@ export default async function VolunteersPage() {
                   <TableHead>Nama</TableHead>
                   <TableHead>Kontak</TableHead>
                   <TableHead>Keahlian</TableHead>
+                  <TableHead>Kebutuhan</TableHead>
                   <TableHead>Safeguarding</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
@@ -181,6 +248,7 @@ export default async function VolunteersPage() {
                     </TableCell>
                     <TableCell>{volunteer.phone ?? "-"}</TableCell>
                     <TableCell>{volunteer.skill ?? "-"}</TableCell>
+                    <TableCell>{volunteer.need?.title ?? "-"}</TableCell>
                     <TableCell>
                       <CertIndicator
                         hasCert={volunteer.hasSafeguardingCert}
@@ -190,14 +258,19 @@ export default async function VolunteersPage() {
                       <StatusBadge status={volunteer.status} />
                     </TableCell>
                     <TableCell>
-                      <div className="flex justify-end">
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
                         <VolunteerDetailDialog
                           volunteer={toDetail(volunteer)}
+                        />
+                        <EditVolunteerDialog
+                          volunteer={toEditable(volunteer)}
+                          needs={needs}
                         />
                         <VolunteerActions
                           volunteerId={volunteer.id}
                           volunteerName={volunteer.name}
                           status={volunteer.status}
+                          hasSafeguardingCert={volunteer.hasSafeguardingCert}
                         />
                       </div>
                     </TableCell>

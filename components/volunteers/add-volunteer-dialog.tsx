@@ -17,12 +17,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { NeedSelect, type NeedOption } from "./need-select";
 
-export function AddVolunteerDialog() {
+export function AddVolunteerDialog({ needs }: { needs: NeedOption[] }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [skill, setSkill] = useState("");
+  const [needId, setNeedId] = useState("");
   const [hasCert, setHasCert] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -32,6 +34,7 @@ export function AddVolunteerDialog() {
         name,
         phone,
         skill,
+        needId,
         hasSafeguardingCert: hasCert,
       });
       if (result.success) {
@@ -42,6 +45,7 @@ export function AddVolunteerDialog() {
         setName("");
         setPhone("");
         setSkill("");
+        setNeedId("");
         setHasCert(false);
       } else {
         toast.error(result.error);
@@ -95,6 +99,15 @@ export function AddVolunteerDialog() {
               onChange={(e) => setSkill(e.target.value)}
               placeholder="Contoh: Mengajar matematika, psikolog"
               autoComplete="off"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="vol-need">Kebutuhan Relawan</Label>
+            <NeedSelect
+              id="vol-need"
+              needs={needs}
+              value={needId}
+              onChange={setNeedId}
             />
           </div>
           <label className="flex cursor-pointer items-center gap-3 rounded-md border p-3">

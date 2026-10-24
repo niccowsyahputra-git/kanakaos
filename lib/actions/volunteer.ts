@@ -5,10 +5,13 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireStaffSession } from "@/lib/auth-guard";
 import { notifyRoles } from "@/lib/notify";
+import { logAudit } from "@/lib/audit";
 import {
   volunteerSchema,
+  volunteerUpdateSchema,
   redFlagSchema,
   type VolunteerInput,
+  type VolunteerUpdateInput,
   type RedFlagInput,
 } from "@/lib/validations";
 
@@ -18,6 +21,21 @@ type ActionResult =
 
 const FORBIDDEN_ERROR =
   "Hanya Super Admin dan Pekerja Sosial yang boleh mengelola relawan";
+
+function revalidateVolunteerPages() {
+  revalidatePath("/dashboard/volunteers");
+  revalidatePath("/dashboard/volunteers/needs");
+}
+
+/** Pastikan kebutuhan relawan yang dipilih memang ada */
+async function needExists(needId: string | undefined): Promise<boolean> {
+  if (!needId) return true;
+  const need = await prisma.volunteerNeed.findUnique({
+    where: { id: needId },
+    select: { id: true },
+  });
+  return Boolean(need);
+}
 
 export async function createVolunteer(
   values: VolunteerInput
@@ -31,16 +49,30 @@ export async function createVolunteer(
   }
 
   try {
+    if (!(await needExists(parsed.data.needId))) {
+      return { success: false, error: "Kebutuhan relawan tidak ditemukan" };
+    }
+
     const volunteer = await prisma.volunteer.create({
       data: {
         name: parsed.data.name,
         phone: parsed.data.phone ?? null,
         skill: parsed.data.skill ?? null,
         hasSafeguardingCert: parsed.data.hasSafeguardingCert,
+        needId: parsed.data.needId ?? null,
       },
     });
 
-    revalidatePath("/dashboard/volunteers");
+    await logAudit({
+      userId: session.user.id,
+      userName: session.user.name ?? "Unknown",
+      action: "CREATE",
+      entity: "Volunteer",
+      entityId: volunteer.id,
+      detail: `Tambah relawan ${volunteer.name}`,
+    });
+
+    revalidateVolunteerPages();
     return { success: true, id: volunteer.id };
   } catch (error) {
     console.error("createVolunteer error:", error);
@@ -48,7 +80,78 @@ export async function createVolunteer(
   }
 }
 
-export async function approveVolunteer(id: string): Promise<ActionResult> {
+/** Edit / lengkapi data relawan, berlaku untuk semua status */
+export async function updateVolunteer(
+  values: VolunteerUpdateInput
+): Promise<ActionResult> {
+  const session = await requireStaffSession();
+  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+
+  const parsed = volunteerUpdateSchema.safeParse(values);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.errors[0].message };
+  }
+  const data = parsed.data;
+
+  try {
+    const existing = await prisma.volunteer.findUnique({
+      where: { id: data.id },
+      select: { id: true, hasSafeguardingCert: true },
+    });
+    if (!existing) {
+      return { success: false, error: "Relawan tidak ditemukan" };
+    }
+    if (!(await needExists(data.needId))) {
+      return { success: false, error: "Kebutuhan relawan tidak ditemukan" };
+    }
+
+    await prisma.volunteer.update({
+      where: { id: data.id },
+      data: {
+        name: data.name,
+        phone: data.phone ?? null,
+        email: data.email ?? null,
+        dob: data.dob ? new Date(data.dob) : null,
+        address: data.address ?? null,
+        occupation: data.occupation ?? null,
+        skill: data.skill ?? null,
+        availability: data.availability ?? null,
+        motivation: data.motivation ?? null,
+        hasSafeguardingCert: data.hasSafeguardingCert,
+        needId: data.needId ?? null,
+      },
+    });
+
+    const certNote =
+      existing.hasSafeguardingCert !== data.hasSafeguardingCert
+        ? ` (sertifikat safeguarding: ${data.hasSafeguardingCert ? "Ya" : "Tidak"})`
+        : "";
+    await logAudit({
+      userId: session.user.id,
+      userName: session.user.name ?? "Unknown",
+      action: "UPDATE",
+      entity: "Volunteer",
+      entityId: data.id,
+      detail: `Ubah data relawan ${data.name}${certNote}`,
+    });
+
+    revalidateVolunteerPages();
+    return { success: true, id: data.id };
+  } catch (error) {
+    console.error("updateVolunteer error:", error);
+    return { success: false, error: "Gagal memperbarui data relawan" };
+  }
+}
+
+/**
+ * Approve relawan. Child safeguarding: sertifikat wajib ada. Jika belum
+ * tercatat, staf harus mengonfirmasi bahwa sertifikat sudah diverifikasi
+ * (confirmCertificate) dan status sertifikat ikut diperbarui.
+ */
+export async function approveVolunteer(
+  id: string,
+  options?: { confirmCertificate?: boolean }
+): Promise<ActionResult> {
   const session = await requireStaffSession();
   if (!session) return { success: false, error: FORBIDDEN_ERROR };
 
@@ -60,27 +163,38 @@ export async function approveVolunteer(id: string): Promise<ActionResult> {
   try {
     const volunteer = await prisma.volunteer.findUnique({
       where: { id: idParsed.data },
-      select: { id: true, hasSafeguardingCert: true },
+      select: { id: true, name: true, hasSafeguardingCert: true },
     });
     if (!volunteer) {
       return { success: false, error: "Relawan tidak ditemukan" };
     }
 
-    // Child Safeguarding: relawan wajib punya sertifikat sebelum di-approve
-    if (!volunteer.hasSafeguardingCert) {
+    const confirmCertificate = options?.confirmCertificate === true;
+    if (!volunteer.hasSafeguardingCert && !confirmCertificate) {
       return {
         success: false,
         error:
-          "Relawan belum memiliki sertifikat safeguarding. Lengkapi dulu sebelum approve.",
+          "Relawan belum memiliki sertifikat safeguarding. Konfirmasi verifikasi sertifikat sebelum approve.",
       };
     }
 
     await prisma.volunteer.update({
       where: { id: idParsed.data },
-      data: { status: "APPROVED" },
+      data: { status: "APPROVED", hasSafeguardingCert: true },
     });
 
-    revalidatePath("/dashboard/volunteers");
+    await logAudit({
+      userId: session.user.id,
+      userName: session.user.name ?? "Unknown",
+      action: "UPDATE",
+      entity: "Volunteer",
+      entityId: volunteer.id,
+      detail: volunteer.hasSafeguardingCert
+        ? `Approve relawan ${volunteer.name}`
+        : `Approve relawan ${volunteer.name} (sertifikat safeguarding diverifikasi)`,
+    });
+
+    revalidateVolunteerPages();
     return { success: true, id: idParsed.data };
   } catch (error) {
     console.error("approveVolunteer error:", error);
@@ -98,12 +212,21 @@ export async function rejectVolunteer(id: string): Promise<ActionResult> {
   }
 
   try {
-    await prisma.volunteer.update({
+    const volunteer = await prisma.volunteer.update({
       where: { id: idParsed.data },
       data: { status: "REJECTED" },
     });
 
-    revalidatePath("/dashboard/volunteers");
+    await logAudit({
+      userId: session.user.id,
+      userName: session.user.name ?? "Unknown",
+      action: "UPDATE",
+      entity: "Volunteer",
+      entityId: volunteer.id,
+      detail: `Tolak pendaftaran relawan ${volunteer.name}`,
+    });
+
+    revalidateVolunteerPages();
     return { success: true, id: idParsed.data };
   } catch (error) {
     console.error("rejectVolunteer error:", error);
@@ -129,7 +252,7 @@ export async function suspendVolunteer(
   try {
     const volunteer = await prisma.volunteer.findUnique({
       where: { id: parsed.data.volunteerId },
-      select: { id: true, redFlagNotes: true },
+      select: { id: true, name: true, redFlagNotes: true },
     });
     if (!volunteer) {
       return { success: false, error: "Relawan tidak ditemukan" };
@@ -161,7 +284,16 @@ export async function suspendVolunteer(
       session.user.id
     );
 
-    revalidatePath("/dashboard/volunteers");
+    await logAudit({
+      userId: session.user.id,
+      userName: session.user.name ?? "Unknown",
+      action: "UPDATE",
+      entity: "Volunteer",
+      entityId: volunteer.id,
+      detail: `Suspend (red flag) relawan ${volunteer.name}: ${parsed.data.reason.slice(0, 200)}`,
+    });
+
+    revalidateVolunteerPages();
     return { success: true, id: parsed.data.volunteerId };
   } catch (error) {
     console.error("suspendVolunteer error:", error);

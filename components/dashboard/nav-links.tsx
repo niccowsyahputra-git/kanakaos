@@ -26,6 +26,7 @@ import {
   BadgeCheck,
   DoorOpen,
   CalendarClock,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 
@@ -111,6 +112,12 @@ const links: NavLink[] = [
     href: "/dashboard/volunteers",
     label: "Relawan",
     icon: UserCheck,
+    allowedRoles: STAFF_ROLES,
+  },
+  {
+    href: "/dashboard/volunteers/needs",
+    label: "Kebutuhan Relawan",
+    icon: Megaphone,
     allowedRoles: STAFF_ROLES,
   },
   {

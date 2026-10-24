@@ -305,7 +305,7 @@ export async function backupDatabase(): Promise<ExportResult> {
   try {
     // Dump seluruh tabel sebagai JSON (password user tidak disertakan)
     const [users, guardians, children, dailyLogs, donations, inventory,
-      volunteers, partners, systemConfig, cases, interventions] =
+      volunteers, volunteerNeeds, partners, systemConfig, cases, interventions] =
       await Promise.all([
         prisma.user.findMany({
           select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
@@ -316,6 +316,7 @@ export async function backupDatabase(): Promise<ExportResult> {
         prisma.donation.findMany(),
         prisma.inventory.findMany(),
         prisma.volunteer.findMany(),
+        prisma.volunteerNeed.findMany(),
         prisma.partner.findMany(),
         prisma.systemConfig.findMany({
           // secret & data logo (base64 besar) tidak ikut backup
@@ -331,7 +332,7 @@ export async function backupDatabase(): Promise<ExportResult> {
       data: {
         users, guardians, children, dailyLogs,
         donations: donations.map((d) => ({ ...d, amount: d.amount.toString() })),
-        inventory, volunteers, partners, systemConfig, cases, interventions,
+        inventory, volunteers, volunteerNeeds, partners, systemConfig, cases, interventions,
       },
     };
 

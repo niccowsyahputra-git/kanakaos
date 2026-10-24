@@ -217,6 +217,11 @@ enum VolunteerStatus {
   SUSPENDED
 }
 
+enum VolunteerNeedStatus {
+  OPEN
+  CLOSED
+}
+
 enum PartnerType {
   RS
   SEKOLAH
@@ -599,8 +604,28 @@ model Volunteer {
   motivation          String?
   ktpUrl              String?
   skckUrl             String?
+  // Lowongan/kebutuhan relawan yang dilamar (opsional)
+  needId              String?
+  need                VolunteerNeed?  @relation(fields: [needId], references: [id], onDelete: SetNull)
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
+
+  @@index([status])
+  @@index([needId])
+}
+
+/// Kebutuhan relawan yayasan per bidang (bisa dibuka/ditutup kembali)
+model VolunteerNeed {
+  id          String              @id @default(cuid())
+  title       String
+  description String?
+  quantity    Int
+  schedule    String?
+  status      VolunteerNeedStatus @default(OPEN)
+  closedAt    DateTime?
+  volunteers  Volunteer[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
   @@index([status])
 }
