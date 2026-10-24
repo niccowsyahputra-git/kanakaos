@@ -1,0 +1,188 @@
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  StyleSheet,
+} from "@react-pdf/renderer";
+import { formatRupiah } from "@/lib/utils";
+
+export type ReportData = {
+  title: string;
+  periodLabel: string;
+  yayasanName: string;
+  generatedBy: string;
+  generatedAt: Date;
+  stats: {
+    totalChildren: number;
+    activeChildren: number;
+    totalDonations: number;
+    donationCount: number;
+    activeVolunteers: number;
+    dailyLogCount: number;
+  };
+  donations: {
+    receiptNumber: string;
+    donaturName: string;
+    amount: number;
+    date: Date;
+  }[];
+};
+
+const styles = StyleSheet.create({
+  page: { padding: 40, fontSize: 10, fontFamily: "Helvetica", color: "#1a1a1a" },
+  header: {
+    borderBottomWidth: 2,
+    borderBottomColor: "#2563eb",
+    paddingBottom: 10,
+    marginBottom: 16,
+  },
+  yayasan: { fontSize: 9, color: "#6b7280", marginBottom: 4 },
+  title: { fontSize: 16, fontFamily: "Helvetica-Bold", color: "#1d4ed8" },
+  period: { fontSize: 11, color: "#374151", marginTop: 2 },
+  sectionTitle: {
+    fontSize: 12,
+    fontFamily: "Helvetica-Bold",
+    marginTop: 14,
+    marginBottom: 8,
+  },
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  statBox: {
+    width: "31%",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 6,
+    padding: 8,
+  },
+  statLabel: { fontSize: 8, color: "#6b7280" },
+  statValue: { fontSize: 13, fontFamily: "Helvetica-Bold", marginTop: 2 },
+  tableHeader: {
+    flexDirection: "row",
+    backgroundColor: "#eff6ff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#bfdbfe",
+    paddingVertical: 5,
+    paddingHorizontal: 4,
+  },
+  tableRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#e5e7eb",
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+  },
+  colNo: { width: "22%", fontSize: 8 },
+  colName: { width: "38%", fontSize: 8 },
+  colDate: { width: "18%", fontSize: 8 },
+  colAmount: { width: "22%", fontSize: 8, textAlign: "right" },
+  bold: { fontFamily: "Helvetica-Bold" },
+  totalRow: {
+    flexDirection: "row",
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    backgroundColor: "#eff6ff",
+  },
+  footer: {
+    position: "absolute",
+    bottom: 24,
+    left: 40,
+    right: 40,
+    fontSize: 7,
+    color: "#9ca3af",
+    textAlign: "center",
+    borderTopWidth: 0.5,
+    borderTopColor: "#e5e7eb",
+    paddingTop: 6,
+  },
+});
+
+function formatDateId(date: Date): string {
+  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(date);
+}
+
+export function ReportPdf({ data }: { data: ReportData }) {
+  const totalAmount = data.donations.reduce((sum, d) => sum + d.amount, 0);
+
+  return (
+    <Document title={data.title} author={data.yayasanName}>
+      <Page size="A4" style={styles.page}>
+        <View style={styles.header}>
+          <Text style={styles.yayasan}>{data.yayasanName}</Text>
+          <Text style={styles.title}>{data.title}</Text>
+          <Text style={styles.period}>Periode: {data.periodLabel}</Text>
+        </View>
+
+        <Text style={styles.sectionTitle}>Ringkasan</Text>
+        <View style={styles.statsGrid}>
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>Total Anak Asuh</Text>
+            <Text style={styles.statValue}>{data.stats.totalChildren}</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>Anak Aktif</Text>
+            <Text style={styles.statValue}>{data.stats.activeChildren}</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>Relawan Aktif</Text>
+            <Text style={styles.statValue}>{data.stats.activeVolunteers}</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>Jumlah Donasi</Text>
+            <Text style={styles.statValue}>{data.stats.donationCount}</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>Total Donasi</Text>
+            <Text style={styles.statValue}>
+              {formatRupiah(data.stats.totalDonations)}
+            </Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>Log Harian Tercatat</Text>
+            <Text style={styles.statValue}>{data.stats.dailyLogCount}</Text>
+          </View>
+        </View>
+
+        <Text style={styles.sectionTitle}>
+          Rincian Donasi ({data.donations.length} transaksi)
+        </Text>
+        <View style={styles.tableHeader}>
+          <Text style={[styles.colNo, styles.bold]}>No. Kwitansi</Text>
+          <Text style={[styles.colName, styles.bold]}>Donatur</Text>
+          <Text style={[styles.colDate, styles.bold]}>Tanggal</Text>
+          <Text style={[styles.colAmount, styles.bold]}>Jumlah</Text>
+        </View>
+        {data.donations.length === 0 ? (
+          <View style={styles.tableRow}>
+            <Text style={{ fontSize: 8, color: "#6b7280" }}>
+              Tidak ada donasi pada periode ini.
+            </Text>
+          </View>
+        ) : (
+          data.donations.map((donation) => (
+            <View key={donation.receiptNumber} style={styles.tableRow} wrap={false}>
+              <Text style={styles.colNo}>{donation.receiptNumber}</Text>
+              <Text style={styles.colName}>{donation.donaturName}</Text>
+              <Text style={styles.colDate}>{formatDateId(donation.date)}</Text>
+              <Text style={styles.colAmount}>
+                {formatRupiah(donation.amount)}
+              </Text>
+            </View>
+          ))
+        )}
+        <View style={styles.totalRow}>
+          <Text style={[styles.colNo, styles.bold]}>TOTAL</Text>
+          <Text style={styles.colName} />
+          <Text style={styles.colDate} />
+          <Text style={[styles.colAmount, styles.bold]}>
+            {formatRupiah(totalAmount)}
+          </Text>
+        </View>
+
+        <Text style={styles.footer} fixed>
+          Dibuat oleh {data.generatedBy} pada {formatDateId(data.generatedAt)}{" "}
+          — Dokumen ini digenerate otomatis oleh sistem KanakaOS.
+        </Text>
+      </Page>
+    </Document>
+  );
+}

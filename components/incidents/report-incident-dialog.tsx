@@ -1,0 +1,231 @@
+"use client";
+
+import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Loader2, Siren } from "lucide-react";
+
+import { reportIncident } from "@/lib/actions/incident";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const TYPE_OPTIONS = [
+  { value: "HEALTH", label: "Kesehatan" },
+  { value: "BEHAVIOR", label: "Perilaku" },
+  { value: "ACCIDENT", label: "Kecelakaan" },
+  { value: "OTHER", label: "Lainnya" },
+];
+
+const URGENCY_OPTIONS = [
+  { value: "LOW", label: "Rendah" },
+  { value: "MEDIUM", label: "Sedang" },
+  { value: "HIGH", label: "Tinggi" },
+  { value: "CRITICAL", label: "Kritis — butuh tindakan segera" },
+];
+
+type ChildOption = { id: string; fullName: string };
+
+export function ReportIncidentDialog({
+  children,
+}: {
+  children: ChildOption[];
+}) {
+  const router = useRouter();
+  const photoRef = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
+  const [childId, setChildId] = useState("");
+  const [incidentType, setIncidentType] = useState("");
+  const [urgency, setUrgency] = useState("MEDIUM");
+  const [description, setDescription] = useState("");
+  const [handling, setHandling] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit() {
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("childId", childId);
+      formData.set("incidentType", incidentType);
+      formData.set("urgency", urgency);
+      formData.set("description", description);
+      formData.set("handling", handling);
+      const photo = photoRef.current?.files?.[0];
+      if (photo) formData.set("photo", photo);
+
+      const result = await reportIncident(formData);
+      if (result.success) {
+        if (result.warning) {
+          toast.warning("Insiden dilaporkan", { description: result.warning });
+        } else {
+          toast.success("Insiden berhasil dilaporkan");
+        }
+        setOpen(false);
+        setChildId("");
+        setIncidentType("");
+        setUrgency("MEDIUM");
+        setDescription("");
+        if (result.id) router.push(`/dashboard/incidents/${result.id}`);
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="w-full sm:w-auto">
+          <Siren className="h-4 w-4" />
+          Lapor Insiden
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Lapor Insiden</DialogTitle>
+          <DialogDescription>
+            Laporkan kejadian penting yang menimpa anak sesegera mungkin.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-4">
+          <div className="space-y-2">
+            <Label>Anak yang Terlibat</Label>
+            <Select value={childId} onValueChange={setChildId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih anak" />
+              </SelectTrigger>
+              <SelectContent>
+                {children.map((child) => (
+                  <SelectItem key={child.id} value={child.id}>
+                    {child.fullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <div className="w-full space-y-2 sm:w-1/2">
+              <Label>Jenis Insiden</Label>
+              <Select value={incidentType} onValueChange={setIncidentType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih jenis" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TYPE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full space-y-2 sm:w-1/2">
+              <Label>Tingkat Urgensi</Label>
+              <Select value={urgency} onValueChange={setUrgency}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih urgensi" />
+                </SelectTrigger>
+                <SelectContent>
+                  {URGENCY_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="incident-desc">Deskripsi Kejadian</Label>
+            <Textarea
+              id="incident-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Apa yang terjadi, kapan, di mana, tindakan awal yang sudah dilakukan..."
+              rows={4}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="incident-handling">
+              Penanganan Insiden{" "}
+              <span className="font-normal text-muted-foreground">
+                (opsional)
+              </span>
+            </Label>
+            <Textarea
+              id="incident-handling"
+              value={handling}
+              onChange={(e) => setHandling(e.target.value)}
+              placeholder="Tindakan penanganan yang sudah/akan dilakukan..."
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="incident-photo">
+              Foto Pendukung{" "}
+              <span className="font-normal text-muted-foreground">
+                (opsional, maks 5MB)
+              </span>
+            </Label>
+            <Input
+              id="incident-photo"
+              ref={photoRef}
+              type="file"
+              accept="image/*"
+              className="cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1 file:text-sm"
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={isPending}
+          >
+            Batal
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={
+              isPending ||
+              !childId ||
+              !incidentType ||
+              description.trim().length < 10
+            }
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Melaporkan...
+              </>
+            ) : (
+              "Kirim Laporan"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
