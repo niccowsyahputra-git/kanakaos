@@ -33,6 +33,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useI18n } from "@/lib/i18n/client";
+import { useManagedFormUploads } from "@/components/shared/use-managed-form-uploads";
+import { MANAGED_FORM_FIELDS } from "@/lib/storage-contract";
 
 
 type Intervention = {
@@ -82,11 +84,15 @@ export function CaseDetailTabs({
   const [interventionType, setInterventionType] = useState("");
   const [interventionNotes, setInterventionNotes] = useState("");
   const attachmentRef = useRef<HTMLInputElement>(null);
-  const [isSavingIntervention, startSavingIntervention] = useTransition();
+  const [isInterventionTransition, startSavingIntervention] = useTransition();
+  const interventionUploads = useManagedFormUploads(MANAGED_FORM_FIELDS.caseIntervention, caseId);
+  const isSavingIntervention = isInterventionTransition || interventionUploads.isPending;
 
   // --- Upload dokumen ---
   const documentRef = useRef<HTMLInputElement>(null);
-  const [isUploadingDoc, startUploadingDoc] = useTransition();
+  const [isDocumentTransition, startUploadingDoc] = useTransition();
+  const documentUploads = useManagedFormUploads(MANAGED_FORM_FIELDS.caseDocument, caseId);
+  const isUploadingDoc = isDocumentTransition || documentUploads.isPending;
 
   // --- Catatan ---
   const [noteContent, setNoteContent] = useState("");
@@ -102,7 +108,7 @@ export function CaseDetailTabs({
       const file = attachmentRef.current?.files?.[0];
       if (file) formData.set("attachment", file);
 
-      const result = await addIntervention(formData);
+      const result = await interventionUploads.submit(formData, addIntervention);
       if (result.success) {
         if (result.warning) {
           toast.warning(tr("Intervensi tersimpan"), {
@@ -130,7 +136,7 @@ export function CaseDetailTabs({
       const formData = new FormData();
       formData.set("caseId", caseId);
       formData.set("file", file);
-      const result = await uploadCaseDocument(formData);
+      const result = await documentUploads.submit(formData, uploadCaseDocument);
       if (result.success) {
         toast.success(tr("Dokumen ter-upload"));
         if (documentRef.current) documentRef.current.value = "";
@@ -171,7 +177,7 @@ export function CaseDetailTabs({
             {!isClosed && (
               <Dialog
                 open={interventionOpen}
-                onOpenChange={setInterventionOpen}
+                onOpenChange={value => { if (!isSavingIntervention) { setInterventionOpen(value); if (!value) interventionUploads.reset(); } }}
               >
                 <DialogTrigger asChild>
                   <Button className="w-full md:w-auto">
@@ -221,12 +227,14 @@ export function CaseDetailTabs({
                       <Input
                         id="int-file"
                         ref={attachmentRef}
+                        disabled={isSavingIntervention}
                         type="file"
                         accept="image/jpeg,image/png,image/webp,application/pdf"
                         className="cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1 file:text-sm"
                       />
                     </div>
                   </div>
+                  {interventionUploads.progress !== null && <progress className="w-full" max={100} value={interventionUploads.progress} aria-label={locale === "en" ? "Upload progress" : "Progres unggahan"} />}
                   <DialogFooter className="gap-2">
                     <Button
                       variant="outline"
@@ -300,6 +308,7 @@ export function CaseDetailTabs({
               <div className="flex flex-col gap-2 rounded-md border p-3 md:flex-row md:items-center">
                 <Input
                   ref={documentRef}
+                  disabled={isUploadingDoc}
                   type="file"
                   accept="image/jpeg,image/png,image/webp,application/pdf"
                   className="flex-1 cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1 file:text-sm"
@@ -322,6 +331,7 @@ export function CaseDetailTabs({
               </div>
             )}
 
+            {documentUploads.progress !== null && <progress className="w-full" max={100} value={documentUploads.progress} aria-label={locale === "en" ? "Upload progress" : "Progres unggahan"} />}
             {documents.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
                 {tr("Belum ada dokumen ter-upload.")}</p>

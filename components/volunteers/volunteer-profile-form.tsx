@@ -12,7 +12,7 @@ import { getSchemas } from "@/lib/validations";
 import { applyVolunteer } from "@/lib/actions/public";
 import { createVolunteer, updateVolunteer } from "@/lib/actions/volunteer";
 import { VOLUNTEER_FIELDS, VOLUNTEER_FIELD_CODES, VOLUNTEER_EDUCATION, VOLUNTEER_AVAILABILITY, readVolunteerSkills } from "@/lib/option-catalogs";
-import { ATTACHMENT_KINDS, ATTACHMENT_LABELS, UPLOAD_LIMITS, attachmentUrl, type AttachmentSummary } from "@/lib/volunteer-upload-contract";
+import { ATTACHMENT_KINDS, ATTACHMENT_LABELS, UPLOAD_LIMITS, volunteerAttachmentUrl, type AttachmentSummary } from "@/lib/volunteer-upload-contract";
 import { useVolunteerUploads, VolunteerUploadError } from "./use-volunteer-uploads";
 import { NeedSelect, type NeedOption } from "./need-select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -121,7 +121,7 @@ export function VolunteerProfileForm({ mode, volunteer, needs, onSuccess, onBusy
           const selected = uploads.items.filter(a => a.kind === kind);
           return <div key={kind} className="space-y-2 rounded-md border p-3">
             <Label htmlFor={`${id}-${kind}`}>{tr(ATTACHMENT_LABELS[kind])}{kind === "PHOTO" && " *"}</Label>
-            {existing.map(a => <div key={a.id} className="flex items-center justify-between gap-2 text-sm"><a href={attachmentUrl(a.id)} target="_blank" rel="noreferrer" className="break-all underline">{a.filename}</a>{kind !== "PHOTO" && <Button type="button" size="sm" variant="ghost" onClick={() => setRemoveIds(list => list.includes(a.id) ? list.filter(v => v !== a.id) : [...list, a.id])}>{tr(removeIds.includes(a.id) ? "Batalkan penghapusan" : "Hapus")}</Button>}</div>)}
+            {existing.map(a => <div key={a.id} className="flex items-center justify-between gap-2 text-sm"><a href={volunteerAttachmentUrl(a)} target="_blank" rel="noreferrer" className="break-all underline">{a.filename}</a>{kind !== "PHOTO" && <Button type="button" size="sm" variant="ghost" onClick={() => setRemoveIds(list => list.includes(a.id) ? list.filter(v => v !== a.id) : [...list, a.id])}>{tr(removeIds.includes(a.id) ? "Batalkan penghapusan" : "Hapus")}</Button>}</div>)}
             <Input id={`${id}-${kind}`} type="file" multiple={kind === "CERTIFICATE"} accept={kind === "PHOTO" ? "image/jpeg,image/png,image/webp" : "image/jpeg,image/png,image/webp,application/pdf"} aria-invalid={kind === "PHOTO" && Boolean(form.formState.errors.photoPresent)} onChange={event => {
               const files = Array.from(event.target.files ?? []);
               try {

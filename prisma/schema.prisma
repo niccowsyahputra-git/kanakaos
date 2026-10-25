@@ -384,6 +384,7 @@ model User {
   programInternalAllocations ProgramInternalAllocation[]
   employee          Employee?
   volunteer         Volunteer?
+  managedUploads    ManagedFile[]
 }
 
 model Guardian {
@@ -633,6 +634,7 @@ model Volunteer {
   major               String?
   submissionKey       String? @unique
   attachments         VolunteerAttachment[]
+  managedFiles        ManagedFile[]
   status              VolunteerStatus @default(PENDING)
   hasSafeguardingCert Boolean         @default(false)
   redFlagNotes        String?
@@ -656,6 +658,47 @@ model Volunteer {
 
   @@index([status])
   @@index([needId])
+}
+
+enum ManagedFileState {
+  PENDING
+  UPLOADED
+  ATTACHED
+  CLEANUP_PENDING
+  CLEANED
+}
+
+model ManagedFile {
+  id               String           @id @default(cuid())
+  driveFileId      String           @unique
+  purpose          String
+  filename         String
+  mime             String
+  expectedBytes    Int
+  verifiedBytes    Int?
+  uploaderId       String?
+  nonceHash        String
+  clientIpHash     String?
+  targetType       String
+  targetId         String?
+  parentType       String?
+  parentId         String?
+  volunteerId      String?
+  state            ManagedFileState @default(PENDING)
+  expiresAt        DateTime
+  cleanupAfter     DateTime
+  verifiedAt       DateTime?
+  attachedAt       DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  uploader         User?            @relation(fields: [uploaderId], references: [id], onDelete: SetNull)
+  volunteer        Volunteer?       @relation(fields: [volunteerId], references: [id], onDelete: SetNull)
+
+  @@index([parentType, parentId])
+  @@index([volunteerId, purpose])
+  @@index([state, expiresAt])
+  @@index([nonceHash, createdAt])
+  @@index([clientIpHash, createdAt])
 }
 
 model VolunteerAttachment {

@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import { migrateModuleImprovements } from "./migrate-module-improvements";
 import { migrateProgramFunding } from "./migrate-program-funding";
 import { backfillProgramFunding } from "./backfill-program-funding";
+import { migrateManagedStorage } from "./migrate-managed-storage";
 
 const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
 type Reader = Pick<Client, "execute"> | Pick<Transaction, "execute">;
@@ -49,7 +50,7 @@ export async function restoreSnapshot(snapshot: DatabaseSnapshot, db: Client) {
   finally { tx.close(); await db.execute("PRAGMA foreign_keys = ON"); }
 }
 
-// All three existing migrations share one transaction; only this outer owner commits.
+// All additive migrations share one transaction; only this outer owner commits.
 export async function applyReleaseMigrations(db: Client, expectedHash: string) {
   const tx = await db.transaction("write");
   try {
@@ -73,6 +74,7 @@ export async function applyReleaseMigrations(db: Client, expectedHash: string) {
     await migrateModuleImprovements(scoped);
     await migrateProgramFunding(scoped);
     const classification = await backfillProgramFunding(scoped, true);
+    await migrateManagedStorage(scoped);
     // Preserve every original column/value except the explicit nullable backfill destinations.
     const backfillFields: Record<string, string[]> = {
       Employee: ["entityLocationId"], Volunteer: ["skillsJson"],

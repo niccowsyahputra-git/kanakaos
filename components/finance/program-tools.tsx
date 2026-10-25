@@ -39,6 +39,8 @@ import {
 import { useI18n } from "@/lib/i18n/client";
 import { localizeLabels } from "@/lib/i18n/translate";
 import { getSchemas } from "@/lib/validations";
+import { useManagedFormUploads } from "@/components/shared/use-managed-form-uploads";
+import { MANAGED_FORM_FIELDS } from "@/lib/storage-contract";
 
 
 const NONE = "NONE";
@@ -174,7 +176,9 @@ function ProgramFormDialog({
 
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [isTransitionPending, startTransition] = useTransition();
+  const uploads = useManagedFormUploads(MANAGED_FORM_FIELDS.program, mode === "edit" ? program?.id : undefined);
+  const isPending = isTransitionPending || uploads.isPending;
   const proposalRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(program?.name ?? "");
@@ -245,10 +249,8 @@ function ProgramFormDialog({
       const proposal = proposalRef.current?.files?.[0];
       if (proposal) formData.set("proposal", proposal);
 
-      const result =
-        mode === "create"
-          ? await createProgram(formData)
-          : await updateProgram(program!.id, formData);
+      const result = await uploads.submit(formData, prepared =>
+        mode === "create" ? createProgram(prepared) : updateProgram(program!.id, prepared));
 
       if (result.success) {
         toast.success(
@@ -264,7 +266,7 @@ function ProgramFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={value => { if (!isPending) { setOpen(value); if (!value) uploads.reset(); } }}>
       <DialogTrigger asChild>
         {mode === "create" ? (
           <Button className="w-full sm:w-auto">
@@ -435,6 +437,7 @@ function ProgramFormDialog({
             <Input
               id="prg-proposal"
               ref={proposalRef}
+              disabled={isPending}
               type="file"
               accept="application/pdf"
               className="cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1 file:text-sm"
@@ -442,6 +445,7 @@ function ProgramFormDialog({
           </div>
         </div>
 
+        {uploads.progress !== null && <progress className="w-full" max={100} value={uploads.progress} aria-label={locale === "en" ? "Upload progress" : "Progres unggahan"} />}
         <DialogFooter className="gap-2">
           <Button
             variant="outline"

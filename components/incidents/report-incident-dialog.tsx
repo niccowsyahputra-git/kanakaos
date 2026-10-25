@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { Loader2, Siren } from "lucide-react";
 
 import { reportIncident } from "@/lib/actions/incident";
+import { useManagedFormUploads } from "@/components/shared/use-managed-form-uploads";
+import { MANAGED_FORM_FIELDS } from "@/lib/storage-contract";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,7 +65,9 @@ export function ReportIncidentDialog({
   const [urgency, setUrgency] = useState("MEDIUM");
   const [description, setDescription] = useState("");
   const [handling, setHandling] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const [isTransitionPending, startTransition] = useTransition();
+  const uploads = useManagedFormUploads(MANAGED_FORM_FIELDS.incident);
+  const isPending = isTransitionPending || uploads.isPending;
 
   function handleSubmit() {
     startTransition(async () => {
@@ -76,7 +80,7 @@ export function ReportIncidentDialog({
       const photo = photoRef.current?.files?.[0];
       if (photo) formData.set("photo", photo);
 
-      const result = await reportIncident(formData);
+      const result = await uploads.submit(formData, reportIncident);
       if (result.success) {
         if (result.warning) {
           toast.warning(tr("Insiden dilaporkan"), { description: result.warning });
@@ -96,7 +100,7 @@ export function ReportIncidentDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={value => { if (!isPending) { setOpen(value); if (!value) uploads.reset(); } }}>
       <DialogTrigger asChild>
         <Button className="w-full sm:w-auto">
           <Siren className="h-4 w-4" />
@@ -195,12 +199,14 @@ export function ReportIncidentDialog({
               id="incident-photo"
               ref={photoRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={isPending}
               className="cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1 file:text-sm"
             />
           </div>
         </div>
 
+        {uploads.progress !== null && <progress className="w-full" max={100} value={uploads.progress} aria-label={locale === "en" ? "Upload progress" : "Progres unggahan"} />}
         <DialogFooter className="gap-2">
           <Button
             variant="outline"

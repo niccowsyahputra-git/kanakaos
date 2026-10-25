@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Loader2, Save, FileDown, DatabaseBackup, Trash2 } from "lucide-react";
@@ -10,6 +10,7 @@ import {
   saveNotificationSettings,
   exportDataCsv,
   backupDatabase,
+  cleanUnclaimedStorage,
 } from "@/lib/actions/settings";
 import { downloadBase64 } from "@/lib/download";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,8 @@ import { AISettingsForm } from "@/components/admin/ai-settings-form";
 import { LandingSettingsForm } from "@/components/admin/landing-settings-form";
 import type { LandingContent } from "@/lib/site-content";
 import { useI18n } from "@/lib/i18n/client";
+import { useManagedFormUploads } from "@/components/shared/use-managed-form-uploads";
+import { MANAGED_FORM_FIELDS } from "@/lib/storage-contract";
 
 
 export type SettingsValues = {
@@ -87,6 +90,9 @@ export function SettingsTabs({
   const [activityPermit, setActivityPermit] = useState(initial.activityPermit);
   const [domicileLetter, setDomicileLetter] = useState(initial.domicileLetter);
   const [isSavingGeneral, startSavingGeneral] = useTransition();
+  const uploads = useManagedFormUploads(MANAGED_FORM_FIELDS.branding, "YAYASAN_LOGO_URL");
+  const generalPending = isSavingGeneral || uploads.isPending;
+  useEffect(() => () => { if (logoPreview.startsWith("blob:")) URL.revokeObjectURL(logoPreview); }, [logoPreview]);
 
   // --- Tab 2: Notification ---
   const [notifEmail, setNotifEmail] = useState(initial.notifEmail);
@@ -98,6 +104,18 @@ export function SettingsTabs({
   // --- Tab 3: Backup ---
   const [isExporting, startExporting] = useTransition();
   const [isBackingUp, startBackingUp] = useTransition();
+  const [isCleaning, setCleaning] = useState(false);
+  async function handleCleanup() {
+    if (isCleaning) return;
+    setCleaning(true);
+    try {
+      const result = await cleanUnclaimedStorage();
+      if (result.success) toast.success(locale === "en" ? "Cleanup batch completed. Saved files were retained." : "Pembersihan batch selesai. File tersimpan tetap dipertahankan.");
+      else toast.error(result.error);
+    } catch {
+      toast.error(locale === "en" ? "Cleanup failed. Please retry." : "Pembersihan gagal. Silakan coba lagi.");
+    } finally { setCleaning(false); }
+  }
 
   function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -132,7 +150,7 @@ export function SettingsTabs({
       if (logoFile) formData.set("logo", logoFile);
       else if (removeLogo) formData.set("removeLogo", "true");
 
-      const result = await saveGeneralSettings(formData);
+      const result = await uploads.submit(formData, saveGeneralSettings);
       if (result.success) {
         toast.success(tr("Pengaturan umum tersimpan"));
         if (logoInputRef.current) logoInputRef.current.value = "";
@@ -326,13 +344,14 @@ export function SettingsTabs({
               <Label htmlFor="yayasan-logo">
                 {tr("Logo Yayasan")}{" "}
                 <span className="font-normal text-muted-foreground">
-                  {tr("(JPG, JPEG, PNG — maks 1MB)")}</span>
+                  {locale === "en" ? "(JPG, JPEG, PNG — max 3MB)" : "(JPG, JPEG, PNG — maks 3MB)"}</span>
               </Label>
               <Input
                 id="yayasan-logo"
                 ref={logoInputRef}
                 type="file"
                 accept="image/jpeg,image/png"
+                disabled={generalPending}
                 onChange={handleLogoChange}
                 className="cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1 file:text-sm"
               />
@@ -356,6 +375,7 @@ export function SettingsTabs({
                   size="sm"
                   className="text-destructive hover:text-destructive"
                   onClick={handleRemoveLogo}
+                  disabled={generalPending}
                 >
                   <Trash2 className="h-4 w-4" /> {tr(" Hapus")}</Button>
               </div>
@@ -364,13 +384,14 @@ export function SettingsTabs({
               <p className="text-xs text-muted-foreground">
                 {tr("Logo akan dihapus setelah pengaturan disimpan.")}</p>
             )}
+            {uploads.isPending && <progress className="w-full" value={uploads.progress ?? undefined} max={100} aria-label={locale === "en" ? "Upload progress" : "Progres unggahan"} />}
             <div className="flex justify-end">
               <Button
                 onClick={handleSaveGeneral}
-                disabled={isSavingGeneral || yayasanName.trim().length < 3}
+                disabled={generalPending || yayasanName.trim().length < 3}
                 className="w-full md:w-auto"
               >
-                {isSavingGeneral ? (
+                {generalPending ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> {tr(" Menyimpan...")}</>
                 ) : (
                   <><Save className="h-4 w-4" /> {tr(" Simpan Pengaturan")}</>
@@ -519,6 +540,14 @@ export function SettingsTabs({
                 ) : (
                   <><DatabaseBackup className="h-4 w-4" /> {tr(" Backup Database")}</>
                 )}
+              </Button>
+            </div>
+            <div className="space-y-3 rounded-md border p-4">
+              <p className="text-sm font-medium">{locale === "en" ? "Unclaimed upload cleanup" : "Pembersihan unggahan tidak terpakai"}</p>
+              <p className="text-xs text-muted-foreground">{locale === "en" ? "Checks up to 20 abandoned uploads per batch. Saved and historical files are retained. Repeat periodically: expired upload sessions are rechecked for eight days." : "Memeriksa hingga 20 unggahan terbengkalai per batch. File tersimpan dan riwayat dipertahankan. Ulangi berkala: sesi unggahan kedaluwarsa diperiksa ulang selama delapan hari."}</p>
+              <Button variant="outline" onClick={handleCleanup} disabled={isCleaning}>
+                {isCleaning && <Loader2 className="h-4 w-4 animate-spin" />}
+                {locale === "en" ? "Run cleanup batch" : "Jalankan batch pembersihan"}
               </Button>
             </div>
           </CardContent>

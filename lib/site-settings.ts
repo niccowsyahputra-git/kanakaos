@@ -1,5 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
+import { readCurrentBranding } from "@/lib/managed-file-read.server";
+import { publicBrandingUrl } from "@/lib/storage-contract";
 import {
   DEFAULT_LANDING,
   DEFAULT_YAYASAN_NAME,
@@ -89,7 +91,7 @@ export const getSiteSettings = cache(async function getSiteSettings(): Promise<S
       address: map.get("YAYASAN_ADDRESS") ?? "",
       phone: map.get("YAYASAN_PHONE") ?? "",
       email: map.get("YAYASAN_EMAIL") ?? "",
-      logoUrl: map.get("YAYASAN_LOGO_URL") ?? "",
+      logoUrl: publicBrandingUrl(map.get("YAYASAN_LOGO_URL") ?? ""),
     },
     landing: {
       heroBadge: text("heroBadge"),
@@ -113,28 +115,22 @@ export type ReceiptYayasan = Omit<YayasanIdentity, "logoUrl"> & {
   logoSrc: string | null;
 };
 
-const LOGO_DATA_URL_PATTERN = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/;
 const MAX_REMOTE_LOGO_BYTES = 3 * 1024 * 1024;
 
 /** Ambil logo sebagai data URL agar PDF tidak bergantung pada fetch saat render. */
 async function loadLogoDataUrl(logoUrl: string): Promise<string | null> {
-  if (logoUrl.startsWith("/api/yayasan-logo")) {
-    const row = await prisma.systemConfig.findUnique({
-      where: { configKey: "YAYASAN_LOGO_DATA" },
-    });
-    const value = row?.configValue ?? "";
-    return LOGO_DATA_URL_PATTERN.test(value) ? value : null;
-  }
-  if (!logoUrl.startsWith("https://")) return null;
   try {
-    const res = await fetch(logoUrl, { signal: AbortSignal.timeout(5000) });
+    const res = logoUrl.startsWith("/api/yayasan-logo")
+      ? await readCurrentBranding(prisma)
+      : logoUrl.startsWith("https://") ? await fetch(logoUrl, { signal: AbortSignal.timeout(5000) }) : null;
+    if (!res) return null;
     const mime = res.headers.get("content-type")?.split(";")[0] ?? "";
     if (!res.ok || (mime !== "image/png" && mime !== "image/jpeg")) return null;
     const bytes = Buffer.from(await res.arrayBuffer());
     if (bytes.length > MAX_REMOTE_LOGO_BYTES) return null;
     return `data:${mime};base64,${bytes.toString("base64")}`;
   } catch (error) {
-    console.error("loadLogoDataUrl error:", error);
+    console.error("Foundation logo could not be loaded for the PDF.");
     return null;
   }
 }

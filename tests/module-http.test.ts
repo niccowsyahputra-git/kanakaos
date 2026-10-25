@@ -32,6 +32,9 @@ test("isolated local HTTP pages render both languages and enforce employee permi
     assert.equal(session.user.email, email);
   }
   assert.equal((await request("/dashboard/employees")).status, 307);
+  assert.equal((await request("/api/files/cm000000000000000000000001")).status, 404);
+  assert.equal((await request("/api/uploads/start", { method: "POST", headers: { "Content-Type": "application/json", Origin: base! }, body: JSON.stringify({ mode: "staff" }) })).status, 403);
+  assert.equal((await request("/api/uploads/start", { method: "POST", headers: { "Content-Type": "application/json", Origin: "https://foreign.example" }, body: JSON.stringify({ mode: "public" }) })).status, 403);
   await login("smoke-admin@example.test");
   for (const locale of ["id", "en"]) {
     cookies.set("NEXT_LOCALE", locale);
@@ -57,11 +60,16 @@ test("isolated local HTTP pages render both languages and enforce employee permi
     const income = await (await request("/dashboard/finance/income/new")).text();
     assert.ok(income.includes("Smoke Mixed Program"));
     assert.ok(!income.includes("Smoke Internal Program"));
-    const storage = await request("/api/volunteer-uploads/sign", {
+    const legacy = await request("/api/volunteer-uploads/sign", {
       method: "POST", headers: { "Content-Type": "application/json", Origin: base! },
       body: JSON.stringify({ mode: "public", nonce: crypto.randomUUID(), files: [{ kind: "PHOTO", filename: "test.png", mime: "image/png", bytes: 100 }] }),
     });
-    assert.equal(storage.status, 400);
+    assert.equal(legacy.status, 410);
+    const storage = await request("/api/uploads/start", {
+      method: "POST", headers: { "Content-Type": "application/json", Origin: base! },
+      body: JSON.stringify({ mode: "public", nonce: crypto.randomUUID(), file: { purpose: "VOLUNTEER_PHOTO", filename: "test.png", mime: "image/png", bytes: 100 } }),
+    });
+    assert.equal(storage.status, 503);
     assert.match((await storage.json()).error, locale === "en" ? /Storage is not configured/ : /Penyimpanan belum dikonfigurasi/);
   }
   await login("smoke-staff@example.test");

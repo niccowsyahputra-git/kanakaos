@@ -11,6 +11,8 @@ import {
   deleteGuardian,
 } from "@/lib/actions/guardian";
 import { formatRupiah, cn } from "@/lib/utils";
+import { useManagedFormUploads } from "@/components/shared/use-managed-form-uploads";
+import { MANAGED_FORM_FIELDS } from "@/lib/storage-contract";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -120,7 +122,14 @@ function GuardianFormDialog({
 
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const uploads = useManagedFormUploads(MANAGED_FORM_FIELDS.guardian, mode === "edit" ? guardian?.id : undefined);
+  const [isTransitionPending, startTransition] = useTransition();
+  const isPending = isTransitionPending || uploads.isPending;
+  function changeOpen(next: boolean) {
+    if (isPending) return;
+    if (!next) uploads.reset();
+    setOpen(next);
+  }
 
   const ktpRef = useRef<HTMLInputElement>(null);
   const kkRef = useRef<HTMLInputElement>(null);
@@ -251,10 +260,8 @@ function GuardianFormDialog({
       attach("selfie", selfieRef);
       attach("otherDoc", otherRef);
 
-      const result =
-        mode === "create"
-          ? await createGuardian(fd)
-          : await updateGuardian(guardian!.id, fd);
+      const result = await uploads.submit(fd, prepared =>
+        mode === "create" ? createGuardian(prepared) : updateGuardian(guardian!.id, prepared));
 
       if (result.success) {
         if (result.warning) {
@@ -281,7 +288,7 @@ function GuardianFormDialog({
   const incomeNumber = Number(form.monthlyIncome) || 0;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={changeOpen}>
       <DialogTrigger asChild>
         {mode === "create" ? (
           <Button className="w-full sm:w-auto">
@@ -708,10 +715,11 @@ function GuardianFormDialog({
           </div>
         </div>
 
+        {isPending && uploads.progress !== null && <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{locale === "en" ? "Uploading files" : "Mengunggah berkas"}: {uploads.progress}%</p>}
         <DialogFooter className="gap-2">
           <Button
             variant="outline"
-            onClick={() => setOpen(false)}
+            onClick={() => changeOpen(false)}
             disabled={isPending}
           >
             {tr("Batal")}</Button>

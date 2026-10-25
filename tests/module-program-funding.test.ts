@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { before, test } from "node:test";
+import { after, before, test } from "node:test";
 import { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -16,6 +16,8 @@ import { getSchemas } from "../lib/validations";
 import { createTranslator, localizeLabels } from "../lib/i18n/translate";
 import { programFundingSourceOptions, expenseFundingSourceLabel } from "../components/finance/finance-labels";
 import { ProgramFundingComposition, ProgramExpenseTable } from "../components/finance/program-funding-detail";
+import type { DriveMetadata, DriveStorage } from "../lib/google-drive.server";
+import { MANAGED_FORM_KEY } from "../lib/storage-contract";
 
 let formLocale: "id" | "en" = "en";
 let formAuthorized = true;
@@ -39,10 +41,28 @@ stub("../lib/prisma", { prisma: new Proxy({}, { get(_target, key) {
 const session = () => formAuthorized ? { user: { id: formUserId, name: "Funding Staff", role: formRole } } : null;
 stub("../lib/auth-guard", { requireFinanceSession: async () => session(), requireSuperAdminSession: async () => formRole === "SUPER_ADMIN" ? session() : null });
 stub("next/cache", { revalidatePath() {} });
-stub("../lib/cloudinary", {
-  isCloudinaryConfigured: () => !!uploadHook,
-  uploadFileToCloudinary: async () => { assert.ok(uploadHook); await uploadHook(); return "https://example.test/fixture-proof.pdf"; },
+stub("server-only", {});
+const storage = require("../lib/managed-storage.server") as typeof import("../lib/managed-storage.server");
+const signingSecret = "isolated-funding-storage-signing-secret";
+const previousSigningSecret = process.env.STORAGE_SIGNING_SECRET;
+process.env.STORAGE_SIGNING_SECRET = signingSecret;
+after(() => {
+  if (previousSigningSecret === undefined) delete process.env.STORAGE_SIGNING_SECRET;
+  else process.env.STORAGE_SIGNING_SECRET = previousSigningSecret;
 });
+const driveMetadata = new Map<string, DriveMetadata>();
+const proofBytes = Buffer.from("%PDF-1.4\nNon-sensitive fixture\n%%EOF");
+const drive: DriveStorage = {
+  folderId: "fixture-funding-folder", generateId: async () => `fixture-${randomUUID()}`,
+  health: async () => {}, upload: async () => {}, trash: async () => {},
+  download: async () => new Response(proofBytes), prefix: async () => proofBytes,
+  metadata: async id => driveMetadata.get(id) ?? null,
+  start: async file => {
+    driveMetadata.set(file.id, { id: file.id, mimeType: file.mime, size: String(file.bytes), parents: [drive.folderId], ownedByMe: true, trashed: false,
+      appProperties: { application: "kanakaos", managedId: file.managedId, purpose: file.purpose }, permissions: [{ type: "user", role: "owner" }] });
+    return "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&upload_id=fixture";
+  },
+};
 stub("../lib/i18n/server", { getT: async () => ({ locale: formLocale, tr: createTranslator(formLocale) }) });
 stub("../lib/i18n/client", { useI18n: () => ({ locale: formLocale, tr: createTranslator(formLocale) }) });
 stub("next/navigation", {
@@ -440,7 +460,7 @@ async function businessFixture() {
   formLocale = "en";
   formAuthorized = true;
   formRole = "FINANCE";
-  const user = await prisma.user.create({ data: { name: "Funding staff", email: "staff@example.test", password: "fixture-only" } });
+  const user = await prisma.user.create({ data: { name: "Funding staff", email: "staff@example.test", password: "fixture-only", role: "FINANCE" } });
   formUserId = user.id;
   const account = await prisma.cashAccount.create({ data: { name: "Funding account", openingBalance: 99 } });
   const incomeData = {
@@ -464,18 +484,26 @@ async function businessFixture() {
     assert.ok(result.success && result.id);
     return result.id;
   };
-  const expenseForm = (programId: string | undefined, source: string | undefined, amount: number) => {
+  const expenseForm = async (programId: string | undefined, source: string | undefined, amount: number) => {
     const form = new FormData();
     for (const [key, value] of Object.entries({ date: "2026-10-25", accountId: account.id,
       pocket: programId ? "TERIKAT" : "TIDAK_TERIKAT", coa: "BEBAN_KANTOR", amount: String(amount),
     })) form.set(key, value);
     if (programId) form.set("programId", programId);
     if (source) form.set("sumberDana", source);
-    form.set("proof", new File(["fixture PDF"], "proof.pdf", { type: "application/pdf" }));
+    const nonce = randomUUID();
+    const actor = { id: user.id };
+    const upload = await storage.startManagedUpload(prisma, drive, { nonce, mode: "staff", file: {
+      purpose: "EXPENSE_PROOF", filename: "proof.pdf", mime: "application/pdf", bytes: proofBytes.length,
+    } }, actor, signingSecret);
+    const claim = { id: upload.id, ticket: upload.ticket };
+    await storage.finalizeManagedUpload(prisma, drive, claim, actor, signingSecret);
+    form.set(MANAGED_FORM_KEY, JSON.stringify({ nonce, claims: [claim] }));
+    await uploadHook?.();
     return form;
   };
   const spend = async (programId: string | undefined, source: string | undefined, amount: number) => {
-    const result = await expenseActions.createFinanceExpense(expenseForm(programId, source, amount));
+    const result = await expenseActions.createFinanceExpense(await expenseForm(programId, source, amount));
     assert.equal(result.success, true, JSON.stringify(result));
     assert.ok(result.success && result.id);
     return result.id;
@@ -621,12 +649,12 @@ test("expense sources are required, restricted by type, and cannot borrow anothe
       [fundraising, "INTERNAL", 1, "Sumber dana tidak diizinkan untuk program ini"],
       [internal, "PENGGALANGAN", 1, "Sumber dana tidak diizinkan untuk program ini"],
     ] as const) {
-      await expectFundingError(await expenseActions.createFinanceExpense(f.expenseForm(program, source, amount)), message);
+      await expectFundingError(await expenseActions.createFinanceExpense(await f.expenseForm(program, source, amount)), message);
     }
     for (const source of [undefined, "CAMPURAN", "OTHER"]) {
-      assert.equal((await expenseActions.createFinanceExpense(f.expenseForm(mixed, source, 1))).success, false);
+      assert.equal((await expenseActions.createFinanceExpense(await f.expenseForm(mixed, source, 1))).success, false);
     }
-    const bypass = f.expenseForm(mixed, "INTERNAL", 1);
+    const bypass = await f.expenseForm(mixed, "INTERNAL", 1);
     bypass.set("pocket", "TIDAK_TERIKAT");
     await expectFundingError(await expenseActions.createFinanceExpense(bypass), "Sumber dana program memerlukan kantong program");
     for (const expected of ["REVIEW", "APPROVAL", "SELESAI"]) {
@@ -643,7 +671,7 @@ test("expense sources are required, restricted by type, and cannot borrow anothe
     assert.equal((await f.wallet(internal)).internal.balance, 0);
     await f.spend(undefined, undefined, 700);
     assert.equal(await balances.getUnrestrictedBalance(), 0);
-    await expectFundingError(await expenseActions.createFinanceExpense(f.expenseForm(undefined, undefined, 1)), "Saldo dana tidak terikat tidak cukup");
+    await expectFundingError(await expenseActions.createFinanceExpense(await f.expenseForm(undefined, undefined, 1)), "Saldo dana tidak terikat tidak cukup");
   } finally { await f.close(); }
 });
 
@@ -656,7 +684,7 @@ test("source balances are rechecked after upload before a voucher is saved", asy
         pocket: "TERIKAT", programId: program, sumberDana: "INTERNAL", coa: "BEBAN_KANTOR", amount: 80, createdById: f.user.id,
       } });
     };
-    await expectFundingError(await expenseActions.createFinanceExpense(f.expenseForm(program, "INTERNAL", 80)), "Saldo sumber dana program tidak cukup");
+    await expectFundingError(await expenseActions.createFinanceExpense(await f.expenseForm(program, "INTERNAL", 80)), "Saldo sumber dana program tidak cukup");
     assert.equal((await f.wallet(program)).internal.balance, 20);
     assert.equal(await f.prisma.financeExpense.count({ where: { programId: program } }), 1);
   } finally { await f.close(); }
@@ -665,9 +693,10 @@ test("source balances are rechecked after upload before a voucher is saved", asy
 test("concurrent allocations and general expenses cannot reserve the same unrestricted balance", async () => {
   const f = await businessFixture();
   try {
+    const expenseForm = await f.expenseForm(undefined, undefined, 700);
     const results = await Promise.all([
       programActions.createProgram(f.programForm("INTERNAL", 700)),
-      requestDatabase.run(f.peer, () => expenseActions.createFinanceExpense(f.expenseForm(undefined, undefined, 700))),
+      requestDatabase.run(f.peer, () => expenseActions.createFinanceExpense(expenseForm)),
     ]);
     assert.equal(results.filter(r => r.success).length, 1, JSON.stringify(results));
     assert.equal(await balances.getUnrestrictedBalance(), 300);
@@ -681,9 +710,11 @@ test("concurrent program expenses and receipt verification preserve one reservat
   const f = await businessFixture();
   try {
     const program = await f.create("INTERNAL", 100);
+    const firstForm = await f.expenseForm(program, "INTERNAL", 70);
+    const secondForm = await f.expenseForm(program, "INTERNAL", 70);
     const results = await Promise.all([
-      expenseActions.createFinanceExpense(f.expenseForm(program, "INTERNAL", 70)),
-      requestDatabase.run(f.peer, () => expenseActions.createFinanceExpense(f.expenseForm(program, "INTERNAL", 70))),
+      expenseActions.createFinanceExpense(firstForm),
+      requestDatabase.run(f.peer, () => expenseActions.createFinanceExpense(secondForm)),
     ]);
     assert.equal(results.filter(r => r.success).length, 1, JSON.stringify(results));
     assert.equal((await f.wallet(program)).internal.balance, 30);
@@ -738,7 +769,7 @@ test("fractional receipts and reservations do not create spendable floating-poin
     await f.spend(program, "PENGGALANGAN", 0.3);
     assert.equal((await f.wallet(program)).balance, 0);
     for (const source of ["PENGGALANGAN", "INTERNAL"]) {
-      await expectFundingError(await expenseActions.createFinanceExpense(f.expenseForm(program, source, 0.01)), "Saldo sumber dana program tidak cukup");
+      await expectFundingError(await expenseActions.createFinanceExpense(await f.expenseForm(program, source, 0.01)), "Saldo sumber dana program tidak cukup");
     }
     assert.equal(await balances.getUnrestrictedBalance(), 999.7);
     await f.spend(undefined, undefined, 999.7);

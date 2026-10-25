@@ -50,6 +50,7 @@ export default async function ProfilePage() {
 
       <ProfileForm
         user={{
+          id: session.user.id,
           name: user.name,
           email: user.email,
           phone: user.phone,

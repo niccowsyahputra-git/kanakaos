@@ -12,9 +12,11 @@ import {
 } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import type { z } from "zod";
-import type { UploadBundle } from "@/lib/volunteer-upload-contract";
-import { persistVolunteerProfile } from "@/lib/volunteer-profile.server";
-import { volunteerStorage, VolunteerSaveError } from "@/lib/volunteer-uploads.server";
+import type { ManagedVolunteerBundle } from "@/lib/volunteer-upload-contract";
+import { persistManagedVolunteerProfile } from "@/lib/managed-volunteer-profile.server";
+import { VolunteerSaveError } from "@/lib/volunteer-uploads.server";
+import { storageSigningSecret } from "@/lib/managed-storage.server";
+import { StorageError, storageErrorMessage } from "@/lib/storage-contract";
 import { getT } from "@/lib/i18n/server";
 import { getSchemas } from "@/lib/validations";
 
@@ -84,12 +86,12 @@ export async function createDonationPledge(
   }
 }
 
-export async function applyVolunteer(values: z.input<typeof volunteerApplySchema>, uploads: UploadBundle): Promise<ActionResult> {
+export async function applyVolunteer(values: z.input<typeof volunteerApplySchema>, uploads: ManagedVolunteerBundle): Promise<ActionResult> {
   const { tr, locale } = await getT();
   const parsed = getSchemas(locale).volunteerApplySchema.safeParse(values);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0].message };
   try {
-    const saved = await persistVolunteerProfile(prisma, volunteerStorage(), {
+    const saved = await persistManagedVolunteerProfile(prisma, storageSigningSecret(), {
       ...parsed.data, availability: parsed.data.availability.join(", "), hasSafeguardingCert: false,
     }, uploads, { id: "public", name: "PUBLIK", public: true });
     // Side-effect failures must not turn a committed registration into a failed submission.
@@ -107,7 +109,7 @@ export async function applyVolunteer(values: z.input<typeof volunteerApplySchema
     } catch (error) { console.error("Registration saved; refresh failed", error); }
     return { success: true, id: saved.id };
   } catch (error) {
-    console.error("applyVolunteer error:", error);
-    return { success: false, error: tr(error instanceof VolunteerSaveError ? error.message : "Gagal mengirim pendaftaran") };
+    if (!(error instanceof StorageError || error instanceof VolunteerSaveError)) console.error("Volunteer registration failed");
+    return { success: false, error: error instanceof StorageError ? storageErrorMessage(error.code, locale) : tr(error instanceof VolunteerSaveError ? error.message : "Gagal mengirim pendaftaran") };
   }
 }

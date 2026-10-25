@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { Loader2, Save, FileText, Copy } from "lucide-react";
 
 import { createChild, updateChild } from "@/lib/actions/child";
+import { useManagedFormUploads } from "@/components/shared/use-managed-form-uploads";
+import { MANAGED_FORM_FIELDS } from "@/lib/storage-contract";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -210,7 +212,9 @@ export function ChildForm({
   const educationOptions = localizeLabels(__educationOptions, tr);
 
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const uploads = useManagedFormUploads(MANAGED_FORM_FIELDS.child, mode === "edit" ? child?.id : undefined);
+  const [isTransitionPending, startTransition] = useTransition();
+  const isPending = isTransitionPending || uploads.isPending;
 
   // Refs file
   const photoRef = useRef<HTMLInputElement>(null);
@@ -418,10 +422,8 @@ export function ChildForm({
       attach("supportingDoc", supportingRef);
       attach("otherDoc", otherRef);
 
-      const result =
-        mode === "create"
-          ? await createChild(fd)
-          : await updateChild(child!.id, fd);
+      const result = await uploads.submit(fd, prepared =>
+        mode === "create" ? createChild(prepared) : updateChild(child!.id, prepared));
 
       if (result.success) {
         if (result.warning) {
@@ -1214,6 +1216,7 @@ export function ChildForm({
       </SectionCard>
 
       {/* Aksi */}
+      {isPending && uploads.progress !== null && <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{locale === "en" ? "Uploading files" : "Mengunggah berkas"}: {uploads.progress}%</p>}
       <div className="flex flex-col gap-3 md:flex-row md:justify-end">
         <Button
           type="button"

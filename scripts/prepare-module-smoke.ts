@@ -41,7 +41,19 @@ async function main() {
     await db.financeIncome.create({ data: { ...receipt, amount: 400000, refNumber: "SMOKE-PROGRAM", programId: program.id, restriction: "TERIKAT_TEMPORER" } });
     for (const source of ["PENGGALANGAN", "INTERNAL"] as const) await db.financeExpense.create({ data: { voucherNumber: `SMOKE-${source}`, date: new Date(), accountId: account.id, pocket: "TERIKAT", programId: program.id, sumberDana: source, coa: "BEBAN_KANTOR", amount: 100000, createdById: admin.id } });
     writeFileSync(path.resolve(".npm-cache/module-smoke-photo.png"), Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j3ioAAAAASUVORK5CYII=", "base64"));
-    console.log(JSON.stringify({ databaseUrl: url, admin: "smoke-admin@example.test", staff: "smoke-staff@example.test", password, photo: path.resolve(".npm-cache/module-smoke-photo.png") }));
+    if (process.argv.includes("--env-output")) {
+      const envPath = filename.replace(/\.db$/, ".env");
+      const values = {
+        DATABASE_URL: url, TURSO_AUTH_TOKEN: "", NEXTAUTH_URL: "http://localhost:3100",
+        NEXTAUTH_SECRET: randomUUID() + randomUUID(), AUTH_SECRET: randomUUID() + randomUUID(),
+        GOOGLE_DRIVE_CLIENT_ID: "", GOOGLE_DRIVE_CLIENT_SECRET: "", GOOGLE_DRIVE_REFRESH_TOKEN: "", GOOGLE_DRIVE_FOLDER_ID: "", STORAGE_SIGNING_SECRET: "",
+        MODULE_TEST_URL: "http://localhost:3100", MODULE_TEST_PASSWORD: password,
+      };
+      writeFileSync(envPath, Object.entries(values).map(([key, value]) => `${key}=${JSON.stringify(value)}`).join("\n") + "\n", { mode: 0o600, flag: "wx" });
+      console.log(`Isolated fixture environment created: ${envPath}`);
+    } else {
+      console.log(JSON.stringify({ databaseUrl: url, admin: "smoke-admin@example.test", staff: "smoke-staff@example.test", password, photo: path.resolve(".npm-cache/module-smoke-photo.png") }));
+    }
   } finally { await db.$disconnect(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

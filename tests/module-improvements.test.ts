@@ -28,6 +28,7 @@ function stub(name: string, exports: object) {
   const id = require.resolve(name);
   require.cache[id] = { id, filename: id, loaded: true, exports } as NodeModule;
 }
+stub("server-only", {});
 stub("react", { ...require("react"), cache: <T,>(fn: T) => fn });
 stub("../lib/prisma", { prisma: db });
 stub("next-auth/next", { getServerSession: async () => session });
@@ -344,25 +345,43 @@ test("backup and CSV include new profile and master data without account passwor
 });
 
 test("public action is dashboard-visible and notification failure cannot create a duplicate", async () => {
-  const actual = require("../lib/volunteer-uploads.server") as typeof import("../lib/volunteer-uploads.server");
-  stub("../lib/volunteer-uploads.server", { ...actual, volunteerStorage: () => storage });
+  const { startManagedUpload, finalizeManagedUpload } = require("../lib/managed-storage.server") as typeof import("../lib/managed-storage.server");
+  const metadata = new Map<string, import("../lib/google-drive.server").DriveMetadata>();
+  const drive: import("../lib/google-drive.server").DriveStorage = {
+    folderId: "fixture-private-folder", generateId: async () => `fixture-${randomUUID()}`, health: async () => {},
+    start: async file => { metadata.set(file.id, { id: file.id, mimeType: file.mime, size: String(file.bytes), parents: [drive.folderId], ownedByMe: true, trashed: false, permissions: [{ type: "user", role: "owner" }], appProperties: { application: "kanakaos", managedId: file.managedId, purpose: file.purpose } }); return "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&upload_id=fixture"; },
+    metadata: async id => metadata.get(id) ?? null, prefix: async () => new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]),
+    download: async () => new Response(), trash: async () => {}, upload: async () => {},
+  };
+  const oldSecret = process.env.STORAGE_SIGNING_SECRET;
+  process.env.STORAGE_SIGNING_SECRET = "isolated-module-storage-signing-secret";
   const { applyVolunteer } = require("../lib/actions/public") as typeof import("../lib/actions/public");
   const scope = { actor: "public", nonce: randomUUID() };
   const values = { ...profile(), email: "public-action@example.test", phone: "081234567890", dob: "1995-01-01", address: "Isolated test address", occupation: "Teacher", motivation: "I want to support the children's education.", agreePolicy: true as const, availability: ["Fleksibel" as const], status: "APPROVED", role: "SUPER_ADMIN" };
-  const uploads = bundle(scope, [upload("PHOTO", scope), upload("CERTIFICATE", scope), upload("CERTIFICATE", scope)]);
+  const claims = [];
+  for (const purpose of ["VOLUNTEER_PHOTO", "VOLUNTEER_CERTIFICATE", "VOLUNTEER_CERTIFICATE"] as const) {
+    const signed = await startManagedUpload(db, drive, { mode: "public", nonce: scope.nonce, file: { purpose, filename: "fixture.png", mime: "image/png", bytes: 8 } }, { id: null }, process.env.STORAGE_SIGNING_SECRET, "fixture-ip-hash");
+    claims.push(await finalizeManagedUpload(db, drive, { id: signed.id, ticket: signed.ticket }, { id: null }, process.env.STORAGE_SIGNING_SECRET));
+  }
+  const uploads = { nonce: scope.nonce, claims, removeIds: [] };
   notificationFails = true;
   try {
     const result = await applyVolunteer(values, uploads);
     assert.ok(result.success && result.id);
     const retry = await applyVolunteer(values, uploads);
     assert.ok(retry.success && retry.id === result.id);
-    const record = await db.volunteer.findUniqueOrThrow({ where: { id: result.id }, include: { attachments: true } });
+    const record = await db.volunteer.findUniqueOrThrow({ where: { id: result.id }, include: { attachments: true, managedFiles: true } });
     assert.equal(record.status, "PENDING");
     assert.equal(record.hasSafeguardingCert, false);
     assert.equal(record.userId, null);
-    assert.equal(record.attachments.length, 3);
+    assert.equal(record.attachments.length, 0);
+    assert.equal(record.managedFiles.length, 3);
     assert.equal(await db.volunteer.count({ where: { email: values.email } }), 1);
-  } finally { notificationFails = false; }
+  } finally {
+    notificationFails = false;
+    if (oldSecret === undefined) delete process.env.STORAGE_SIGNING_SECRET;
+    else process.env.STORAGE_SIGNING_SECRET = oldSecret;
+  }
 });
 
 test("signing and attachment routes enforce origin and staff authorization", async () => {
@@ -375,7 +394,7 @@ test("signing and attachment routes enforce origin and staff authorization", asy
   assert.equal((await POST(request(body, "https://foreign.test"))).status, 403);
   assert.equal((await POST(request({ ...body, folder: "forged" }))).status, 400);
   assert.equal((await POST(request({ ...body, mode: "staff" }))).status, 403);
-  assert.equal((await POST(request(body))).status, 200);
+  assert.equal((await POST(request(body))).status, 410);
   const attachment = await db.volunteerAttachment.findFirstOrThrow();
   assert.equal((await GET(new Request("http://localhost:3100"), { params: { id: attachment.id } })).status, 403);
   login(adminId);

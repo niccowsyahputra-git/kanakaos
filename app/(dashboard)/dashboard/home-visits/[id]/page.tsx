@@ -202,6 +202,7 @@ export default async function HomeVisitDetailPage({
                   {tr("Foto Rumah")}</p>
                 <Image
                   src={visit.photoUrl}
+                  unoptimized={visit.photoUrl.startsWith("/api/files/")}
                   alt={tr("Foto rumah")}
                   width={600}
                   height={400}

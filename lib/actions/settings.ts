@@ -11,10 +11,10 @@ import {
   type LandingSettingsInput,
   type NotificationSettingsInput,
 } from "@/lib/validations";
-import {
-  uploadFileToCloudinary,
-  isCloudinaryConfigured,
-} from "@/lib/cloudinary";
+import { driveStorage } from "@/lib/google-drive.server";
+import { saveManagedForm } from "@/lib/managed-form.server";
+import { assertStorageAccess, cleanupManagedFiles } from "@/lib/managed-storage.server";
+import { MANAGED_FORM_FIELDS, StorageError, managedFileUrl, storageErrorMessage } from "@/lib/storage-contract";
 import { LANDING_CONFIG_KEYS } from "@/lib/site-settings";
 import { getT } from "@/lib/i18n/server";
 import { getSchemas } from "@/lib/validations";
@@ -31,19 +31,13 @@ type ExportResult=
 
 const FORBIDDEN_ERROR="Hanya Super Admin yang boleh mengubah pengaturan";
 
-const MAX_LOGO_SIZE=3*1024*1024; // 3MB (upload ke Cloudinary)
-const MAX_LOGO_DB_SIZE=1024*1024; // 1MB (disimpan di database)
-
-/** Deteksi format gambar dari isi file (bukan dari MIME kiriman browser) */
-function detectLogoMime(bytes: Buffer): "image/png"|"image/jpeg"|null {
-  if(bytes.subarray(0,8).equals(Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]))) {
-    return "image/png";
-  }
-  if(bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff) {
-    return "image/jpeg";
-  }
-  return null;
-}
+// Export only durable attached-file metadata, never upload claims or request bindings.
+const managedFileExportSelect = {
+  id: true, driveFileId: true, purpose: true, filename: true, mime: true,
+  expectedBytes: true, verifiedBytes: true, state: true, uploaderId: true,
+  targetType: true, targetId: true, parentType: true, parentId: true, volunteerId: true,
+  createdAt: true, verifiedAt: true, attachedAt: true, updatedAt: true,
+} as const;
 
 /** Revalidasi halaman yang menampilkan identitas & konten yayasan */
 function revalidateSitePages() {
@@ -86,58 +80,32 @@ export async function saveGeneralSettings(
   }
 
   try {
-    // Upload logo jika ada. Tanpa Cloudinary, logo disimpan di database dan
-    // disajikan lewat /api/yayasan-logo.
-    const logo=formData.get("logo");
-    if(logo instanceof File&&logo.size>0) {
-      if(logo.size>MAX_LOGO_SIZE) {
-        return { success: false,error: tr("Ukuran logo maksimal 3MB") };
+    await saveManagedForm(prisma, formData, { id: session.user.id }, "YAYASAN_LOGO_URL", MANAGED_FORM_FIELDS.branding, async (tx, urls) => {
+      const set = (configKey: string, configValue: string) => tx.systemConfig.upsert({
+        where: { configKey }, update: { configValue }, create: { configKey, configValue },
+      });
+      if (urls.YAYASAN_LOGO_URL) {
+        if (formData.get("removeLogo") === "true") throw new StorageError("INVALID");
+        await set("YAYASAN_LOGO_URL", urls.YAYASAN_LOGO_URL);
+        await set("YAYASAN_LOGO_DATA", "");
+      } else if (formData.get("removeLogo") === "true") {
+        await set("YAYASAN_LOGO_URL", "");
+        await set("YAYASAN_LOGO_DATA", "");
       }
-      const bytes=Buffer.from(await logo.arrayBuffer());
-      const mime=detectLogoMime(bytes);
-      if(!mime) {
-        return { success: false,error: tr("Logo harus berformat JPG, JPEG, atau PNG") };
-      }
-      if(isCloudinaryConfigured()) {
-        const logoUrl=await uploadFileToCloudinary(bytes,"yayasan/branding","logo");
-        await upsertConfig("YAYASAN_LOGO_URL",logoUrl);
-        await upsertConfig("YAYASAN_LOGO_DATA","");
-      } else {
-        if(bytes.length>MAX_LOGO_DB_SIZE) {
-          return {
-            success: false,
-            error: tr("Ukuran logo maksimal 1MB (perkecil/kompres gambar terlebih dahulu)"),
-          };
-        }
-        await upsertConfig(
-          "YAYASAN_LOGO_DATA",
-          `data:${mime};base64,${bytes.toString("base64")}`
-        );
-        // Parameter versi agar cache browser langsung memuat logo baru
-        await upsertConfig("YAYASAN_LOGO_URL",`/api/yayasan-logo?v=${Date.now()}`);
-      }
-    } else if(formData.get("removeLogo")==="true") {
-      await upsertConfig("YAYASAN_LOGO_URL","");
-      await upsertConfig("YAYASAN_LOGO_DATA","");
-    }
-
-    await upsertConfig("YAYASAN_NAME",parsed.data.yayasanName);
-    await upsertConfig("YAYASAN_ADDRESS",parsed.data.yayasanAddress??"");
-    await upsertConfig("YAYASAN_PHONE",parsed.data.yayasanPhone??"");
-    await upsertConfig("YAYASAN_EMAIL",parsed.data.yayasanEmail??"");
-    await upsertConfig("YAYASAN_DEED_NUMBER",parsed.data.deedNumber??"");
-    await upsertConfig(
-      "YAYASAN_SK_KEMENKUMHAM",
-      parsed.data.skKemenkumham??""
-    );
-    await upsertConfig("YAYASAN_NPWP",parsed.data.npwp??"");
-    await upsertConfig("YAYASAN_NIB",parsed.data.nib??"");
-    await upsertConfig("YAYASAN_TDY",parsed.data.tdy??"");
-    await upsertConfig(
-      "YAYASAN_ACTIVITY_PERMIT",
-      parsed.data.activityPermit??""
-    );
-    await upsertConfig("YAYASAN_DOMICILE",parsed.data.domicileLetter??"");
+      await set("YAYASAN_NAME", parsed.data.yayasanName);
+      await set("YAYASAN_ADDRESS", parsed.data.yayasanAddress ?? "");
+      await set("YAYASAN_PHONE", parsed.data.yayasanPhone ?? "");
+      await set("YAYASAN_EMAIL", parsed.data.yayasanEmail ?? "");
+      await set("YAYASAN_DEED_NUMBER", parsed.data.deedNumber ?? "");
+      await set("YAYASAN_SK_KEMENKUMHAM", parsed.data.skKemenkumham ?? "");
+      await set("YAYASAN_NPWP", parsed.data.npwp ?? "");
+      await set("YAYASAN_NIB", parsed.data.nib ?? "");
+      await set("YAYASAN_TDY", parsed.data.tdy ?? "");
+      await set("YAYASAN_ACTIVITY_PERMIT", parsed.data.activityPermit ?? "");
+      await set("YAYASAN_DOMICILE", parsed.data.domicileLetter ?? "");
+      // The managed parent uses the stable configuration key, not SystemConfig's row ID.
+      return { id: "YAYASAN_LOGO_URL" };
+    });
 
     await logAudit({
       userId: session.user.id,
@@ -150,7 +118,8 @@ export async function saveGeneralSettings(
     revalidateSitePages();
     return { success: true };
   } catch(error) {
-    console.error("saveGeneralSettings error:",error);
+    if (error instanceof StorageError) return { success: false, error: storageErrorMessage(error.code, locale) };
+    console.error("saveGeneralSettings failed");
     return { success: false,error: tr("Gagal menyimpan pengaturan umum") };
   }
 }
@@ -234,6 +203,20 @@ export async function saveNotificationSettings(
   }
 }
 
+export async function cleanUnclaimedStorage(): Promise<ActionResult> {
+  const { locale, tr } = await getT();
+  const session = await requireSuperAdminSession();
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
+  try {
+    await assertStorageAccess(prisma, { id: session.user.id }, "FOUNDATION_LOGO", "YAYASAN_LOGO_URL");
+    const checked = await cleanupManagedFiles(prisma, driveStorage(), Date.now(), 20);
+    await logAudit({ userId: session.user.id, userName: session.user.name ?? "Unknown", action: "DELETE", entity: "ManagedFile", detail: `Checked ${checked} unclaimed uploads; attached files retained` });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: storageErrorMessage(error instanceof StorageError ? error.code : "UNAVAILABLE", locale) };
+  }
+}
+
 /** Escape nilai agar aman untuk format CSV */
 function csvCell(value: unknown): string {
   const str=value===null||value===undefined? "":String(value);
@@ -255,10 +238,11 @@ export async function exportDataCsv(): Promise<ExportResult> {
   if(!session) return { success: false,error: tr(FORBIDDEN_ERROR) };
 
   try {
-    const [children,donations,volunteers]=await Promise.all([
+    const [children,donations,volunteers,managedFiles]=await Promise.all([
       prisma.child.findMany({ include: { guardian: true } }),
       prisma.donation.findMany(),
       prisma.volunteer.findMany(),
+      prisma.managedFile.findMany({ where: { state: "ATTACHED" }, select: managedFileExportSelect }),
     ]);
 
     const sections=[
@@ -290,6 +274,12 @@ export async function exportDataCsv(): Promise<ExportResult> {
           v.skill??"",v.highestEducation? tr(v.highestEducation):"",v.major??"",v.status,
           v.hasSafeguardingCert? tr("Ya"):tr("Tidak"),
         ])
+      ),
+      "",
+      locale === "en" ? "=== MANAGED FILES ===" : "=== FILE TERKELOLA ===",
+      toCsv(
+        ["ID", "Drive ID", "Purpose", "Filename", "MIME", "Bytes", "Parent type", "Parent ID", "URL"],
+        managedFiles.map(file => [file.id, file.driveFileId, file.purpose, file.filename, file.mime, file.verifiedBytes, file.parentType, file.parentId, managedFileUrl(file.id)]),
       ),
     ].join("\n");
 
@@ -324,7 +314,7 @@ export async function backupDatabase(): Promise<ExportResult> {
     // Dump seluruh tabel sebagai JSON (password user tidak disertakan)
     const [users,guardians,children,dailyLogs,donations,inventory,
       volunteers,volunteerNeeds,partners,systemConfig,cases,interventions,
-      employees,employeeLocations,volunteerAttachments]=
+      employees,employeeLocations,volunteerAttachments,managedFiles]=
       await Promise.all([
         prisma.user.findMany({
           select: { id: true,name: true,email: true,role: true,isActive: true,createdAt: true },
@@ -346,6 +336,7 @@ export async function backupDatabase(): Promise<ExportResult> {
         prisma.employee.findMany(),
         prisma.employeeLocation.findMany(),
         prisma.volunteerAttachment.findMany(),
+        prisma.managedFile.findMany({ where: { state: "ATTACHED" }, select: managedFileExportSelect }),
       ]);
 
     const backup={
@@ -355,7 +346,7 @@ export async function backupDatabase(): Promise<ExportResult> {
         users,guardians,children,dailyLogs,
         donations: donations.map((d) => ({ ...d,amount: d.amount.toString() })),
         inventory,volunteers,volunteerNeeds,partners,systemConfig,cases,interventions,
-        employees,employeeLocations,volunteerAttachments,
+        employees,employeeLocations,volunteerAttachments,managedFiles,
       },
     };
 

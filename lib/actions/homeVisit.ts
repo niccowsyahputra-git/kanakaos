@@ -10,10 +10,8 @@ import {
   completeVisitSchema,
   type HomeVisitInput,
 } from "@/lib/validations";
-import {
-  uploadFileToCloudinary,
-  isCloudinaryConfigured,
-} from "@/lib/cloudinary";
+import { saveManagedForm } from "@/lib/managed-form.server";
+import { MANAGED_FORM_FIELDS, StorageError, storageErrorMessage } from "@/lib/storage-contract";
 import { getT } from "@/lib/i18n/server";
 import { getSchemas } from "@/lib/validations";
 
@@ -126,54 +124,32 @@ export async function completeHomeVisit(
       return { success: false, error: tr("Kunjungan sudah selesai/dibatalkan") };
     }
 
-    // Upload foto rumah (opsional)
-    let photoUrl: string | null = null;
-    let warning: string | undefined;
-    const photo = formData.get("photo");
-    if (photo instanceof File && photo.size > 0) {
-      if (!photo.type.startsWith("image/")) {
-        return { success: false, error: tr("Foto harus berupa gambar") };
-      }
-      if (photo.size > 5 * 1024 * 1024) {
-        return { success: false, error: tr("Ukuran foto maksimal 5MB") };
-      }
-      if (!isCloudinaryConfigured()) {
-        warning = tr("Foto tidak tersimpan: Cloudinary belum dikonfigurasi");
-      } else {
-        try {
-          photoUrl = await uploadFileToCloudinary(
-            Buffer.from(await photo.arrayBuffer()),
-            "yayasan/home-visits"
-          );
-        } catch (error) {
-          console.error("completeHomeVisit upload error:", error);
-          return { success: false, error: tr("Gagal meng-upload foto") };
-        }
-      }
-    }
-
     const { visitId, visitNotes, ...checklist } = parsed.data;
-
-    await prisma.homeVisit.update({
-      where: { id: visitId },
-      data: {
-        ...checklist,
-        visitNotes,
-        photoUrl,
-        status: "DONE",
-        completedAt: new Date(),
-        // Data lama tanpa petugas: yang menyelesaikan = yang melakukan
-        ...(visit.officerId ? {} : { officerId: session.user.id }),
-      },
-    });
-
-    // Sinkronkan skor kerentanan ke profil wali
-    if (visit.child.guardianId) {
-      await prisma.guardian.update({
-        where: { id: visit.child.guardianId },
-        data: { vulnerabilityScore: parsed.data.vulnerabilityScore },
+    await saveManagedForm(prisma, formData, { id: session.user.id }, visitId, MANAGED_FORM_FIELDS.homeVisit, async (tx, urls) => {
+      const current = await tx.homeVisit.findUnique({ where: { id: visitId }, include: { child: { select: { guardianId: true } } } });
+      if (!current || current.status !== "PLANNED") throw new StorageError("INVALID");
+      const saved = await tx.homeVisit.update({
+        where: { id: visitId },
+        data: {
+          ...checklist,
+          visitNotes,
+          ...urls,
+          status: "DONE",
+          completedAt: new Date(),
+          // Data lama tanpa petugas: yang menyelesaikan = yang melakukan
+          ...(current.officerId ? {} : { officerId: session.user.id }),
+        },
       });
-    }
+
+      // Sinkronkan skor kerentanan ke profil wali
+      if (current.child.guardianId) {
+        await tx.guardian.update({
+          where: { id: current.child.guardianId },
+          data: { vulnerabilityScore: parsed.data.vulnerabilityScore },
+        });
+      }
+      return saved;
+    });
 
     await logAudit({
       userId: session.user.id,
@@ -186,9 +162,10 @@ export async function completeHomeVisit(
 
     revalidatePath("/dashboard/home-visits");
     revalidatePath(`/dashboard/home-visits/${visitId}`);
-    return { success: true, id: visitId, warning: warning ? tr(warning) : undefined };
+    return { success: true, id: visitId };
   } catch (error) {
-    console.error("completeHomeVisit error:", error);
+    if (error instanceof StorageError) return { success: false, error: storageErrorMessage(error.code, locale) };
+    console.error("completeHomeVisit failed");
     return { success: false, error: tr("Gagal menyelesaikan kunjungan") };
   }
 }

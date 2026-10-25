@@ -10,10 +10,8 @@ import {
   changePasswordSchema,
   type ChangePasswordInput,
 } from "@/lib/validations";
-import {
-  uploadFileToCloudinary,
-  isCloudinaryConfigured,
-} from "@/lib/cloudinary";
+import { saveManagedForm } from "@/lib/managed-form.server";
+import { MANAGED_FORM_FIELDS, StorageError, storageErrorMessage } from "@/lib/storage-contract";
 import { getT } from "@/lib/i18n/server";
 import { getSchemas } from "@/lib/validations";
 
@@ -41,54 +39,20 @@ export async function updateProfile(
   }
 
   try {
-    // Upload foto profil (opsional)
-    let photoUrl: string | undefined;
-    let warning: string | undefined;
-    const photo = formData.get("photo");
-    if (photo instanceof File && photo.size > 0) {
-      if (!photo.type.startsWith("image/")) {
-        return { success: false, error: tr("Foto harus berupa gambar") };
-      }
-      if (photo.size > 3 * 1024 * 1024) {
-        return { success: false, error: tr("Ukuran foto maksimal 3MB") };
-      }
-      if (!isCloudinaryConfigured()) {
-        warning = tr("Foto tidak tersimpan: Cloudinary belum dikonfigurasi");
-      } else {
-        try {
-          photoUrl = await uploadFileToCloudinary(
-            Buffer.from(await photo.arrayBuffer()),
-            "yayasan/profiles",
-            session.user.id // 1 foto per user, overwrite
-          );
-        } catch (error) {
-          console.error("updateProfile upload error:", error);
-          return { success: false, error: tr("Gagal meng-upload foto profil") };
-        }
-      }
-    }
-
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: {
-        phone: parsed.data.phone ?? null,
-        ...(photoUrl && { photoUrl }),
-      },
-    });
-
-    await logAudit({
-      userId: session.user.id,
-      userName: session.user.name ?? "Unknown",
-      action: "UPDATE",
-      entity: "User",
-      entityId: session.user.id,
-      detail: "Memperbarui profil sendiri",
+    await saveManagedForm(prisma, formData, { id: session.user.id }, session.user.id, MANAGED_FORM_FIELDS.profile, async (tx, urls) => {
+      const saved = await tx.user.update({ where: { id: session.user.id }, data: { phone: parsed.data.phone ?? null, ...urls } });
+      await tx.auditLog.create({ data: {
+        userId: session.user.id, userName: session.user.name ?? "Unknown", action: "UPDATE", entity: "User", entityId: session.user.id,
+        detail: "Memperbarui profil sendiri",
+      } });
+      return saved;
     });
 
     revalidatePath("/dashboard/profile");
-    return { success: true, warning: warning ? tr(warning) : undefined };
+    return { success: true };
   } catch (error) {
-    console.error("updateProfile error:", error);
+    if (error instanceof StorageError) return { success: false, error: storageErrorMessage(error.code, locale) };
+    console.error("updateProfile failed");
     return { success: false, error: tr("Gagal menyimpan profil") };
   }
 }

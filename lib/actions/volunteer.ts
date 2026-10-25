@@ -21,9 +21,11 @@ import {
 } from "@/lib/validations";
 import { getT } from "@/lib/i18n/server";
 import { getSchemas } from "@/lib/validations";
-import type { UploadBundle } from "@/lib/volunteer-upload-contract";
-import { persistVolunteerProfile } from "@/lib/volunteer-profile.server";
-import { volunteerStorage, VolunteerSaveError } from "@/lib/volunteer-uploads.server";
+import type { ManagedVolunteerBundle } from "@/lib/volunteer-upload-contract";
+import { persistManagedVolunteerProfile } from "@/lib/managed-volunteer-profile.server";
+import { VolunteerSaveError } from "@/lib/volunteer-uploads.server";
+import { storageSigningSecret } from "@/lib/managed-storage.server";
+import { StorageError, storageErrorMessage } from "@/lib/storage-contract";
 
 
 type ActionResult =
@@ -59,7 +61,7 @@ async function needExists(needId: string | undefined): Promise<boolean> {
 
 export async function createVolunteer(
   values: VolunteerInput,
-  uploads: UploadBundle
+  uploads: ManagedVolunteerBundle
 ): Promise<ActionResult> {
   const { tr, locale } = await getT();
   const { volunteerSchema } = getSchemas(locale);
@@ -73,19 +75,19 @@ export async function createVolunteer(
   }
 
   try {
-    const volunteer = await persistVolunteerProfile(prisma, volunteerStorage(), parsed.data, uploads, { id: session.user.id, name: session.user.name ?? "Staff", public: false });
+    const volunteer = await persistManagedVolunteerProfile(prisma, storageSigningSecret(), parsed.data, uploads, { id: session.user.id, name: session.user.name ?? "Staff", public: false });
     try { revalidateVolunteerPages(); } catch (error) { console.error("Volunteer saved; refresh failed", error); }
     return { success: true, id: volunteer.id };
   } catch (error) {
-    console.error("createVolunteer error:", error);
-    return { success: false, error: tr(error instanceof VolunteerSaveError ? error.message : "Gagal menyimpan data relawan") };
+    if (!(error instanceof StorageError || error instanceof VolunteerSaveError)) console.error("Volunteer creation failed");
+    return { success: false, error: error instanceof StorageError ? storageErrorMessage(error.code, locale) : tr(error instanceof VolunteerSaveError ? error.message : "Gagal menyimpan data relawan") };
   }
 }
 
 /** Edit / lengkapi data relawan, berlaku untuk semua status */
 export async function updateVolunteer(
   values: VolunteerUpdateInput,
-  uploads: UploadBundle
+  uploads: ManagedVolunteerBundle
 ): Promise<ActionResult> {
   const { tr, locale } = await getT();
   const { volunteerUpdateSchema } = getSchemas(locale);
@@ -100,12 +102,12 @@ export async function updateVolunteer(
   const data = parsed.data;
 
   try {
-    await persistVolunteerProfile(prisma, volunteerStorage(), data, uploads, { id: session.user.id, name: session.user.name ?? "Staff", public: false }, data.id);
+    await persistManagedVolunteerProfile(prisma, storageSigningSecret(), data, uploads, { id: session.user.id, name: session.user.name ?? "Staff", public: false }, data.id);
     try { revalidateVolunteerPages(); } catch (error) { console.error("Volunteer saved; refresh failed", error); }
     return { success: true, id: data.id };
   } catch (error) {
-    console.error("updateVolunteer error:", error);
-    return { success: false, error: tr(error instanceof VolunteerSaveError ? error.message : "Gagal memperbarui data relawan") };
+    if (!(error instanceof StorageError || error instanceof VolunteerSaveError)) console.error("Volunteer update failed");
+    return { success: false, error: error instanceof StorageError ? storageErrorMessage(error.code, locale) : tr(error instanceof VolunteerSaveError ? error.message : "Gagal memperbarui data relawan") };
   }
 }
 

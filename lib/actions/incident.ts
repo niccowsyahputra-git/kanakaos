@@ -12,10 +12,8 @@ import {
   incidentUpdateSchema,
   incidentHandlingSchema,
 } from "@/lib/validations";
-import {
-  uploadFileToCloudinary,
-  isCloudinaryConfigured,
-} from "@/lib/cloudinary";
+import { saveManagedForm } from "@/lib/managed-form.server";
+import { MANAGED_FORM_FIELDS, StorageError, storageErrorMessage } from "@/lib/storage-contract";
 import { getT } from "@/lib/i18n/server";
 import { getSchemas } from "@/lib/validations";
 
@@ -53,43 +51,17 @@ export async function reportIncident(
     });
     if (!child) return { success: false, error: tr("Data anak tidak ditemukan") };
 
-    // Upload foto pendukung (opsional)
-    let photoUrl: string | null = null;
-    let warning: string | undefined;
-    const photo = formData.get("photo");
-    if (photo instanceof File && photo.size > 0) {
-      if (!photo.type.startsWith("image/")) {
-        return { success: false, error: tr("Foto harus berupa gambar") };
-      }
-      if (photo.size > 5 * 1024 * 1024) {
-        return { success: false, error: tr("Ukuran foto maksimal 5MB") };
-      }
-      if (!isCloudinaryConfigured()) {
-        warning = tr("Foto tidak tersimpan: Cloudinary belum dikonfigurasi");
-      } else {
-        try {
-          photoUrl = await uploadFileToCloudinary(
-            Buffer.from(await photo.arrayBuffer()),
-            "yayasan/incidents"
-          );
-        } catch (error) {
-          console.error("reportIncident upload error:", error);
-          return { success: false, error: tr("Gagal meng-upload foto") };
-        }
-      }
-    }
-
-    const incident = await prisma.incident.create({
+    const incident = await saveManagedForm(prisma, formData, { id: session.user.id }, undefined, MANAGED_FORM_FIELDS.incident, (tx, urls) => tx.incident.create({
       data: {
         childId: parsed.data.childId,
         incidentType: parsed.data.incidentType,
         description: parsed.data.description,
         handling: parsed.data.handling ?? null,
         urgency: parsed.data.urgency,
-        photoUrl,
+        ...urls,
         reportedById: session.user.id,
       },
-    });
+    }));
 
     await logAudit({
       userId: session.user.id,
@@ -109,12 +81,13 @@ export async function reportIncident(
         link: `/dashboard/incidents/${incident.id}`,
       },
       session.user.id
-    );
+    ).catch(() => console.error("Incident saved; notification delivery failed."));
 
     revalidatePath("/dashboard/incidents");
-    return { success: true, id: incident.id, warning: warning ? tr(warning) : undefined };
+    return { success: true, id: incident.id };
   } catch (error) {
-    console.error("reportIncident error:", error);
+    if (error instanceof StorageError) return { success: false, error: storageErrorMessage(error.code, locale) };
+    console.error("reportIncident failed");
     return { success: false, error: tr("Gagal melaporkan insiden") };
   }
 }

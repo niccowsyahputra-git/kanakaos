@@ -197,6 +197,7 @@ export default async function ChildDetailPage({
             {child.photoUrl ? (
               <Image
                 src={child.photoUrl}
+                unoptimized={child.photoUrl.startsWith("/api/files/")}
                 alt={tr("Foto {0}", { "0": child.fullName })}
                 width={80}
                 height={80}

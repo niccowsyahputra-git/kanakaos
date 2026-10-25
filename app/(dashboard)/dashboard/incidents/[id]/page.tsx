@@ -126,6 +126,7 @@ export default async function IncidentDetailPage({
                 {tr("Foto Pendukung")}</p>
               <Image
                 src={incident.photoUrl}
+                unoptimized={incident.photoUrl.startsWith("/api/files/")}
                 alt={tr("Foto insiden")}
                 width={600}
                 height={400}

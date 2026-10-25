@@ -118,6 +118,7 @@ export default async function MyAssignmentsPage() {
                     {child.photoUrl ? (
                       <Image
                         src={child.photoUrl}
+                        unoptimized={child.photoUrl.startsWith("/api/files/")}
                         alt={child.fullName}
                         width={48}
                         height={48}

@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { Loader2, Save, KeyRound } from "lucide-react";
 
 import { updateProfile, changePassword } from "@/lib/actions/profile";
+import { useManagedFormUploads } from "@/components/shared/use-managed-form-uploads";
+import { MANAGED_FORM_FIELDS } from "@/lib/storage-contract";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,6 +26,7 @@ export function ProfileForm({
   user,
 }: {
   user: {
+    id: string;
     name: string;
     email: string;
     phone: string | null;
@@ -36,7 +39,9 @@ export function ProfileForm({
   const router = useRouter();
   const photoRef = useRef<HTMLInputElement>(null);
   const [phone, setPhone] = useState(user.phone ?? "");
-  const [isPending, startTransition] = useTransition();
+  const uploads = useManagedFormUploads(MANAGED_FORM_FIELDS.profile, user.id);
+  const [isTransitionPending, startTransition] = useTransition();
+  const isPending = isTransitionPending || uploads.isPending;
 
   function handleSubmit() {
     startTransition(async () => {
@@ -45,7 +50,7 @@ export function ProfileForm({
       const photo = photoRef.current?.files?.[0];
       if (photo) formData.set("photo", photo);
 
-      const result = await updateProfile(formData);
+      const result = await uploads.submit(formData, updateProfile);
       if (result.success) {
         if (result.warning) {
           toast.warning(tr("Profil tersimpan"), { description: result.warning });
@@ -72,6 +77,7 @@ export function ProfileForm({
           {user.photoUrl ? (
             <Image
               src={user.photoUrl}
+              unoptimized={user.photoUrl.startsWith("/api/files/")}
               alt={user.name}
               width={64}
               height={64}
@@ -116,12 +122,13 @@ export function ProfileForm({
               id="profile-photo"
               ref={photoRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               className="cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1 file:text-sm"
             />
           </div>
         </div>
 
+        {isPending && uploads.progress !== null && <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{locale === "en" ? "Uploading files" : "Mengunggah berkas"}: {uploads.progress}%</p>}
         <div className="flex justify-end">
           <Button
             onClick={handleSubmit}

@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { useI18n } from "@/lib/i18n/client";
 import { VOLUNTEER_FIELDS, VOLUNTEER_AVAILABILITY, catalogLabel, readVolunteerSkills } from "@/lib/option-catalogs";
-import { attachmentUrl, type AttachmentSummary } from "@/lib/volunteer-upload-contract";
+import { volunteerAttachmentUrl, type AttachmentSummary } from "@/lib/volunteer-upload-contract";
 
 
 type VolunteerDetail = {
@@ -88,7 +88,7 @@ export function VolunteerDetailDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {volunteer.attachments.filter(a => a.kind === "PHOTO").map(photo => <Image key={photo.id} src={attachmentUrl(photo.id)} alt={tr("Foto relawan")} width={160} height={160} unoptimized className="h-40 w-40 rounded-lg object-cover" />)}
+        {volunteer.attachments.filter(a => a.kind === "PHOTO").map(photo => <Image key={photo.id} src={volunteerAttachmentUrl(photo)} alt={tr("Foto relawan")} width={160} height={160} unoptimized className="h-40 w-40 rounded-lg object-cover" />)}
         <dl className="space-y-2 text-sm">
           <DetailRow label={tr("Email")} value={volunteer.email} />
           <DetailRow label={tr("No. HP")} value={volunteer.phone} />
@@ -106,7 +106,7 @@ export function VolunteerDetailDialog({
         </dl>
 
         {volunteer.redFlagNotes && <p className="whitespace-pre-line rounded border border-destructive p-3 text-sm text-destructive">{volunteer.redFlagNotes}</p>}
-        {volunteer.attachments.some(a => a.kind === "CERTIFICATE") && <section className="space-y-2"><h3 className="text-sm font-semibold">{tr("Sertifikat")}</h3>{volunteer.attachments.filter(a => a.kind === "CERTIFICATE").map(a => <a key={a.id} href={attachmentUrl(a.id)} target="_blank" rel="noreferrer" className="block break-all text-sm underline">{a.filename}</a>)}</section>}
+        {volunteer.attachments.some(a => a.kind === "CERTIFICATE") && <section className="space-y-2"><h3 className="text-sm font-semibold">{tr("Sertifikat")}</h3>{volunteer.attachments.filter(a => a.kind === "CERTIFICATE").map(a => <a key={a.id} href={volunteerAttachmentUrl(a)} target="_blank" rel="noreferrer" className="block break-all text-sm underline">{a.filename}</a>)}</section>}
         {volunteer.motivation && (
           <div className="rounded-lg border bg-muted/40 p-3">
             <p className="mb-1 text-xs font-semibold text-muted-foreground">

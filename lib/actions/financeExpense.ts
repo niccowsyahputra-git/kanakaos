@@ -7,10 +7,8 @@ import { requireFinanceSession, requireSuperAdminSession } from "@/lib/auth-guar
 import { logAudit } from "@/lib/audit";
 import { nextDocNumber, assertExpenseFunding, FundingRuleError, lockFundingWallets } from "@/lib/finance-balance";
 import { expenseCoaLabel } from "@/components/finance/finance-labels";
-import {
-  uploadFileToCloudinary,
-  isCloudinaryConfigured,
-} from "@/lib/cloudinary";
+import { saveManagedForm } from "@/lib/managed-form.server";
+import { MANAGED_FORM_FIELDS, StorageError, storageErrorMessage } from "@/lib/storage-contract";
 import { getT } from "@/lib/i18n/server";
 import { getSchemas } from "@/lib/validations";
 import { localizeLabels } from "@/lib/i18n/translate";
@@ -101,44 +99,11 @@ export async function createFinanceExpense(
       }
     }
 
-    // ===== Bukti dokumen wajib (PDF/JPG/PNG) =====
-    const proof = formData.get("proof");
-    if (!(proof instanceof File) || proof.size === 0) {
-      return {
-        success: false,
-        error: tr("Bukti dokumen wajib diunggah (PDF, JPG, atau PNG)"),
-      };
-    }
-    const allowed = ["application/pdf", "image/jpeg", "image/png"];
-    if (!allowed.includes(proof.type)) {
-      return { success: false, error: tr("Format bukti harus PDF, JPG, atau PNG") };
-    }
-    if (proof.size > 5 * 1024 * 1024) {
-      return { success: false, error: tr("Ukuran bukti maksimal 5MB") };
-    }
-
-    let proofUrl: string | null = null;
-    let warning: string | undefined;
-    if (!isCloudinaryConfigured()) {
-      warning = tr("Bukti tidak tersimpan: Cloudinary belum dikonfigurasi");
-    } else {
-      try {
-        proofUrl = await uploadFileToCloudinary(
-          Buffer.from(await proof.arrayBuffer()),
-          "yayasan/expenses",
-          undefined,
-          proof.type === "application/pdf" ? "raw" : "image"
-        );
-      } catch (error) {
-        console.error("createFinanceExpense upload error:", error);
-        return { success: false, error: tr("Gagal meng-upload bukti dokumen") };
-      }
-    }
-
     let expense;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        expense = await prisma.$transaction(async tx => {
+        expense = await saveManagedForm(prisma, formData, { id: session.user.id }, undefined, MANAGED_FORM_FIELDS.expense, async (tx, urls) => {
+          if (!urls.proofUrl) throw new StorageError("INVALID");
           await lockFundingWallets(tx);
           // Recheck after upload under the write lock; parallel drafts cannot spend the same balance.
           const activeAccount = await tx.cashAccount.findUnique({ where: { id: parsed.data.accountId } });
@@ -153,7 +118,7 @@ export async function createFinanceExpense(
               sumberDana: parsed.data.sumberDana ?? null,
               beneficiaryChildId: parsed.data.beneficiaryChildId ?? null,
               beneficiaryName: parsed.data.beneficiaryName ?? null,
-              proofUrl,
+              proofUrl: urls.proofUrl,
               approval: "DRAFT",
               createdById: session.user.id,
             },
@@ -186,11 +151,11 @@ export async function createFinanceExpense(
       success: true,
       id: expense.id,
       voucherNumber: expense.voucherNumber,
-      warning: warning ? tr(warning) : undefined,
     };
   } catch (error) {
     if (error instanceof FundingRuleError) return { success: false, error: tr(error.message) };
-    console.error("createFinanceExpense error:", error);
+    if (error instanceof StorageError) return { success: false, error: storageErrorMessage(error.code, locale) };
+    console.error("createFinanceExpense failed");
     return { success: false, error: tr("Gagal membuat voucher pengeluaran") };
   }
 }

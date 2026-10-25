@@ -10,10 +10,9 @@ import { donationSchema, type DonationInput } from "@/lib/validations";
 import { ReceiptPdf, type ReceiptData } from "@/lib/receipt-pdf";
 import { getReceiptYayasan } from "@/lib/site-settings";
 import { donationCategoryLabel } from "@/components/donations/donation-labels";
-import {
-  uploadFileToCloudinary,
-  isCloudinaryConfigured,
-} from "@/lib/cloudinary";
+import { driveStorage } from "@/lib/google-drive.server";
+import { storeDonationReceipt, storageSigningSecret } from "@/lib/managed-storage.server";
+import { StorageError, storageErrorMessage } from "@/lib/storage-contract";
 import { getT } from "@/lib/i18n/server";
 import { getSchemas } from "@/lib/validations";
 import { localizeLabels } from "@/lib/i18n/translate";
@@ -214,35 +213,20 @@ export async function processDonation(
       }) as ReactElement<DocumentProps>
     );
 
-    // d. Upload PDF ke Cloudinary (resource_type "raw" wajib untuk PDF).
-    //    Jika storage belum diset / gagal, donasi tetap sah — user tetap
-    //    menerima PDF via download langsung (base64).
+    // Store the receipt privately; storage failure preserves the donation and direct PDF download.
     const safeFileName = `${receiptNumber.replaceAll("/", "-")}.pdf`;
     let receiptPdfUrl: string | null = null;
     let warning: string | undefined;
 
-    if (!isCloudinaryConfigured()) {
-      warning =
-        tr("PDF tidak tersimpan ke storage: Cloudinary belum dikonfigurasi");
-    } else {
-      try {
-        receiptPdfUrl = await uploadFileToCloudinary(
-          pdfBuffer,
-          "yayasan/receipts",
-          safeFileName, // public_id lengkap dengan .pdf agar URL raw valid
-          "raw"
-        );
-      } catch (error) {
-        console.error("processDonation upload PDF error:", error);
-        warning = tr("PDF gagal di-upload ke storage, tapi kwitansi tetap sah");
-      }
+    try {
+      receiptPdfUrl = await storeDonationReceipt(
+        prisma, driveStorage(), donation.id, pdfBuffer, safeFileName,
+        { id: session.user.id }, storageSigningSecret(),
+      );
+    } catch (error) {
+      console.error("Donation saved; private receipt storage failed.");
+      warning = `${tr("PDF gagal di-upload ke storage, tapi kwitansi tetap sah")}. ${storageErrorMessage(error instanceof StorageError ? error.code : "UNAVAILABLE", locale)}`;
     }
-
-    // e. Update record dengan URL PDF (null jika upload gagal)
-    await prisma.donation.update({
-      where: { id: donation.id },
-      data: { receiptPdfUrl },
-    });
 
     // Integrasi keuangan: donasi uang otomatis tercatat sebagai kas masuk.
     // Donasi barang (IN_KIND) tidak menambah kas.

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { managedClaimSchema, managedFileUrl } from "./storage-contract";
 
 export const ATTACHMENT_KINDS = ["PHOTO", "CERTIFICATE", "KTP", "SKCK"] as const;
 export type AttachmentKind = typeof ATTACHMENT_KINDS[number];
@@ -36,7 +37,19 @@ export type UploadClaim = z.infer<typeof uploadClaimSchema>;
 export type UploadReceipt = z.infer<typeof receiptSchema>;
 export type UploadBundle = z.infer<typeof uploadBundleSchema>;
 export type UploadFileDescription = z.infer<typeof uploadFileSchema>;
-export type AttachmentSummary = { id: string; kind: AttachmentKind; filename: string };
+export const managedVolunteerBundleSchema = z.object({
+  nonce: z.string().uuid(), claims: z.array(managedClaimSchema).max(8),
+  removeIds: z.array(z.string().cuid()).max(8).default([]),
+}).strict().refine(value => new Set(value.claims.map(claim => claim.id)).size === value.claims.length);
+export type ManagedVolunteerBundle = z.infer<typeof managedVolunteerBundleSchema>;
+export type AttachmentSummary = { id: string; kind: AttachmentKind; filename: string; url?: string };
+export function volunteerAttachmentUrl(attachment: AttachmentSummary) { return attachment.url ?? attachmentUrl(attachment.id); }
+export function normalizeVolunteerAttachments(legacy: AttachmentSummary[], managed: { id: string; purpose: string; filename: string }[]): AttachmentSummary[] {
+  return [...legacy, ...managed.flatMap(file => {
+    const kind = file.purpose.replace(/^VOLUNTEER_/, "") as AttachmentKind;
+    return ATTACHMENT_KINDS.includes(kind) ? [{ id: file.id, kind, filename: file.filename, url: managedFileUrl(file.id) }] : [];
+  })];
+}
 export type SignedUpload = { ticket: string; publicId: string; url: string; params: Record<string, string>; expiresAt: number };
 
 export function attachmentUrl(id: string) { return `/api/volunteer-attachments/${encodeURIComponent(id)}`; }

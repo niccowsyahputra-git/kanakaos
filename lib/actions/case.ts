@@ -13,10 +13,8 @@ import {
   caseHandlingSchema,
   type CaseInput,
 } from "@/lib/validations";
-import {
-  uploadFileToCloudinary,
-  isCloudinaryConfigured,
-} from "@/lib/cloudinary";
+import { saveManagedForm } from "@/lib/managed-form.server";
+import { MANAGED_FORM_FIELDS, StorageError, storageErrorMessage } from "@/lib/storage-contract";
 import { getT } from "@/lib/i18n/server";
 import { getSchemas } from "@/lib/validations";
 
@@ -27,47 +25,6 @@ type ActionResult =
 
 const FORBIDDEN_ERROR =
   "Hanya Super Admin dan Pekerja Sosial yang boleh mengelola kasus";
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_DOC_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/pdf",
-];
-
-/** Upload lampiran kasus ke Cloudinary. Return null + warning jika storage belum siap. */
-async function uploadCaseFile(
-  file: File
-): Promise<{ url: string | null; warning?: string; error?: string }> {
-  const { tr, locale } = await getT();
-
-  if (!ALLOWED_DOC_TYPES.includes(file.type)) {
-    return { url: null, error: tr("File harus JPG, PNG, WebP, atau PDF") };
-  }
-  if (file.size > MAX_FILE_SIZE) {
-    return { url: null, error: tr("Ukuran file maksimal 5MB") };
-  }
-  if (!isCloudinaryConfigured()) {
-    return {
-      url: null,
-      warning: tr("File tidak tersimpan: Cloudinary belum dikonfigurasi"),
-    };
-  }
-  try {
-    const isPdf = file.type === "application/pdf";
-    const url = await uploadFileToCloudinary(
-      Buffer.from(await file.arrayBuffer()),
-      "yayasan/cases",
-      isPdf ? `${Date.now()}-${file.name}` : undefined,
-      isPdf ? "raw" : "image"
-    );
-    return { url };
-  } catch (error) {
-    console.error("uploadCaseFile error:", error);
-    return { url: null, error: tr("Gagal meng-upload file") };
-  }
-}
 
 export async function createCase(values: CaseInput): Promise<ActionResult> {
   const { tr, locale } = await getT();
@@ -145,32 +102,26 @@ export async function addIntervention(
       return { success: false, error: tr("Kasus sudah ditutup") };
     }
 
-    // Upload lampiran opsional
-    let attachmentUrl: string | null = null;
-    let warning: string | undefined;
-    const attachment = formData.get("attachment");
-    if (attachment instanceof File && attachment.size > 0) {
-      const uploaded = await uploadCaseFile(attachment);
-      if (uploaded.error) return { success: false, error: tr(uploaded.error) };
-      attachmentUrl = uploaded.url;
-      warning = uploaded.warning;
-    }
+    const intervention = await saveManagedForm(prisma, formData, { id: session.user.id }, parsed.data.caseId, MANAGED_FORM_FIELDS.caseIntervention, async (tx, urls) => {
+      const current = await tx.case.findUnique({ where: { id: parsed.data.caseId } });
+      if (!current || current.status === "CLOSED") throw new StorageError("INVALID");
+      const saved = await tx.caseIntervention.create({
+        data: {
+          caseId: parsed.data.caseId,
+          date: new Date(parsed.data.date),
+          interventionType: parsed.data.interventionType,
+          notes: parsed.data.notes,
+          ...urls,
+          createdById: session.user.id,
+        },
+      });
 
-    const intervention = await prisma.caseIntervention.create({
-      data: {
-        caseId: parsed.data.caseId,
-        date: new Date(parsed.data.date),
-        interventionType: parsed.data.interventionType,
-        notes: parsed.data.notes,
-        attachmentUrl,
-        createdById: session.user.id,
-      },
-    });
-
-    // Kasus otomatis naik status begitu intervensi pertama dicatat
-    await prisma.case.update({
-      where: { id: parsed.data.caseId },
-      data: { status: "IN_PROGRESS" },
+      // Kasus otomatis naik status begitu intervensi pertama dicatat
+      await tx.case.update({
+        where: { id: parsed.data.caseId },
+        data: { status: "IN_PROGRESS" },
+      });
+      return saved;
     });
 
     await logAudit({
@@ -183,9 +134,10 @@ export async function addIntervention(
     });
 
     revalidatePath(`/dashboard/cases/${parsed.data.caseId}`);
-    return { success: true, id: intervention.id, warning: warning ? tr(warning) : undefined };
+    return { success: true, id: intervention.id };
   } catch (error) {
-    console.error("addIntervention error:", error);
+    if (error instanceof StorageError) return { success: false, error: storageErrorMessage(error.code, locale) };
+    console.error("addIntervention failed");
     return { success: false, error: tr("Gagal menambah intervensi") };
   }
 }
@@ -233,28 +185,19 @@ export async function uploadCaseDocument(
   const caseId = z.string().cuid().safeParse(formData.get("caseId"));
   if (!caseId.success) return { success: false, error: tr("ID kasus tidak valid") };
 
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return { success: false, error: tr("Pilih file terlebih dahulu") };
-  }
-
   try {
-    const uploaded = await uploadCaseFile(file);
-    if (uploaded.error) return { success: false, error: tr(uploaded.error) };
-    if (!uploaded.url) {
-      return {
-        success: false,
-        error: tr(uploaded.warning ?? "Storage belum dikonfigurasi"),
-      };
-    }
-
-    const document = await prisma.caseDocument.create({
-      data: {
-        caseId: caseId.data,
-        fileName: file.name,
-        fileUrl: uploaded.url,
-        uploadedById: session.user.id,
-      },
+    const document = await saveManagedForm(prisma, formData, { id: session.user.id }, caseId.data, MANAGED_FORM_FIELDS.caseDocument, async (tx, urls, files) => {
+      if (!urls.fileUrl || files.length !== 1) throw new StorageError("INVALID");
+      const current = await tx.case.findUnique({ where: { id: caseId.data } });
+      if (!current || current.status === "CLOSED") throw new StorageError("INVALID");
+      return tx.caseDocument.create({
+        data: {
+          caseId: caseId.data,
+          fileName: files[0].filename,
+          fileUrl: urls.fileUrl,
+          uploadedById: session.user.id,
+        },
+      });
     });
 
     await logAudit({
@@ -263,13 +206,14 @@ export async function uploadCaseDocument(
       action: "CREATE",
       entity: "CaseDocument",
       entityId: document.id,
-      detail: `Upload dokumen "${file.name}" ke kasus ${caseId.data}`,
+      detail: `Upload dokumen "${document.fileName}" ke kasus ${caseId.data}`,
     });
 
     revalidatePath(`/dashboard/cases/${caseId.data}`);
     return { success: true, id: document.id };
   } catch (error) {
-    console.error("uploadCaseDocument error:", error);
+    if (error instanceof StorageError) return { success: false, error: storageErrorMessage(error.code, locale) };
+    console.error("uploadCaseDocument failed");
     return { success: false, error: tr("Gagal meng-upload dokumen") };
   }
 }

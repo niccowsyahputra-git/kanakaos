@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { Loader2, Search, X, AlertTriangle } from "lucide-react";
 
 import { createFinanceExpense } from "@/lib/actions/financeExpense";
+import { useManagedFormUploads } from "@/components/shared/use-managed-form-uploads";
+import { MANAGED_FORM_FIELDS } from "@/lib/storage-contract";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,7 +83,9 @@ export function ExpenseForm({
   const expenseCoaHint = localizeLabels(__expenseCoaHint, tr);
 
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [isTransitionPending, startTransition] = useTransition();
+  const uploads = useManagedFormUploads(MANAGED_FORM_FIELDS.expense);
+  const isPending = isTransitionPending || uploads.isPending;
   const proofRef = useRef<HTMLInputElement>(null);
 
   const [date, setDate] = useState("");
@@ -162,7 +166,7 @@ export function ExpenseForm({
       formData.set("amount", amount);
       formData.set("proof", proof);
 
-      const result = await createFinanceExpense(formData);
+      const result = await uploads.submit(formData, createFinanceExpense);
       if (result.success) {
         toast.success(tr("Voucher dibuat — {0} (Draft)", { "0": result.voucherNumber }));
         if (result.warning) toast.warning(result.warning);
@@ -395,6 +399,7 @@ export function ExpenseForm({
           <Input
             id="ex-proof"
             ref={proofRef}
+            disabled={isPending}
             type="file"
             accept="application/pdf,image/jpeg,image/png"
             onChange={(e) => setHasProof(!!e.target.files?.length)}
@@ -408,6 +413,7 @@ export function ExpenseForm({
           <b>{tr("Selesai / Dana Cair")}</b>.
         </div>
 
+        {uploads.progress !== null && <progress className="w-full" max={100} value={uploads.progress} aria-label={locale === "en" ? "Upload progress" : "Progres unggahan"} />}
         <div className="flex justify-end gap-2">
           <Button
             variant="outline"

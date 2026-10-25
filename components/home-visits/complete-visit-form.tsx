@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
 import { completeHomeVisit, cancelHomeVisit } from "@/lib/actions/homeVisit";
+import { useManagedFormUploads } from "@/components/shared/use-managed-form-uploads";
+import { MANAGED_FORM_FIELDS } from "@/lib/storage-contract";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,7 +44,9 @@ export function CompleteVisitForm({ visitId }: { visitId: string }) {
   });
   const [score, setScore] = useState(5);
   const [notes, setNotes] = useState("");
-  const [isCompleting, startCompleting] = useTransition();
+  const [isCompletingTransition, startCompleting] = useTransition();
+  const uploads = useManagedFormUploads(MANAGED_FORM_FIELDS.homeVisit, visitId);
+  const isCompleting = isCompletingTransition || uploads.isPending;
   const [isCancelling, startCancelling] = useTransition();
 
   function toggle(key: ChecklistKey) {
@@ -61,7 +65,7 @@ export function CompleteVisitForm({ visitId }: { visitId: string }) {
       const photo = photoRef.current?.files?.[0];
       if (photo) formData.set("photo", photo);
 
-      const result = await completeHomeVisit(formData);
+      const result = await uploads.submit(formData, completeHomeVisit);
       if (result.success) {
         if (result.warning) {
           toast.warning(tr("Kunjungan selesai"), { description: result.warning });
@@ -185,11 +189,13 @@ export function CompleteVisitForm({ visitId }: { visitId: string }) {
             id="visit-photo"
             ref={photoRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
+            disabled={isCompleting || isCancelling}
             className="cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1 file:text-sm"
           />
         </div>
 
+        {uploads.progress !== null && <progress className="w-full" max={100} value={uploads.progress} aria-label={locale === "en" ? "Upload progress" : "Progres unggahan"} />}
         <div className="flex flex-col gap-3 md:flex-row md:justify-end">
           <Button
             variant="outline"

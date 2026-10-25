@@ -8,10 +8,8 @@ import { logAudit } from "@/lib/audit";
 import type { Prisma } from "@prisma/client";
 import type { Locale } from "@/lib/i18n/config";
 import { effectiveProgramFundingSource, FundingRuleError, getUnrestrictedBalance, lockFundingWallets } from "@/lib/finance-balance";
-import {
-  uploadFileToCloudinary,
-  isCloudinaryConfigured,
-} from "@/lib/cloudinary";
+import { saveManagedForm } from "@/lib/managed-form.server";
+import { MANAGED_FORM_FIELDS, StorageError, storageErrorMessage } from "@/lib/storage-contract";
 import { getT } from "@/lib/i18n/server";
 import { getSchemas } from "@/lib/validations";
 
@@ -37,39 +35,6 @@ function parseProgramForm(formData: FormData, locale: Locale, fundraisingTarget?
   });
 }
 
-async function uploadProposal(
-  formData: FormData
-): Promise<{ url: string | null; warning?: string; error?: string }> {
-  const { tr, locale } = await getT();
-
-  const file = formData.get("proposal");
-  if (!(file instanceof File) || file.size === 0) return { url: null };
-  if (file.type !== "application/pdf") {
-    return { url: null, error: tr("Proposal harus berupa file PDF") };
-  }
-  if (file.size > 10 * 1024 * 1024) {
-    return { url: null, error: tr("Ukuran proposal maksimal 10MB") };
-  }
-  if (!isCloudinaryConfigured()) {
-    return {
-      url: null,
-      warning: tr("Proposal tidak tersimpan: Cloudinary belum dikonfigurasi"),
-    };
-  }
-  try {
-    const url = await uploadFileToCloudinary(
-      Buffer.from(await file.arrayBuffer()),
-      "yayasan/programs",
-      undefined,
-      "raw"
-    );
-    return { url };
-  } catch (error) {
-    console.error("uploadProposal error:", error);
-    return { url: null, error: tr("Gagal meng-upload proposal") };
-  }
-}
-
 /** Kode program otomatis: PRG/YYYY/XXX */
 async function nextProgramCode(db: Prisma.TransactionClient, attempt: number): Promise<string> {
   const year = new Date().getFullYear();
@@ -93,14 +58,11 @@ export async function createProgram(formData: FormData): Promise<ActionResult> {
     return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
-  const proposal = await uploadProposal(formData);
-  if (proposal.error) return { success: false, error: tr(proposal.error) };
-
   try {
     let program;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        program = await prisma.$transaction(async tx => {
+        program = await saveManagedForm(prisma, formData, { id: session.user.id }, undefined, MANAGED_FORM_FIELDS.program, async (tx, urls) => {
           await lockFundingWallets(tx);
           const allocation = funding.data.alokasiDanaInternal;
           if (allocation > 0 && allocation > await getUnrestrictedBalance(tx)) {
@@ -114,7 +76,7 @@ export async function createProgram(formData: FormData): Promise<ActionResult> {
               porsiPenggalangan: funding.data.porsiPenggalangan,
               startDate: parsed.data.startDate ?? null,
               description: parsed.data.description ?? null,
-              proposalUrl: proposal.url,
+              ...urls,
               ...(allocation > 0 ? {
                 internalAllocations: { create: { amount: allocation, createdById: session.user.id } },
               } : {}),
@@ -145,10 +107,11 @@ export async function createProgram(formData: FormData): Promise<ActionResult> {
 
     revalidatePath("/dashboard/finance", "layout");
     revalidatePath("/dashboard");
-    return { success: true, id: program.id, warning: proposal.warning ? tr(proposal.warning) : undefined };
+    return { success: true, id: program.id };
   } catch (error) {
     if (error instanceof FundingRuleError) return { success: false, error: tr(error.message) };
-    console.error("createProgram error:", error);
+    if (error instanceof StorageError) return { success: false, error: storageErrorMessage(error.code, locale) };
+    console.error("createProgram failed");
     return { success: false, error: tr("Gagal membuat program") };
   }
 }
@@ -172,11 +135,8 @@ export async function updateProgram(
     return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
-  const proposal = await uploadProposal(formData);
-  if (proposal.error) return { success: false, error: tr(proposal.error) };
-
   try {
-    const existing = await prisma.$transaction(async tx => {
+    const existing = await saveManagedForm(prisma, formData, { id: session.user.id }, idParsed.data, MANAGED_FORM_FIELDS.program, async (tx, urls) => {
       const program = await tx.program.findUnique({ where: { id: idParsed.data } });
       if (!program) throw new FundingRuleError("Program tidak ditemukan");
       await tx.program.update({
@@ -194,7 +154,7 @@ export async function updateProgram(
           leftoverRule: parsed.data.leftoverRule,
           description: parsed.data.description ?? null,
           // Proposal baru menggantikan yang lama; jika tidak upload, biarkan
-          ...(proposal.url ? { proposalUrl: proposal.url } : {}),
+          ...urls,
         },
       });
       return program;
@@ -211,10 +171,11 @@ export async function updateProgram(
 
     revalidatePath("/dashboard/finance", "layout");
     revalidatePath("/dashboard");
-    return { success: true, id: idParsed.data, warning: proposal.warning ? tr(proposal.warning) : undefined };
+    return { success: true, id: idParsed.data };
   } catch (error) {
     if (error instanceof FundingRuleError) return { success: false, error: tr(error.message) };
-    console.error("updateProgram error:", error);
+    if (error instanceof StorageError) return { success: false, error: storageErrorMessage(error.code, locale) };
+    console.error("updateProgram failed");
     return { success: false, error: tr("Gagal memperbarui program") };
   }
 }

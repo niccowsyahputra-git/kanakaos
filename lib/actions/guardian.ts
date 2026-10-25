@@ -6,10 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { requireStaffSession } from "@/lib/auth-guard";
 import { logAudit } from "@/lib/audit";
 import { guardianSchema } from "@/lib/validations";
-import {
-  uploadFileToCloudinary,
-  isCloudinaryConfigured,
-} from "@/lib/cloudinary";
+import { saveManagedForm } from "@/lib/managed-form.server";
+import { MANAGED_FORM_FIELDS, StorageError, storageErrorMessage } from "@/lib/storage-contract";
 import { getT } from "@/lib/i18n/server";
 import { getSchemas } from "@/lib/validations";
 
@@ -20,11 +18,6 @@ type ActionResult =
 
 const FORBIDDEN_ERROR =
   "Hanya Super Admin dan Pekerja Sosial yang boleh mengelola data wali";
-
-const MAX_DOC_SIZE = 2 * 1024 * 1024; // dokumen KTP/KK maks 2MB
-const ALLOWED_DOC_TYPES = ["application/pdf", "image/jpeg", "image/png"];
-const MAX_SELFIE_SIZE = 5 * 1024 * 1024; // foto selfie maks 5MB
-const ALLOWED_SELFIE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 /** Parse seluruh field teks form wali dari FormData */
 function parseGuardianForm(formData: FormData) {
@@ -81,79 +74,6 @@ function parseChildIds(formData: FormData): string[] | null {
   return ids;
 }
 
-/** Upload satu dokumen (KTP/KK: PDF/PNG/JPG 2MB; selfie: gambar 5MB) */
-async function uploadGuardianFile(
-  file: File,
-  label: string,
-  kind: "doc" | "selfie"
-): Promise<{ url?: string; error?: string; needsStorage?: boolean }> {
-  const { tr, locale } = await getT();
-
-  const allowed = kind === "doc" ? ALLOWED_DOC_TYPES : ALLOWED_SELFIE_TYPES;
-  const maxSize = kind === "doc" ? MAX_DOC_SIZE : MAX_SELFIE_SIZE;
-  if (!allowed.includes(file.type)) {
-    return {
-      error:
-        tr(kind === "doc"
-          ? `${label} harus berformat PDF, PNG, atau JPG`
-          : `${label} harus berupa gambar (JPG/PNG/WebP)`),
-    };
-  }
-  if (file.size > maxSize) {
-    return {
-      error: tr(`Ukuran ${label} maksimal ${kind === "doc" ? "2MB" : "5MB"}`),
-    };
-  }
-  if (!isCloudinaryConfigured()) return { needsStorage: true };
-  try {
-    const isPdf = file.type === "application/pdf";
-    const url = await uploadFileToCloudinary(
-      Buffer.from(await file.arrayBuffer()),
-      "yayasan/guardians",
-      isPdf ? `${Date.now()}-${label}.pdf` : undefined,
-      isPdf ? "raw" : "image"
-    );
-    return { url };
-  } catch (error) {
-    console.error(`uploadGuardianFile ${label} error:`, error);
-    return { error: tr(`Gagal meng-upload ${label}`) };
-  }
-}
-
-/** Proses 3 slot file wali; hanya slot yang diisi yang di-upload */
-async function processGuardianFiles(
-  formData: FormData
-): Promise<
-  | { ok: true; urls: Record<string, string>; needsStorage: boolean }
-  | { ok: false; error: string }
-> {
-  const { tr, locale } = await getT();
-
-  const slots = [
-    { field: "ktpDoc", column: "ktpDocUrl", label: tr("Dokumen KTP"), kind: "doc" },
-    { field: "kkDoc", column: "kkDocUrl", label: tr("Dokumen KK"), kind: "doc" },
-    { field: "selfie", column: "selfieUrl", label: tr("Foto Selfie"), kind: "selfie" },
-    {
-      field: "otherDoc",
-      column: "otherDocUrl",
-      label: tr("Dokumen Lainnya"),
-      kind: "doc",
-    },
-  ] as const;
-
-  const urls: Record<string, string> = {};
-  let needsStorage = false;
-  for (const slot of slots) {
-    const file = formData.get(slot.field);
-    if (!(file instanceof File) || file.size === 0) continue;
-    const result = await uploadGuardianFile(file, slot.label, slot.kind);
-    if (result.error) return { ok: false, error: tr(result.error) };
-    if (result.needsStorage) needsStorage = true;
-    if (result.url) urls[slot.column] = result.url;
-  }
-  return { ok: true, urls, needsStorage };
-}
-
 export async function createGuardian(
   formData: FormData
 ): Promise<ActionResult> {
@@ -172,29 +92,18 @@ export async function createGuardian(
     return { success: false, error: tr("Daftar anak tidak valid") };
   }
 
-  const files = await processGuardianFiles(formData);
-  if (!files.ok) return { success: false, error: tr(files.error) };
-
   try {
-    const guardian = await prisma.guardian.create({
-      data: { ...buildGuardianData(parsed.data), ...files.urls },
-    });
-
-    // Hubungkan anak terpilih ke wali ini (1 anak 1 wali)
-    if (childIds.length > 0) {
-      await prisma.child.updateMany({
-        where: { id: { in: childIds } },
-        data: { guardianId: guardian.id },
-      });
-    }
-
-    await logAudit({
-      userId: session.user.id,
-      userName: session.user.name ?? "Unknown",
-      action: "CREATE",
-      entity: "Guardian",
-      entityId: guardian.id,
-      detail: `Menambah wali ${guardian.name} (${childIds.length} anak terhubung)`,
+    const guardian = await saveManagedForm(prisma, formData, { id: session.user.id }, undefined, MANAGED_FORM_FIELDS.guardian, async (tx, urls) => {
+      const saved = await tx.guardian.create({ data: { ...buildGuardianData(parsed.data), ...urls } });
+      // Hubungkan anak terpilih ke wali ini (1 anak 1 wali)
+      if (childIds.length > 0) {
+        await tx.child.updateMany({ where: { id: { in: childIds } }, data: { guardianId: saved.id } });
+      }
+      await tx.auditLog.create({ data: {
+        userId: session.user.id, userName: session.user.name ?? "Unknown", action: "CREATE", entity: "Guardian", entityId: saved.id,
+        detail: `Menambah wali ${saved.name} (${childIds.length} anak terhubung)`,
+      } });
+      return saved;
     });
 
     revalidatePath("/dashboard/guardians");
@@ -203,12 +112,10 @@ export async function createGuardian(
     return {
       success: true,
       id: guardian.id,
-      warning: files.needsStorage
-        ? tr("Sebagian dokumen belum tersimpan (storage belum aktif)")
-        : undefined,
     };
   } catch (error) {
-    console.error("createGuardian error:", error);
+    if (error instanceof StorageError) return { success: false, error: storageErrorMessage(error.code, locale) };
+    console.error("createGuardian failed");
     return { success: false, error: tr("Gagal menambah wali") };
   }
 }
@@ -237,9 +144,6 @@ export async function updateGuardian(
     return { success: false, error: tr("Daftar anak tidak valid") };
   }
 
-  const files = await processGuardianFiles(formData);
-  if (!files.ok) return { success: false, error: tr(files.error) };
-
   try {
     const existing = await prisma.guardian.findUnique({
       where: { id: idParsed.data },
@@ -250,32 +154,15 @@ export async function updateGuardian(
     // Sinkron dua arah secara atomik:
     // - anak yang di-uncheck dilepas dari wali ini
     // - anak yang dipilih dipindahkan ke wali ini (menimpa wali lama)
-    await prisma.$transaction([
-      prisma.guardian.update({
-        where: { id: idParsed.data },
-        data: { ...buildGuardianData(parsed.data), ...files.urls },
-      }),
-      prisma.child.updateMany({
-        where: { guardianId: idParsed.data, id: { notIn: childIds } },
-        data: { guardianId: null },
-      }),
-      ...(childIds.length > 0
-        ? [
-            prisma.child.updateMany({
-              where: { id: { in: childIds } },
-              data: { guardianId: idParsed.data },
-            }),
-          ]
-        : []),
-    ]);
-
-    await logAudit({
-      userId: session.user.id,
-      userName: session.user.name ?? "Unknown",
-      action: "UPDATE",
-      entity: "Guardian",
-      entityId: idParsed.data,
-      detail: `Memperbarui data wali ${parsed.data.name} (${childIds.length} anak terhubung)`,
+    await saveManagedForm(prisma, formData, { id: session.user.id }, idParsed.data, MANAGED_FORM_FIELDS.guardian, async (tx, urls) => {
+      const saved = await tx.guardian.update({ where: { id: idParsed.data }, data: { ...buildGuardianData(parsed.data), ...urls } });
+      await tx.child.updateMany({ where: { guardianId: idParsed.data, id: { notIn: childIds } }, data: { guardianId: null } });
+      if (childIds.length > 0) await tx.child.updateMany({ where: { id: { in: childIds } }, data: { guardianId: idParsed.data } });
+      await tx.auditLog.create({ data: {
+        userId: session.user.id, userName: session.user.name ?? "Unknown", action: "UPDATE", entity: "Guardian", entityId: idParsed.data,
+        detail: `Memperbarui data wali ${parsed.data.name} (${childIds.length} anak terhubung)`,
+      } });
+      return saved;
     });
 
     revalidatePath("/dashboard/guardians");
@@ -283,12 +170,10 @@ export async function updateGuardian(
     return {
       success: true,
       id: idParsed.data,
-      warning: files.needsStorage
-        ? tr("Sebagian dokumen baru belum tersimpan (storage belum aktif)")
-        : undefined,
     };
   } catch (error) {
-    console.error("updateGuardian error:", error);
+    if (error instanceof StorageError) return { success: false, error: storageErrorMessage(error.code, locale) };
+    console.error("updateGuardian failed");
     return { success: false, error: tr("Gagal memperbarui wali") };
   }
 }

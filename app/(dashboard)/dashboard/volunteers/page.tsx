@@ -30,7 +30,7 @@ import { getT } from "@/lib/i18n/server";
 import { createTranslator } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/config";
 import { VOLUNTEER_FIELDS, readVolunteerSkills, needFieldLabel, dateOnlyLabel } from "@/lib/option-catalogs";
-import { attachmentUrl, type AttachmentSummary } from "@/lib/volunteer-upload-contract";
+import { volunteerAttachmentUrl, normalizeVolunteerAttachments, type AttachmentSummary } from "@/lib/volunteer-upload-contract";
 
 
 export const dynamic = "force-dynamic";
@@ -83,8 +83,8 @@ function toDetail(volunteer: {
     occupation: volunteer.occupation,
     availability: volunteer.availability,
     motivation: volunteer.motivation,
-    ktpUrl: volunteer.attachments.some(a => a.kind === "KTP") ? attachmentUrl(volunteer.attachments.find(a => a.kind === "KTP")!.id) : volunteer.ktpUrl,
-    skckUrl: volunteer.attachments.some(a => a.kind === "SKCK") ? attachmentUrl(volunteer.attachments.find(a => a.kind === "SKCK")!.id) : volunteer.skckUrl,
+    ktpUrl: volunteer.attachments.some(a => a.kind === "KTP") ? volunteerAttachmentUrl(volunteer.attachments.find(a => a.kind === "KTP")!) : volunteer.ktpUrl,
+    skckUrl: volunteer.attachments.some(a => a.kind === "SKCK") ? volunteerAttachmentUrl(volunteer.attachments.find(a => a.kind === "SKCK")!) : volunteer.skckUrl,
     needTitle: volunteer.need ? volunteer.need.field && volunteer.need.field !== "OTHER" ? createTranslator(locale)(needFieldLabel(volunteer.need.field, volunteer.need.otherField, volunteer.need.title)) : volunteer.need.title : null,
     createdAtLabel: formatDate(volunteer.createdAt, locale) ?? "-",
   };
@@ -175,12 +175,13 @@ export default async function VolunteersPage() {
     redirect("/dashboard");
   }
 
-  const [volunteers, rawNeeds] = await Promise.all([
+  const [rawVolunteers, rawNeeds] = await Promise.all([
     prisma.volunteer.findMany({
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
       include: {
         need: { select: { title: true, field: true, otherField: true } },
         attachments: { select: { id: true, kind: true, filename: true }, orderBy: { createdAt: "asc" } },
+        managedFiles: { where: { state: "ATTACHED" }, select: { id: true, purpose: true, filename: true }, orderBy: { createdAt: "asc" } },
         user: { select: { email: true, isActive: true } },
       },
     }),
@@ -189,6 +190,8 @@ export default async function VolunteersPage() {
       select: { id: true, title: true, status: true, field: true, otherField: true, startDate: true, endDate: true },
     }),
   ]);
+
+  const volunteers = rawVolunteers.map(volunteer => ({ ...volunteer, attachments: normalizeVolunteerAttachments(volunteer.attachments, volunteer.managedFiles) }));
 
   // Akun login hanya dibuatkan oleh Super Admin (sama seperti pegawai)
   const isSuperAdmin = session.user.role === "SUPER_ADMIN";
