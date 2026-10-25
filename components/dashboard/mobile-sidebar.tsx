@@ -27,11 +27,11 @@ export function MobileSidebar({ role }: { role?: string }) {
           <span className="sr-only">{tr("Buka menu")}</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-64 p-0">
+      <SheetContent side="left" className="flex w-64 flex-col p-0">
         <SheetHeader className="border-b p-4 text-left">
           <SheetTitle className="text-xl">{tr("KanakaOS")}</SheetTitle>
         </SheetHeader>
-        <div className="p-4">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 pb-8">
           <NavLinks role={role} onNavigate={() => setOpen(false)} />
         </div>
       </SheetContent>
