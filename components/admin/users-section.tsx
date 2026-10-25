@@ -13,6 +13,10 @@ import {
 import { UserDialog } from "@/components/admin/user-dialog";
 import { UserActions } from "@/components/admin/user-actions";
 import { UserFilters } from "@/components/admin/user-filters";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+
 
 const roleLabel: Record<UserRole, string> = {
   SUPER_ADMIN: "Super Admin",
@@ -23,8 +27,10 @@ const roleLabel: Record<UserRole, string> = {
   LOGISTICS: "Logistik",
 };
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(
     date
   );
 }
@@ -39,6 +45,8 @@ export async function UsersSection({
   q?: string;
   role?: string;
 }) {
+  const { tr, locale } = await getT();
+
   const roleFilter = Object.values(UserRole).includes(role as UserRole)
     ? (role as UserRole)
     : undefined;
@@ -68,9 +76,7 @@ export async function UsersSection({
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
-          {users.length} user ditemukan. Akun untuk pegawai bisa dibuat dari
-          menu Data Pegawai.
-        </p>
+          {users.length} {tr(" user ditemukan. Akun untuk pegawai bisa dibuat dari menu Data Pegawai.")}</p>
         <UserDialog />
       </div>
 
@@ -79,8 +85,7 @@ export async function UsersSection({
       {users.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Tidak ada user yang cocok dengan filter.
-          </CardContent>
+            {tr("Tidak ada user yang cocok dengan filter.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -104,16 +109,16 @@ export async function UsersSection({
                           : "border-transparent bg-gray-100 text-gray-500"
                       }
                     >
-                      {user.isActive ? "Aktif" : "Nonaktif"}
+                      {user.isActive ? tr("Aktif") : tr("Nonaktif")}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      {roleLabel[user.role]}
+                      {tr(roleLabel[user.role])}
                       {user.employee
-                        ? ` · Pegawai ${user.employee.employeeCode}`
+                        ? tr(" · Pegawai {0}", { "0": user.employee.employeeCode })
                         : ""}{" "}
-                      · sejak {formatDate(user.createdAt)}
+                      {tr("· sejak ")}{formatDate(user.createdAt, locale)}
                     </span>
                     <UserActions
                       user={user}
@@ -130,13 +135,13 @@ export async function UsersSection({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Pegawai</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Terdaftar</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{tr("Nama")}</TableHead>
+                  <TableHead>{tr("Email")}</TableHead>
+                  <TableHead>{tr("Role")}</TableHead>
+                  <TableHead>{tr("Pegawai")}</TableHead>
+                  <TableHead>{tr("Status")}</TableHead>
+                  <TableHead>{tr("Terdaftar")}</TableHead>
+                  <TableHead className="text-right">{tr("Aksi")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -149,12 +154,11 @@ export async function UsersSection({
                       {user.name}
                       {user.id === sessionUserId && (
                         <span className="ml-2 text-xs text-muted-foreground">
-                          (Anda)
-                        </span>
+                          {tr("(Anda)")}</span>
                       )}
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
-                    <TableCell>{roleLabel[user.role]}</TableCell>
+                    <TableCell>{tr(roleLabel[user.role])}</TableCell>
                     <TableCell className="font-mono text-xs">
                       {user.employee?.employeeCode ?? "-"}
                     </TableCell>
@@ -167,10 +171,10 @@ export async function UsersSection({
                             : "border-transparent bg-gray-100 text-gray-500"
                         }
                       >
-                        {user.isActive ? "Aktif" : "Nonaktif"}
+                        {user.isActive ? tr("Aktif") : tr("Nonaktif")}
                       </Badge>
                     </TableCell>
-                    <TableCell>{formatDate(user.createdAt)}</TableCell>
+                    <TableCell>{formatDate(user.createdAt, locale)}</TableCell>
                     <TableCell>
                       <UserActions
                         user={user}

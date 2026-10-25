@@ -29,6 +29,9 @@ import {
   Megaphone,
   type LucideIcon,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 type NavLink = {
   href: string;
@@ -155,6 +158,9 @@ export function NavLinks({
   role?: string;
   onNavigate?: () => void;
 }) {
+  const { tr, locale } = useI18n();
+  const links = localizeLabels(__links, tr);
+
   const pathname = usePathname();
 
   const visibleLinks = links.filter(
@@ -179,10 +185,12 @@ export function NavLinks({
             )}
           >
             <Icon className="h-4 w-4" />
-            {link.label}
+            {tr(link.label)}
           </Link>
         );
       })}
     </nav>
   );
 }
+
+const __links = links;

@@ -16,6 +16,10 @@ import {
   EditFamilyVisitDialog,
   DeleteFamilyVisitButton,
 } from "@/components/family-visits/family-visit-tools";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+
 
 export const dynamic = "force-dynamic";
 
@@ -27,20 +31,26 @@ function toDateTimeInput(date: Date): string {
   )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(
     date
   );
 }
 
-function formatTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
+function formatTime(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
 }
 
 export default async function FamilyVisitsPage() {
+  const { tr, locale } = await getT();
+
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -85,12 +95,10 @@ export default async function FamilyVisitsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Kunjungan Keluarga
-          </h2>
+            {tr("Kunjungan Keluarga")}</h2>
           <p className="text-sm text-muted-foreground">
-            Buku tamu orang tua/wali · {visits.length} catatan · {todayCount}{" "}
-            kunjungan hari ini.
-          </p>
+            {tr("Buku tamu orang tua/wali · ")}{visits.length} {tr(" catatan · ")}{todayCount}{" "}
+            {tr("kunjungan hari ini.")}</p>
         </div>
         <AddFamilyVisitDialog childrenOptions={childrenOptions} />
       </div>
@@ -98,8 +106,7 @@ export default async function FamilyVisitsPage() {
       {visits.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Belum ada catatan kunjungan keluarga.
-          </CardContent>
+            {tr("Belum ada catatan kunjungan keluarga.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -120,7 +127,7 @@ export default async function FamilyVisitsPage() {
                         ) : null}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Mengunjungi{" "}
+                        {tr("Mengunjungi")}{" "}
                         <span className="font-medium text-foreground">
                           {visit.child.fullName}
                         </span>
@@ -139,8 +146,8 @@ export default async function FamilyVisitsPage() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="secondary">
-                      {formatDate(visit.visitDate)} ·{" "}
-                      {formatTime(visit.visitDate)} WIB
+                      {formatDate(visit.visitDate, locale)} ·{" "}
+                      {formatTime(visit.visitDate, locale)} WIB
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -156,13 +163,13 @@ export default async function FamilyVisitsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Pengunjung</TableHead>
-                  <TableHead>Anak yang Dikunjungi</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Jam</TableHead>
-                  <TableHead>Urusan</TableHead>
-                  <TableHead>Dicatat oleh</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{tr("Pengunjung")}</TableHead>
+                  <TableHead>{tr("Anak yang Dikunjungi")}</TableHead>
+                  <TableHead>{tr("Tanggal")}</TableHead>
+                  <TableHead>{tr("Jam")}</TableHead>
+                  <TableHead>{tr("Urusan")}</TableHead>
+                  <TableHead>{tr("Dicatat oleh")}</TableHead>
+                  <TableHead className="text-right">{tr("Aksi")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -177,8 +184,8 @@ export default async function FamilyVisitsPage() {
                       )}
                     </TableCell>
                     <TableCell>{visit.child.fullName}</TableCell>
-                    <TableCell>{formatDate(visit.visitDate)}</TableCell>
-                    <TableCell>{formatTime(visit.visitDate)} WIB</TableCell>
+                    <TableCell>{formatDate(visit.visitDate, locale)}</TableCell>
+                    <TableCell>{formatTime(visit.visitDate, locale)} WIB</TableCell>
                     <TableCell className="max-w-[240px]">
                       <span className="block truncate text-muted-foreground">
                         {visit.purpose}

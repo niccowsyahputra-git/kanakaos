@@ -12,8 +12,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useI18n } from "@/lib/i18n/client";
+
 
 export function AiInsightCard({ childId }: { childId: string }) {
+  const { tr, locale } = useI18n();
+
   const [insight, setInsight] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -35,21 +39,18 @@ export function AiInsightCard({ childId }: { childId: string }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
           <Sparkles className="h-5 w-5 text-primary" />
-          AI Insight
-        </CardTitle>
+          {tr("AI Insight")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {!insight && !isPending && (
           <p className="text-sm text-muted-foreground">
-            AI akan menganalisis 5 log harian terakhir dan memberikan ringkasan
-            kondisi anak beserta saran intervensi untuk pengasuh.
-          </p>
+            {tr("AI akan menganalisis 5 log harian terakhir dan memberikan ringkasan kondisi anak beserta saran intervensi untuk pengasuh.")}</p>
         )}
 
         {error && (
           <Alert variant="destructive">
             <XCircle className="h-4 w-4" />
-            <AlertTitle>Analisis Gagal</AlertTitle>
+            <AlertTitle>{tr("Analisis Gagal")}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -60,9 +61,7 @@ export function AiInsightCard({ childId }: { childId: string }) {
               {insight}
             </p>
             <p className="mt-3 border-t border-primary/10 pt-2 text-xs text-muted-foreground">
-              ⚠️ Hasil AI hanya alat bantu, bukan diagnosis. Keputusan tetap di
-              tangan pengasuh & pekerja sosial.
-            </p>
+              {tr("⚠️ Hasil AI hanya alat bantu, bukan diagnosis. Keputusan tetap di tangan pengasuh & pekerja sosial.")}</p>
           </div>
         )}
 
@@ -75,18 +74,15 @@ export function AiInsightCard({ childId }: { childId: string }) {
           {isPending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Menganalisis...
-            </>
+              {tr("Menganalisis...")}</>
           ) : insight ? (
             <>
               <RefreshCw className="h-4 w-4" />
-              Analisis Ulang
-            </>
+              {tr("Analisis Ulang")}</>
           ) : (
             <>
               <Sparkles className="h-4 w-4" />
-              Analisis Kondisi Anak Ini
-            </>
+              {tr("Analisis Kondisi Anak Ini")}</>
           )}
         </Button>
       </CardContent>

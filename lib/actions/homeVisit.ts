@@ -14,6 +14,9 @@ import {
   uploadFileToCloudinary,
   isCloudinaryConfigured,
 } from "@/lib/cloudinary";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type ActionResult =
   | { success: true; id?: string; warning?: string }
@@ -25,12 +28,15 @@ const FORBIDDEN_ERROR =
 export async function scheduleHomeVisit(
   values: HomeVisitInput
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { homeVisitSchema } = getSchemas(locale);
+
   const session = await requireStaffSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const parsed = homeVisitSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -38,11 +44,11 @@ export async function scheduleHomeVisit(
       where: { id: parsed.data.childId },
       select: { id: true, fullName: true, guardianId: true },
     });
-    if (!child) return { success: false, error: "Data anak tidak ditemukan" };
+    if (!child) return { success: false, error: tr("Data anak tidak ditemukan") };
     if (!child.guardianId) {
       return {
         success: false,
-        error: "Anak ini belum punya wali terdaftar. Lengkapi data wali dulu",
+        error: tr("Anak ini belum punya wali terdaftar. Lengkapi data wali dulu"),
       };
     }
 
@@ -52,7 +58,7 @@ export async function scheduleHomeVisit(
       select: { id: true, name: true, isActive: true },
     });
     if (!officer || !officer.isActive) {
-      return { success: false, error: "Petugas kunjungan tidak valid" };
+      return { success: false, error: tr("Petugas kunjungan tidak valid") };
     }
 
     const visit = await prisma.homeVisit.create({
@@ -78,7 +84,7 @@ export async function scheduleHomeVisit(
     return { success: true, id: visit.id };
   } catch (error) {
     console.error("scheduleHomeVisit error:", error);
-    return { success: false, error: "Gagal menjadwalkan kunjungan" };
+    return { success: false, error: tr("Gagal menjadwalkan kunjungan") };
   }
 }
 
@@ -90,8 +96,11 @@ export async function scheduleHomeVisit(
 export async function completeHomeVisit(
   formData: FormData
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { completeVisitSchema } = getSchemas(locale);
+
   const session = await requireStaffSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const parsed = completeVisitSchema.safeParse({
     visitId: formData.get("visitId"),
@@ -104,7 +113,7 @@ export async function completeHomeVisit(
     visitNotes: formData.get("visitNotes") ?? "",
   });
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -112,9 +121,9 @@ export async function completeHomeVisit(
       where: { id: parsed.data.visitId },
       include: { child: { select: { fullName: true, guardianId: true } } },
     });
-    if (!visit) return { success: false, error: "Kunjungan tidak ditemukan" };
+    if (!visit) return { success: false, error: tr("Kunjungan tidak ditemukan") };
     if (visit.status !== "PLANNED") {
-      return { success: false, error: "Kunjungan sudah selesai/dibatalkan" };
+      return { success: false, error: tr("Kunjungan sudah selesai/dibatalkan") };
     }
 
     // Upload foto rumah (opsional)
@@ -123,13 +132,13 @@ export async function completeHomeVisit(
     const photo = formData.get("photo");
     if (photo instanceof File && photo.size > 0) {
       if (!photo.type.startsWith("image/")) {
-        return { success: false, error: "Foto harus berupa gambar" };
+        return { success: false, error: tr("Foto harus berupa gambar") };
       }
       if (photo.size > 5 * 1024 * 1024) {
-        return { success: false, error: "Ukuran foto maksimal 5MB" };
+        return { success: false, error: tr("Ukuran foto maksimal 5MB") };
       }
       if (!isCloudinaryConfigured()) {
-        warning = "Foto tidak tersimpan: Cloudinary belum dikonfigurasi";
+        warning = tr("Foto tidak tersimpan: Cloudinary belum dikonfigurasi");
       } else {
         try {
           photoUrl = await uploadFileToCloudinary(
@@ -138,7 +147,7 @@ export async function completeHomeVisit(
           );
         } catch (error) {
           console.error("completeHomeVisit upload error:", error);
-          return { success: false, error: "Gagal meng-upload foto" };
+          return { success: false, error: tr("Gagal meng-upload foto") };
         }
       }
     }
@@ -177,20 +186,22 @@ export async function completeHomeVisit(
 
     revalidatePath("/dashboard/home-visits");
     revalidatePath(`/dashboard/home-visits/${visitId}`);
-    return { success: true, id: visitId, warning };
+    return { success: true, id: visitId, warning: warning ? tr(warning) : undefined };
   } catch (error) {
     console.error("completeHomeVisit error:", error);
-    return { success: false, error: "Gagal menyelesaikan kunjungan" };
+    return { success: false, error: tr("Gagal menyelesaikan kunjungan") };
   }
 }
 
 export async function cancelHomeVisit(id: string): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+
   const session = await requireStaffSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const idParsed = z.string().cuid().safeParse(id);
   if (!idParsed.success) {
-    return { success: false, error: "ID kunjungan tidak valid" };
+    return { success: false, error: tr("ID kunjungan tidak valid") };
   }
 
   try {
@@ -198,9 +209,9 @@ export async function cancelHomeVisit(id: string): Promise<ActionResult> {
       where: { id: idParsed.data },
       select: { id: true, status: true },
     });
-    if (!visit) return { success: false, error: "Kunjungan tidak ditemukan" };
+    if (!visit) return { success: false, error: tr("Kunjungan tidak ditemukan") };
     if (visit.status !== "PLANNED") {
-      return { success: false, error: "Hanya kunjungan terjadwal yang bisa dibatalkan" };
+      return { success: false, error: tr("Hanya kunjungan terjadwal yang bisa dibatalkan") };
     }
 
     await prisma.homeVisit.update({
@@ -213,6 +224,6 @@ export async function cancelHomeVisit(id: string): Promise<ActionResult> {
     return { success: true };
   } catch (error) {
     console.error("cancelHomeVisit error:", error);
-    return { success: false, error: "Gagal membatalkan kunjungan" };
+    return { success: false, error: tr("Gagal membatalkan kunjungan") };
   }
 }

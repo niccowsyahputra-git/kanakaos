@@ -7,12 +7,17 @@ import { NavLinks } from "@/components/dashboard/nav-links";
 import { LogoutButton } from "@/components/dashboard/logout-button";
 import { Separator } from "@/components/ui/separator";
 import { Bell } from "lucide-react";
+import { getT } from "@/lib/i18n/server";
+import { LanguageSwitcher } from "@/components/shared/language-switcher";
+
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { tr, t } = await getT();
+
   const session = await auth();
 
   if (!session?.user) {
@@ -29,7 +34,7 @@ export default async function DashboardLayout({
       {/* Desktop Sidebar */}
       <aside className="hidden w-full shrink-0 flex-col border-r bg-card md:flex md:w-64">
         <div className="flex h-16 items-center border-b px-6">
-          <h1 className="text-xl font-bold">KanakaOS</h1>
+          <h1 className="text-xl font-bold">{tr("KanakaOS")}</h1>
         </div>
         <div className="flex flex-1 flex-col p-4">
           <NavLinks role={session.user.role} />
@@ -46,15 +51,15 @@ export default async function DashboardLayout({
           <div className="flex items-center gap-3">
             <MobileSidebar role={session.user.role} />
             <span className="text-sm text-muted-foreground md:hidden">
-              KanakaOS
-            </span>
+              {tr("KanakaOS")}</span>
           </div>
           <div className="flex items-center gap-3">
+            <LanguageSwitcher />
             {/* Lonceng notifikasi dengan badge unread */}
             <Link
               href="/dashboard/notifications"
               className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label={`Notifikasi (${unreadCount} belum dibaca)`}
+              aria-label={tr("Notifikasi ({0} belum dibaca)", { "0": unreadCount })}
             >
               <Bell className="h-5 w-5" />
               {unreadCount > 0 && (
@@ -68,7 +73,7 @@ export default async function DashboardLayout({
                 {session.user.name}
               </p>
               <p className="text-xs text-muted-foreground capitalize">
-                {session.user.role?.toLowerCase().replace("_", " ")}
+                {t.common.role[session.user.role as keyof typeof t.common.role] ?? session.user.role}
               </p>
             </Link>
             <div className="md:hidden">

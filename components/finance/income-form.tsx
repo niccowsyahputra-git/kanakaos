@@ -27,6 +27,9 @@ import {
   incomeMethodOptions,
 } from "@/components/finance/finance-labels";
 import type { FundRestriction } from "@prisma/client";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 const NONE = "NONE";
 
@@ -50,6 +53,14 @@ export function IncomeForm({
   programOptions: ProgramOption[];
   accountOptions: AccountOption[];
 }) {
+  const { tr, locale } = useI18n();
+  const donorCategoryOptions = localizeLabels(__donorCategoryOptions, tr);
+  const educationOptions = localizeLabels(__educationOptions, tr);
+  const fundRestrictionOptions = localizeLabels(__fundRestrictionOptions, tr);
+  const fundRestrictionHint = localizeLabels(__fundRestrictionHint, tr);
+  const incomeFundCategoryOptions = localizeLabels(__incomeFundCategoryOptions, tr);
+  const incomeMethodOptions = localizeLabels(__incomeMethodOptions, tr);
+
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -92,7 +103,7 @@ export function IncomeForm({
 
   async function handleCreateDonor() {
     if (dName.trim().length < 2) {
-      toast.error("Nama lengkap donatur wajib diisi");
+      toast.error(tr("Nama lengkap donatur wajib diisi"));
       return;
     }
     setDonorSaving(true);
@@ -113,7 +124,7 @@ export function IncomeForm({
     });
     setDonorSaving(false);
     if (result.success) {
-      toast.success(`Profil donatur ${result.donor.name} dibuat`);
+      toast.success(tr("Profil donatur {0} dibuat", { "0": result.donor.name }));
       setDonorId(result.donor.id);
       setSourceName(result.donor.name);
       setShowDonorForm(false);
@@ -124,18 +135,18 @@ export function IncomeForm({
   }
 
   function handleSubmit() {
-    if (!date) return toast.error("Tanggal transaksi wajib diisi");
-    if (contactCategory === NONE) return toast.error("Pilih kategori kontak");
+    if (!date) return toast.error(tr("Tanggal transaksi wajib diisi"));
+    if (contactCategory === NONE) return toast.error(tr("Pilih kategori kontak"));
     if (sourceName.trim().length < 2)
-      return toast.error("Nama donatur/sumber wajib diisi");
+      return toast.error(tr("Nama donatur/sumber wajib diisi"));
     if (restriction === NONE)
-      return toast.error("Pilih sifat keterikatan dana");
+      return toast.error(tr("Pilih sifat keterikatan dana"));
     if (isRestricted && programId === NONE)
-      return toast.error("Alokasi program wajib untuk dana terikat");
-    if (fundCategory === NONE) return toast.error("Pilih jenis kategori dana");
-    if (method === NONE) return toast.error("Pilih metode pembayaran");
+      return toast.error(tr("Alokasi program wajib untuk dana terikat"));
+    if (fundCategory === NONE) return toast.error(tr("Pilih jenis kategori dana"));
+    if (method === NONE) return toast.error(tr("Pilih metode pembayaran"));
     if (!amount || Number(amount) <= 0)
-      return toast.error("Jumlah transaksi harus lebih dari 0");
+      return toast.error(tr("Jumlah transaksi harus lebih dari 0"));
 
     startTransition(async () => {
       const result = await createFinanceIncome({
@@ -152,7 +163,7 @@ export function IncomeForm({
         memo,
       });
       if (result.success) {
-        toast.success(`Kas masuk tercatat — No. Ref ${result.refNumber}`);
+        toast.success(tr("Kas masuk tercatat — No. Ref {0}", { "0": result.refNumber }));
         router.push("/dashboard/finance/income");
         router.refresh();
       } else {
@@ -164,16 +175,14 @@ export function IncomeForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Formulir Kas Masuk (Debit)</CardTitle>
+        <CardTitle className="text-lg">{tr("Formulir Kas Masuk (Debit)")}</CardTitle>
         <p className="text-sm text-muted-foreground">
-          No. Ref/Kuitansi dibuat otomatis (KM/YYS/TAHUN/BULAN/XXX) saat
-          disimpan.
-        </p>
+          {tr("No. Ref/Kuitansi dibuat otomatis (KM/YYS/TAHUN/BULAN/XXX) saat disimpan.")}</p>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="in-date">Tanggal Transaksi *</Label>
+            <Label htmlFor="in-date">{tr("Tanggal Transaksi *")}</Label>
             <Input
               id="in-date"
               type="date"
@@ -182,18 +191,17 @@ export function IncomeForm({
             />
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Kategori Kontak *</Label>
+            <Label>{tr("Kategori Kontak *")}</Label>
             <Select value={contactCategory} onValueChange={setContactCategory}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih kategori kontak" />
+                <SelectValue placeholder={tr("Pilih kategori kontak")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE} disabled>
-                  Pilih kategori kontak
-                </SelectItem>
+                  {tr("Pilih kategori kontak")}</SelectItem>
                 {donorCategoryOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -203,14 +211,13 @@ export function IncomeForm({
 
         {/* Nama donatur / sumber */}
         <div className="space-y-2">
-          <Label htmlFor="in-source">Nama Donatur / Sumber *</Label>
+          <Label htmlFor="in-source">{tr("Nama Donatur / Sumber *")}</Label>
           {selectedDonor ? (
             <div className="flex items-center justify-between rounded-lg border-2 border-primary bg-primary/5 px-3 py-2.5">
               <span className="text-sm font-medium">
                 {selectedDonor.name}{" "}
                 <span className="text-xs text-muted-foreground">
-                  (profil terdaftar)
-                </span>
+                  {tr("(profil terdaftar)")}</span>
               </span>
               <button
                 type="button"
@@ -219,7 +226,7 @@ export function IncomeForm({
                   setSourceName("");
                 }}
                 className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label="Ganti donatur"
+                aria-label={tr("Ganti donatur")}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -233,7 +240,7 @@ export function IncomeForm({
                   setSourceName(e.target.value);
                   setDonorQuery(e.target.value);
                 }}
-                placeholder="Ketik nama — pilih dari profil donatur atau isi manual"
+                placeholder={tr("Ketik nama — pilih dari profil donatur atau isi manual")}
                 autoComplete="off"
               />
               {donorQuery.trim() !== "" && donorResults.length > 0 && (
@@ -265,8 +272,8 @@ export function IncomeForm({
               >
                 <UserPlus className="h-3.5 w-3.5" />
                 {showDonorForm
-                  ? "Tutup form profil donatur"
-                  : "Donatur belum terdaftar? Buat profil baru"}
+                  ? tr("Tutup form profil donatur")
+                  : tr("Donatur belum terdaftar? Buat profil baru")}
               </button>
             </>
           )}
@@ -275,25 +282,25 @@ export function IncomeForm({
         {/* Sub-form profil donatur */}
         {showDonorForm && !selectedDonor && (
           <div className="space-y-3 rounded-lg border bg-muted/40 p-4">
-            <p className="text-sm font-semibold">Profil Donatur Baru</p>
+            <p className="text-sm font-semibold">{tr("Profil Donatur Baru")}</p>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div className="space-y-1.5">
-                <Label className="text-xs">Nama Lengkap *</Label>
+                <Label className="text-xs">{tr("Nama Lengkap *")}</Label>
                 <Input value={dName} onChange={(e) => setDName(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">No. Telp</Label>
+                <Label className="text-xs">{tr("No. Telp")}</Label>
                 <Input value={dPhone} onChange={(e) => setDPhone(e.target.value)} />
               </div>
               <div className="space-y-1.5 md:col-span-2">
-                <Label className="text-xs">Alamat</Label>
+                <Label className="text-xs">{tr("Alamat")}</Label>
                 <Input
                   value={dAddress}
                   onChange={(e) => setDAddress(e.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Email</Label>
+                <Label className="text-xs">{tr("Email")}</Label>
                 <Input
                   type="email"
                   value={dEmail}
@@ -301,7 +308,7 @@ export function IncomeForm({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Tanggal Lahir</Label>
+                <Label className="text-xs">{tr("Tanggal Lahir")}</Label>
                 <Input
                   type="date"
                   value={dDob}
@@ -309,7 +316,7 @@ export function IncomeForm({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Terdaftar Sebagai Donatur Sejak</Label>
+                <Label className="text-xs">{tr("Terdaftar Sebagai Donatur Sejak")}</Label>
                 <Input
                   type="date"
                   value={dSince}
@@ -317,14 +324,14 @@ export function IncomeForm({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Pekerjaan</Label>
+                <Label className="text-xs">{tr("Pekerjaan")}</Label>
                 <Input
                   value={dOccupation}
                   onChange={(e) => setDOccupation(e.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Penghasilan per Bulan (Rp)</Label>
+                <Label className="text-xs">{tr("Penghasilan per Bulan (Rp)")}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -333,18 +340,17 @@ export function IncomeForm({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Pendidikan Terakhir</Label>
+                <Label className="text-xs">{tr("Pendidikan Terakhir")}</Label>
                 <Select value={dEducation} onValueChange={setDEducation}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Pilih" />
+                    <SelectValue placeholder={tr("Pilih")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE} disabled>
-                      Pilih
-                    </SelectItem>
+                      {tr("Pilih")}</SelectItem>
                     {educationOptions.map((o) => (
                       <SelectItem key={o.value} value={o.value}>
-                        {o.label}
+                        {tr(o.label)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -360,10 +366,9 @@ export function IncomeForm({
               {donorSaving ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Menyimpan...
-                </>
+                  {tr("Menyimpan...")}</>
               ) : (
-                "Simpan Profil Donatur"
+                tr("Simpan Profil Donatur")
               )}
             </Button>
           </div>
@@ -371,7 +376,7 @@ export function IncomeForm({
 
         {/* Keterikatan dana */}
         <div className="space-y-2">
-          <Label>Sifat Keterikatan Dana *</Label>
+          <Label>{tr("Sifat Keterikatan Dana *")}</Label>
           <Select
             value={restriction}
             onValueChange={(v) => {
@@ -380,15 +385,14 @@ export function IncomeForm({
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Pilih sifat keterikatan" />
+              <SelectValue placeholder={tr("Pilih sifat keterikatan")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={NONE} disabled>
-                Pilih sifat keterikatan
-              </SelectItem>
+                {tr("Pilih sifat keterikatan")}</SelectItem>
               {fundRestrictionOptions.map((o) => (
                 <SelectItem key={o.value} value={o.value}>
-                  {o.label}
+                  {tr(o.label)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -403,7 +407,7 @@ export function IncomeForm({
         {/* Alokasi program — hanya aktif jika terikat */}
         <div className="space-y-2">
           <Label className={isRestricted ? "" : "text-muted-foreground"}>
-            Alokasi Program {isRestricted ? "*" : "(khusus dana terikat)"}
+            {tr("Alokasi Program ")}{isRestricted ? "*" : tr("(khusus dana terikat)")}
           </Label>
           <Select
             value={programId}
@@ -414,19 +418,17 @@ export function IncomeForm({
               <SelectValue
                 placeholder={
                   isRestricted
-                    ? "Pilih program tujuan dana"
-                    : "Nonaktif — pilih dana terikat dulu"
+                    ? tr("Pilih program tujuan dana")
+                    : tr("Nonaktif — pilih dana terikat dulu")
                 }
               />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={NONE} disabled>
-                Pilih program
-              </SelectItem>
+                {tr("Pilih program")}</SelectItem>
               {programOptions.length === 0 ? (
                 <SelectItem value="EMPTY" disabled>
-                  Belum ada program — buat di menu Program
-                </SelectItem>
+                  {tr("Belum ada program — buat di menu Program")}</SelectItem>
               ) : (
                 programOptions.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
@@ -440,46 +442,44 @@ export function IncomeForm({
 
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Jenis Kategori Dana *</Label>
+            <Label>{tr("Jenis Kategori Dana *")}</Label>
             <Select value={fundCategory} onValueChange={setFundCategory}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih kategori dana" />
+                <SelectValue placeholder={tr("Pilih kategori dana")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE} disabled>
-                  Pilih kategori dana
-                </SelectItem>
+                  {tr("Pilih kategori dana")}</SelectItem>
                 {incomeFundCategoryOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Metode Pembayaran *</Label>
+            <Label>{tr("Metode Pembayaran *")}</Label>
             <Select value={method} onValueChange={setMethod}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih metode" />
+                <SelectValue placeholder={tr("Pilih metode")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE} disabled>
-                  Pilih metode
-                </SelectItem>
+                  {tr("Pilih metode")}</SelectItem>
                 {incomeMethodOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {method !== NONE && (
               <p className="text-xs text-muted-foreground">
-                Status verifikasi otomatis:{" "}
+                {tr("Status verifikasi otomatis:")}{" "}
                 {method === "TRANSFER_BANK"
-                  ? "Pending (menunggu cek mutasi bank)"
-                  : "Verified (dana tunai langsung diterima)"}
+                  ? tr("Pending (menunggu cek mutasi bank)")
+                  : tr("Verified (dana tunai langsung diterima)")}
               </p>
             )}
           </div>
@@ -487,29 +487,28 @@ export function IncomeForm({
 
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="in-amount">Jumlah Transaksi (Rp) *</Label>
+            <Label htmlFor="in-amount">{tr("Jumlah Transaksi (Rp) *")}</Label>
             <Input
               id="in-amount"
               type="number"
               min={1}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="mis. 500000"
+              placeholder={tr("mis. 500000")}
             />
           </div>
           <div className="w-full space-y-2 md:w-1/2">
             <Label>
-              Rekening Tujuan{" "}
+              {tr("Rekening Tujuan")}{" "}
               <span className="font-normal text-muted-foreground">
-                (opsional)
-              </span>
+                {tr("(opsional)")}</span>
             </Label>
             <Select value={accountId} onValueChange={setAccountId}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih rekening" />
+                <SelectValue placeholder={tr("Pilih rekening")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>Tidak ditentukan</SelectItem>
+                <SelectItem value={NONE}>{tr("Tidak ditentukan")}</SelectItem>
                 {accountOptions.map((a) => (
                   <SelectItem key={a.id} value={a.id}>
                     {a.name}
@@ -522,14 +521,14 @@ export function IncomeForm({
 
         <div className="space-y-2">
           <Label htmlFor="in-memo">
-            Memo{" "}
-            <span className="font-normal text-muted-foreground">(opsional)</span>
+            {tr("Memo")}{" "}
+            <span className="font-normal text-muted-foreground">{tr("(opsional)")}</span>
           </Label>
           <Textarea
             id="in-memo"
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
-            placeholder="Catatan tambahan..."
+            placeholder={tr("Catatan tambahan...")}
             rows={2}
             maxLength={1000}
           />
@@ -541,16 +540,14 @@ export function IncomeForm({
             onClick={() => router.push("/dashboard/finance/income")}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button onClick={handleSubmit} disabled={isPending}>
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menyimpan...
-              </>
+                {tr("Menyimpan...")}</>
             ) : (
-              "Simpan Kas Masuk"
+              tr("Simpan Kas Masuk")
             )}
           </Button>
         </div>
@@ -558,3 +555,10 @@ export function IncomeForm({
     </Card>
   );
 }
+
+const __donorCategoryOptions = donorCategoryOptions;
+const __educationOptions = educationOptions;
+const __fundRestrictionOptions = fundRestrictionOptions;
+const __fundRestrictionHint = fundRestrictionHint;
+const __incomeFundCategoryOptions = incomeFundCategoryOptions;
+const __incomeMethodOptions = incomeMethodOptions;

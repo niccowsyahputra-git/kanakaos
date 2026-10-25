@@ -6,6 +6,9 @@ import {
   ProfileForm,
   ChangePasswordForm,
 } from "@/components/profile/profile-forms";
+import { getT } from "@/lib/i18n/server";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +22,9 @@ const roleLabel: Record<UserRole, string> = {
 };
 
 export default async function ProfilePage() {
+  const { tr, locale } = await getT();
+  const roleLabel = localizeLabels(__roleLabel, tr);
+
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
@@ -37,10 +43,9 @@ export default async function ProfilePage() {
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Profil Saya</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{tr("Profil Saya")}</h2>
         <p className="text-sm text-muted-foreground">
-          Kelola data akun Anda.
-        </p>
+          {tr("Kelola data akun Anda.")}</p>
       </div>
 
       <ProfileForm
@@ -56,3 +61,5 @@ export default async function ProfilePage() {
     </div>
   );
 }
+
+const __roleLabel = roleLabel;

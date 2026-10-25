@@ -14,6 +14,9 @@ import {
   uploadFileToCloudinary,
   isCloudinaryConfigured,
 } from "@/lib/cloudinary";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type ActionResult =
   | { success: true; warning?: string }
@@ -22,16 +25,19 @@ type ActionResult =
 export async function updateProfile(
   formData: FormData
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { updateProfileSchema } = getSchemas(locale);
+
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const parsed = updateProfileSchema.safeParse({
     phone: formData.get("phone") ?? "",
   });
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -41,13 +47,13 @@ export async function updateProfile(
     const photo = formData.get("photo");
     if (photo instanceof File && photo.size > 0) {
       if (!photo.type.startsWith("image/")) {
-        return { success: false, error: "Foto harus berupa gambar" };
+        return { success: false, error: tr("Foto harus berupa gambar") };
       }
       if (photo.size > 3 * 1024 * 1024) {
-        return { success: false, error: "Ukuran foto maksimal 3MB" };
+        return { success: false, error: tr("Ukuran foto maksimal 3MB") };
       }
       if (!isCloudinaryConfigured()) {
-        warning = "Foto tidak tersimpan: Cloudinary belum dikonfigurasi";
+        warning = tr("Foto tidak tersimpan: Cloudinary belum dikonfigurasi");
       } else {
         try {
           photoUrl = await uploadFileToCloudinary(
@@ -57,7 +63,7 @@ export async function updateProfile(
           );
         } catch (error) {
           console.error("updateProfile upload error:", error);
-          return { success: false, error: "Gagal meng-upload foto profil" };
+          return { success: false, error: tr("Gagal meng-upload foto profil") };
         }
       }
     }
@@ -80,24 +86,27 @@ export async function updateProfile(
     });
 
     revalidatePath("/dashboard/profile");
-    return { success: true, warning };
+    return { success: true, warning: warning ? tr(warning) : undefined };
   } catch (error) {
     console.error("updateProfile error:", error);
-    return { success: false, error: "Gagal menyimpan profil" };
+    return { success: false, error: tr("Gagal menyimpan profil") };
   }
 }
 
 export async function changePassword(
   values: ChangePasswordInput
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { changePasswordSchema } = getSchemas(locale);
+
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const parsed = changePasswordSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -105,14 +114,14 @@ export async function changePassword(
       where: { id: session.user.id },
       select: { id: true, password: true },
     });
-    if (!user) return { success: false, error: "User tidak ditemukan" };
+    if (!user) return { success: false, error: tr("User tidak ditemukan") };
 
     const isValid = await bcrypt.compare(
       parsed.data.oldPassword,
       user.password
     );
     if (!isValid) {
-      return { success: false, error: "Password lama salah" };
+      return { success: false, error: tr("Password lama salah") };
     }
 
     await prisma.user.update({
@@ -132,6 +141,6 @@ export async function changePassword(
     return { success: true };
   } catch (error) {
     console.error("changePassword error:", error);
-    return { success: false, error: "Gagal mengganti password" };
+    return { success: false, error: tr("Gagal mengganti password") };
   }
 }

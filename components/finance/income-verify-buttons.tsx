@@ -7,8 +7,12 @@ import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
 import { setIncomeVerification } from "@/lib/actions/financeIncome";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/client";
+
 
 export function IncomeVerifyButtons({ incomeId }: { incomeId: string }) {
+  const { tr, locale } = useI18n();
+
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -18,8 +22,8 @@ export function IncomeVerifyButtons({ incomeId }: { incomeId: string }) {
       if (result.success) {
         toast.success(
           status === "VERIFIED"
-            ? "Pemasukan diverifikasi — dana masuk riil"
-            : "Pemasukan ditolak"
+            ? tr("Pemasukan diverifikasi — dana masuk riil")
+            : tr("Pemasukan ditolak")
         );
         router.refresh();
       } else {
@@ -38,21 +42,21 @@ export function IncomeVerifyButtons({ incomeId }: { incomeId: string }) {
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-green-600 hover:text-green-700"
-            title="Verifikasi (dana sudah masuk riil)"
+            title={tr("Verifikasi (dana sudah masuk riil)")}
             onClick={() => handle("VERIFIED")}
           >
             <CheckCircle2 className="h-4 w-4" />
-            <span className="sr-only">Verifikasi</span>
+            <span className="sr-only">{tr("Verifikasi")}</span>
           </Button>
           <Button
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-destructive hover:text-destructive"
-            title="Tolak (bukti transfer palsu/gagal)"
+            title={tr("Tolak (bukti transfer palsu/gagal)")}
             onClick={() => handle("REJECTED")}
           >
             <XCircle className="h-4 w-4" />
-            <span className="sr-only">Tolak</span>
+            <span className="sr-only">{tr("Tolak")}</span>
           </Button>
         </>
       )}

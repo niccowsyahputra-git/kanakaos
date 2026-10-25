@@ -10,6 +10,8 @@ import {
   YAxis,
 } from "recharts";
 import { formatRupiah } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/client";
+
 
 export type MonthlyDonationPoint = {
   month: string;
@@ -17,6 +19,8 @@ export type MonthlyDonationPoint = {
 };
 
 export function DonationChart({ data }: { data: MonthlyDonationPoint[] }) {
+  const { tr, locale } = useI18n();
+
   return (
     <div className="h-64 w-full md:h-80">
       <ResponsiveContainer width="100%" height="100%">
@@ -30,14 +34,14 @@ export function DonationChart({ data }: { data: MonthlyDonationPoint[] }) {
             width={70}
             tickFormatter={(value: number) =>
               value >= 1_000_000
-                ? `${(value / 1_000_000).toLocaleString("id-ID")}jt`
+                ? tr("{0}jt", { "0": (value / 1_000_000).toLocaleString((locale === "en" ? "en-US" : "id-ID")) })
                 : value >= 1000
-                  ? `${(value / 1000).toLocaleString("id-ID")}rb`
+                  ? tr("{0}rb", { "0": (value / 1000).toLocaleString((locale === "en" ? "en-US" : "id-ID")) })
                   : String(value)
             }
           />
           <Tooltip
-            formatter={(value) => [formatRupiah(Number(value)), "Donasi"]}
+            formatter={(value) => [formatRupiah(Number(value), locale), tr("Donasi")]}
             labelClassName="font-medium"
           />
           <Bar

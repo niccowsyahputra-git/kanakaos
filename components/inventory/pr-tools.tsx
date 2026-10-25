@@ -31,6 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+
 
 type ItemOption = {
   id: string;
@@ -43,6 +45,8 @@ type ItemOption = {
 // ---------- Buat PR ----------
 
 export function NewPRDialog({ items }: { items: ItemOption[] }) {
+  const { tr, locale } = useI18n();
+
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [inventoryId, setInventoryId] = useState("");
@@ -60,7 +64,7 @@ export function NewPRDialog({ items }: { items: ItemOption[] }) {
         notes,
       });
       if (result.success) {
-        toast.success("Purchase request dibuat");
+        toast.success(tr("Purchase request dibuat"));
         setOpen(false);
         setInventoryId("");
         setQuantity("");
@@ -79,42 +83,39 @@ export function NewPRDialog({ items }: { items: ItemOption[] }) {
       <DialogTrigger asChild>
         <Button className="w-full sm:w-auto">
           <Plus className="h-4 w-4" />
-          Buat Purchase Request
-        </Button>
+          {tr("Buat Purchase Request")}</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Buat Purchase Request</DialogTitle>
+          <DialogTitle>{tr("Buat Purchase Request")}</DialogTitle>
           <DialogDescription>
-            Ajukan pembelian barang. Butuh persetujuan Super Admin sebelum
-            dipesan.
-          </DialogDescription>
+            {tr("Ajukan pembelian barang. Butuh persetujuan Super Admin sebelum dipesan.")}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="space-y-2">
-            <Label>Barang</Label>
+            <Label>{tr("Barang")}</Label>
             <Select value={inventoryId} onValueChange={setInventoryId}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih barang" />
+                <SelectValue placeholder={tr("Pilih barang")} />
               </SelectTrigger>
               <SelectContent>
                 {items.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
-                    {item.itemName} (stok {item.quantity} {item.unit})
+                    {item.itemName} {tr(" (stok ")}{item.quantity} {item.unit})
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {selected && selected.quantity < selected.minStock && (
               <p className="text-xs text-destructive">
-                ⚠️ Stok barang ini di bawah minimum ({selected.minStock}{" "}
+                {tr("⚠️ Stok barang ini di bawah minimum (")}{selected.minStock}{" "}
                 {selected.unit})
               </p>
             )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="pr-qty">
-              Jumlah{selected ? ` (${selected.unit})` : ""}
+              {tr("Jumlah")}{selected ? ` (${selected.unit})` : ""}
             </Label>
             <Input
               id="pr-qty"
@@ -128,16 +129,15 @@ export function NewPRDialog({ items }: { items: ItemOption[] }) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="pr-notes">
-              Catatan{" "}
+              {tr("Catatan")}{" "}
               <span className="font-normal text-muted-foreground">
-                (opsional)
-              </span>
+                {tr("(opsional)")}</span>
             </Label>
             <Textarea
               id="pr-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Merek/spesifikasi tertentu, urgensi, dll..."
+              placeholder={tr("Merek/spesifikasi tertentu, urgensi, dll...")}
               rows={2}
             />
           </div>
@@ -148,8 +148,7 @@ export function NewPRDialog({ items }: { items: ItemOption[] }) {
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             onClick={handleSubmit}
             disabled={isPending || !inventoryId || Number(quantity) < 1}
@@ -157,10 +156,9 @@ export function NewPRDialog({ items }: { items: ItemOption[] }) {
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Mengajukan...
-              </>
+                {tr("Mengajukan...")}</>
             ) : (
-              "Ajukan PR"
+              tr("Ajukan PR")
             )}
           </Button>
         </DialogFooter>
@@ -180,6 +178,8 @@ export function PRWorkflowActions({
   status: string;
   isSuperAdmin: boolean;
 }) {
+  const { tr, locale } = useI18n();
+
   const [decisionOpen, setDecisionOpen] = useState(false);
   const [decision, setDecision] = useState<"APPROVED" | "REJECTED">("APPROVED");
   const [decisionNotes, setDecisionNotes] = useState("");
@@ -199,7 +199,7 @@ export function PRWorkflowActions({
       });
       if (result.success) {
         toast.success(
-          decision === "APPROVED" ? "PR disetujui" : "PR ditolak"
+          decision === "APPROVED" ? tr("PR disetujui") : tr("PR ditolak")
         );
         setDecisionOpen(false);
         setDecisionNotes("");
@@ -212,7 +212,7 @@ export function PRWorkflowActions({
   function handleOrdered() {
     startTransition(async () => {
       const result = await markPurchaseRequestOrdered(prId);
-      if (result.success) toast.success("PR ditandai sudah dipesan");
+      if (result.success) toast.success(tr("PR ditandai sudah dipesan"));
       else toast.error(result.error);
     });
   }
@@ -221,7 +221,7 @@ export function PRWorkflowActions({
     startTransition(async () => {
       const result = await markPurchaseRequestReceived(prId);
       if (result.success) {
-        toast.success("Barang diterima — stok inventory bertambah otomatis");
+        toast.success(tr("Barang diterima — stok inventory bertambah otomatis"));
       } else {
         toast.error(result.error);
       }
@@ -238,8 +238,7 @@ export function PRWorkflowActions({
             className="w-full bg-green-600 hover:bg-green-700 sm:w-auto"
           >
             <Check className="h-4 w-4" />
-            Approve
-          </Button>
+            {tr("Approve")}</Button>
           <Button
             variant="outline"
             onClick={() => openDecision("REJECTED")}
@@ -247,14 +246,12 @@ export function PRWorkflowActions({
             className="w-full text-destructive hover:text-destructive sm:w-auto"
           >
             <X className="h-4 w-4" />
-            Reject
-          </Button>
+            {tr("Reject")}</Button>
         </>
       )}
       {status === "PENDING" && !isSuperAdmin && (
         <p className="text-sm text-muted-foreground">
-          Menunggu persetujuan Super Admin.
-        </p>
+          {tr("Menunggu persetujuan Super Admin.")}</p>
       )}
 
       {status === "APPROVED" && (
@@ -268,8 +265,7 @@ export function PRWorkflowActions({
           ) : (
             <Truck className="h-4 w-4" />
           )}
-          Tandai Sudah Dipesan
-        </Button>
+          {tr("Tandai Sudah Dipesan")}</Button>
       )}
 
       {status === "ORDERED" && (
@@ -283,28 +279,26 @@ export function PRWorkflowActions({
           ) : (
             <PackageCheck className="h-4 w-4" />
           )}
-          Barang Diterima (+ Stok)
-        </Button>
+          {tr("Barang Diterima (+ Stok)")}</Button>
       )}
 
       <Dialog open={decisionOpen} onOpenChange={setDecisionOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>
-              {decision === "APPROVED" ? "Setujui PR?" : "Tolak PR?"}
+              {decision === "APPROVED" ? tr("Setujui PR?") : tr("Tolak PR?")}
             </DialogTitle>
             <DialogDescription>
               {decision === "APPROVED"
-                ? "PR yang disetujui bisa dilanjutkan ke pemesanan."
-                : "PR yang ditolak tidak bisa diproses lagi."}
+                ? tr("PR yang disetujui bisa dilanjutkan ke pemesanan.")
+                : tr("PR yang ditolak tidak bisa diproses lagi.")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <Label htmlFor="decision-notes">
-              Catatan{" "}
+              {tr("Catatan")}{" "}
               <span className="font-normal text-muted-foreground">
-                (opsional)
-              </span>
+                {tr("(opsional)")}</span>
             </Label>
             <Textarea
               id="decision-notes"
@@ -319,8 +313,7 @@ export function PRWorkflowActions({
               onClick={() => setDecisionOpen(false)}
               disabled={isPending}
             >
-              Batal
-            </Button>
+              {tr("Batal")}</Button>
             <Button
               variant={decision === "APPROVED" ? "default" : "destructive"}
               onClick={handleDecide}
@@ -329,12 +322,11 @@ export function PRWorkflowActions({
               {isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Memproses...
-                </>
+                  {tr("Memproses...")}</>
               ) : decision === "APPROVED" ? (
-                "Ya, Setujui"
+                tr("Ya, Setujui")
               ) : (
-                "Ya, Tolak"
+                tr("Ya, Tolak")
               )}
             </Button>
           </DialogFooter>

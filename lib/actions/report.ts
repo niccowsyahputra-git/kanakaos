@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { requireSuperAdminSession } from "@/lib/auth-guard";
 import { logAudit } from "@/lib/audit";
 import { ReportPdf, type ReportData } from "@/lib/report-pdf";
+import { getT } from "@/lib/i18n/server";
+
 
 type ReportResult =
   | { success: true; fileName: string; contentBase64: string }
@@ -23,6 +25,7 @@ async function buildReport(
   periodLabel: string,
   generatedBy: string
 ): Promise<Buffer> {
+  const { locale } = await getT();
   const yayasanName =
     (
       await prisma.systemConfig.findUnique({
@@ -70,7 +73,7 @@ async function buildReport(
   };
 
   return renderToBuffer(
-    createElement(ReportPdf, { data }) as ReactElement<DocumentProps>
+    createElement(ReportPdf, { data, locale }) as ReactElement<DocumentProps>
   );
 }
 
@@ -78,24 +81,26 @@ export async function generateMonthlyReport(
   year: number,
   month: number // 1-12
 ): Promise<ReportResult> {
+  const { tr, locale } = await getT();
+
   const session = await requireSuperAdminSession();
   if (!session) {
-    return { success: false, error: "Hanya Super Admin yang boleh membuat laporan" };
+    return { success: false, error: tr("Hanya Super Admin yang boleh membuat laporan") };
   }
 
   if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
-    return { success: false, error: "Periode laporan tidak valid" };
+    return { success: false, error: tr("Periode laporan tidak valid") };
   }
 
   try {
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 1);
-    const periodLabel = `${MONTH_NAMES[month - 1]} ${year}`;
+    const periodLabel = start.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", { month: "long", year: "numeric" });
 
     const buffer = await buildReport(
       start,
       end,
-      "Laporan Bulanan",
+      tr("Laporan Bulanan"),
       periodLabel,
       session.user.name ?? "Admin"
     );
@@ -115,18 +120,20 @@ export async function generateMonthlyReport(
     };
   } catch (error) {
     console.error("generateMonthlyReport error:", error);
-    return { success: false, error: "Gagal membuat laporan bulanan" };
+    return { success: false, error: tr("Gagal membuat laporan bulanan") };
   }
 }
 
 export async function generateAnnualReport(year: number): Promise<ReportResult> {
+  const { tr, locale } = await getT();
+
   const session = await requireSuperAdminSession();
   if (!session) {
-    return { success: false, error: "Hanya Super Admin yang boleh membuat laporan" };
+    return { success: false, error: tr("Hanya Super Admin yang boleh membuat laporan") };
   }
 
   if (!Number.isInteger(year) || year < 2000 || year > 2100) {
-    return { success: false, error: "Tahun laporan tidak valid" };
+    return { success: false, error: tr("Tahun laporan tidak valid") };
   }
 
   try {
@@ -136,8 +143,8 @@ export async function generateAnnualReport(year: number): Promise<ReportResult> 
     const buffer = await buildReport(
       start,
       end,
-      "Laporan Tahunan",
-      `Tahun ${year}`,
+      tr("Laporan Tahunan"),
+      tr("Tahun {0}", { "0": year }),
       session.user.name ?? "Admin"
     );
 
@@ -156,6 +163,6 @@ export async function generateAnnualReport(year: number): Promise<ReportResult> 
     };
   } catch (error) {
     console.error("generateAnnualReport error:", error);
-    return { success: false, error: "Gagal membuat laporan tahunan" };
+    return { success: false, error: tr("Gagal membuat laporan tahunan") };
   }
 }

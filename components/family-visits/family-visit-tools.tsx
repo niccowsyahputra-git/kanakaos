@@ -23,6 +23,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useI18n } from "@/lib/i18n/client";
+
 
 export type ChildOption = { id: string; fullName: string };
 
@@ -45,6 +47,8 @@ function FamilyVisitFormDialog({
   visit?: FamilyVisitData;
   childrenOptions: ChildOption[];
 }) {
+  const { tr, locale } = useI18n();
+
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -81,19 +85,19 @@ function FamilyVisitFormDialog({
 
   function handleSubmit() {
     if (!childId) {
-      toast.error("Pilih anak yang dikunjungi");
+      toast.error(tr("Pilih anak yang dikunjungi"));
       return;
     }
     if (visitorName.trim().length < 2) {
-      toast.error("Nama pengunjung wajib diisi");
+      toast.error(tr("Nama pengunjung wajib diisi"));
       return;
     }
     if (!visitDate) {
-      toast.error("Tanggal & jam kunjungan wajib diisi");
+      toast.error(tr("Tanggal & jam kunjungan wajib diisi"));
       return;
     }
     if (purpose.trim().length < 3) {
-      toast.error("Urusan kunjungan wajib diisi");
+      toast.error(tr("Urusan kunjungan wajib diisi"));
       return;
     }
 
@@ -114,8 +118,8 @@ function FamilyVisitFormDialog({
       if (result.success) {
         toast.success(
           mode === "create"
-            ? "Kunjungan tercatat"
-            : "Data kunjungan diperbarui"
+            ? tr("Kunjungan tercatat")
+            : tr("Data kunjungan diperbarui")
         );
         if (mode === "create") resetForm();
         setOpen(false);
@@ -132,13 +136,12 @@ function FamilyVisitFormDialog({
         {mode === "create" ? (
           <Button className="w-full sm:w-auto">
             <Plus className="h-4 w-4" />
-            Catat Kunjungan
-          </Button>
+            {tr("Catat Kunjungan")}</Button>
         ) : (
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit">
+          <Button variant="ghost" size="icon" className="h-8 w-8" title={tr("Edit")}>
             <Pencil className="h-4 w-4" />
             <span className="sr-only">
-              Edit kunjungan {visit?.visitorName}
+              {tr("Edit kunjungan ")}{visit?.visitorName}
             </span>
           </Button>
         )}
@@ -147,18 +150,17 @@ function FamilyVisitFormDialog({
         <DialogHeader>
           <DialogTitle>
             {mode === "create"
-              ? "Catat Kunjungan Orang Tua / Wali"
-              : "Edit Kunjungan"}
+              ? tr("Catat Kunjungan Orang Tua / Wali")
+              : tr("Edit Kunjungan")}
           </DialogTitle>
           <DialogDescription>
-            Buku tamu keluarga yang datang berkunjung ke panti.
-          </DialogDescription>
+            {tr("Buku tamu keluarga yang datang berkunjung ke panti.")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
           {/* Anak yang dikunjungi: search + single select */}
           <div className="space-y-2">
-            <Label htmlFor="fv-child-search">Anak yang Dikunjungi *</Label>
+            <Label htmlFor="fv-child-search">{tr("Anak yang Dikunjungi *")}</Label>
             {selectedChild ? (
               <div className="flex items-center justify-between rounded-lg border-2 border-primary bg-primary/5 px-3 py-2.5">
                 <span className="text-sm font-medium">
@@ -168,7 +170,7 @@ function FamilyVisitFormDialog({
                   type="button"
                   onClick={() => setChildId("")}
                   className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  aria-label="Ganti anak"
+                  aria-label={tr("Ganti anak")}
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -183,8 +185,8 @@ function FamilyVisitFormDialog({
                     onChange={(e) => setChildQuery(e.target.value)}
                     placeholder={
                       childrenOptions.length === 0
-                        ? "Belum ada data anak"
-                        : "Ketik nama anak untuk mencari..."
+                        ? tr("Belum ada data anak")
+                        : tr("Ketik nama anak untuk mencari...")
                     }
                     autoComplete="off"
                     disabled={childrenOptions.length === 0}
@@ -195,8 +197,7 @@ function FamilyVisitFormDialog({
                   <div className="max-h-44 overflow-y-auto rounded-md border">
                     {searchResults.length === 0 ? (
                       <p className="px-3 py-2 text-sm text-muted-foreground">
-                        Tidak ada anak yang cocok.
-                      </p>
+                        {tr("Tidak ada anak yang cocok.")}</p>
                     ) : (
                       searchResults.map((child) => (
                         <button
@@ -221,32 +222,31 @@ function FamilyVisitFormDialog({
 
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="fv-visitor">Nama Pengunjung *</Label>
+              <Label htmlFor="fv-visitor">{tr("Nama Pengunjung *")}</Label>
               <Input
                 id="fv-visitor"
                 value={visitorName}
                 onChange={(e) => setVisitorName(e.target.value)}
-                placeholder="Nama orang tua / wali"
+                placeholder={tr("Nama orang tua / wali")}
               />
             </div>
             <div className="w-full space-y-2 md:w-1/2">
               <Label htmlFor="fv-relationship">
-                Hubungan dengan Anak{" "}
+                {tr("Hubungan dengan Anak")}{" "}
                 <span className="font-normal text-muted-foreground">
-                  (opsional)
-                </span>
+                  {tr("(opsional)")}</span>
               </Label>
               <Input
                 id="fv-relationship"
                 value={relationship}
                 onChange={(e) => setRelationship(e.target.value)}
-                placeholder="mis. Ibu kandung / Paman"
+                placeholder={tr("mis. Ibu kandung / Paman")}
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="fv-date">Tanggal &amp; Jam Kunjungan *</Label>
+            <Label htmlFor="fv-date">{tr("Tanggal & Jam Kunjungan *")}</Label>
             <Input
               id="fv-date"
               type="datetime-local"
@@ -256,12 +256,12 @@ function FamilyVisitFormDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="fv-purpose">Urusan / Keperluan *</Label>
+            <Label htmlFor="fv-purpose">{tr("Urusan / Keperluan *")}</Label>
             <Textarea
               id="fv-purpose"
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
-              placeholder="mis. Menjenguk anak, membawa perlengkapan sekolah..."
+              placeholder={tr("mis. Menjenguk anak, membawa perlengkapan sekolah...")}
               rows={3}
               maxLength={500}
             />
@@ -274,8 +274,7 @@ function FamilyVisitFormDialog({
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             onClick={handleSubmit}
             disabled={
@@ -289,12 +288,11 @@ function FamilyVisitFormDialog({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menyimpan...
-              </>
+                {tr("Menyimpan...")}</>
             ) : mode === "create" ? (
-              "Simpan"
+              tr("Simpan")
             ) : (
-              "Simpan Perubahan"
+              tr("Simpan Perubahan")
             )}
           </Button>
         </DialogFooter>
@@ -336,6 +334,8 @@ export function DeleteFamilyVisitButton({
   visitId: string;
   visitorName: string;
 }) {
+  const { tr, locale } = useI18n();
+
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -343,7 +343,7 @@ export function DeleteFamilyVisitButton({
     startTransition(async () => {
       const result = await deleteFamilyVisit(visitId);
       if (result.success) {
-        toast.success(`Kunjungan ${visitorName} dihapus`);
+        toast.success(tr("Kunjungan {0} dihapus", { "0": visitorName }));
         setOpen(false);
       } else {
         toast.error(result.error);
@@ -358,18 +358,17 @@ export function DeleteFamilyVisitButton({
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-destructive hover:text-destructive"
-          title="Hapus"
+          title={tr("Hapus")}
         >
           <Trash2 className="h-4 w-4" />
-          <span className="sr-only">Hapus kunjungan {visitorName}</span>
+          <span className="sr-only">{tr("Hapus kunjungan ")}{visitorName}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Hapus Data Kunjungan?</DialogTitle>
+          <DialogTitle>{tr("Hapus Data Kunjungan?")}</DialogTitle>
           <DialogDescription>
-            Catatan kunjungan <b>{visitorName}</b> akan dihapus permanen.
-          </DialogDescription>
+            {tr("Catatan kunjungan ")}<b>{visitorName}</b> {tr(" akan dihapus permanen.")}</DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2">
           <Button
@@ -377,8 +376,7 @@ export function DeleteFamilyVisitButton({
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             variant="destructive"
             onClick={handleDelete}
@@ -387,10 +385,9 @@ export function DeleteFamilyVisitButton({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menghapus...
-              </>
+                {tr("Menghapus...")}</>
             ) : (
-              "Ya, Hapus"
+              tr("Ya, Hapus")
             )}
           </Button>
         </DialogFooter>

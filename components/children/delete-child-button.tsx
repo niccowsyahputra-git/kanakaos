@@ -15,6 +15,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { deleteChild } from "@/lib/actions/child";
+import { useI18n } from "@/lib/i18n/client";
+
 
 export function DeleteChildButton({
   childId,
@@ -23,6 +25,8 @@ export function DeleteChildButton({
   childId: string;
   childName: string;
 }) {
+  const { tr, locale } = useI18n();
+
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -31,7 +35,7 @@ export function DeleteChildButton({
     startTransition(async () => {
       const result = await deleteChild(childId);
       if (result.success) {
-        toast.success("Data anak berhasil dihapus");
+        toast.success(tr("Data anak berhasil dihapus"));
         setOpen(false);
         router.push("/dashboard/children");
         router.refresh();
@@ -50,17 +54,14 @@ export function DeleteChildButton({
           className="text-destructive hover:text-destructive"
         >
           <Trash2 className="h-4 w-4" />
-          <span className="sr-only">Hapus {childName}</span>
+          <span className="sr-only">{tr("Hapus ")}{childName}</span>
         </Button>
       </SheetTrigger>
       <SheetContent side="bottom" className="rounded-t-lg">
         <SheetHeader>
-          <SheetTitle>Hapus data anak?</SheetTitle>
+          <SheetTitle>{tr("Hapus data anak?")}</SheetTitle>
           <SheetDescription>
-            Data <span className="font-semibold">{childName}</span> beserta
-            seluruh riwayat log hariannya akan dihapus permanen. Tindakan ini
-            tidak bisa dibatalkan.
-          </SheetDescription>
+            {tr("Data ")}<span className="font-semibold">{childName}</span> {tr(" beserta seluruh riwayat log hariannya akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.")}</SheetDescription>
         </SheetHeader>
         <SheetFooter className="mt-4 gap-2">
           <Button
@@ -69,8 +70,7 @@ export function DeleteChildButton({
             disabled={isPending}
             className="w-full sm:w-auto"
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             variant="destructive"
             onClick={handleDelete}
@@ -80,10 +80,9 @@ export function DeleteChildButton({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menghapus...
-              </>
+                {tr("Menghapus...")}</>
             ) : (
-              "Ya, hapus"
+              tr("Ya, hapus")
             )}
           </Button>
         </SheetFooter>

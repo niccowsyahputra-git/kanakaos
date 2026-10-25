@@ -15,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+
 
 export function IncidentUpdateForm({
   incidentId,
@@ -23,6 +25,8 @@ export function IncidentUpdateForm({
   incidentId: string;
   currentStatus: string;
 }) {
+  const { tr, locale } = useI18n();
+
   const [notes, setNotes] = useState("");
   const [newStatus, setNewStatus] = useState<string>("KEEP");
   const [isPending, startTransition] = useTransition();
@@ -38,7 +42,7 @@ export function IncidentUpdateForm({
             : (newStatus as "OPEN" | "IN_PROGRESS" | "RESOLVED"),
       });
       if (result.success) {
-        toast.success("Update penanganan tersimpan");
+        toast.success(tr("Update penanganan tersimpan"));
         setNotes("");
         setNewStatus("KEEP");
       } else {
@@ -50,13 +54,12 @@ export function IncidentUpdateForm({
   return (
     <div className="space-y-3 rounded-md border p-3 md:p-4">
       <Label htmlFor="update-notes" className="text-base">
-        Tambah Update Penanganan
-      </Label>
+        {tr("Tambah Update Penanganan")}</Label>
       <Textarea
         id="update-notes"
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        placeholder="Tindakan yang dilakukan / perkembangan kondisi..."
+        placeholder={tr("Tindakan yang dilakukan / perkembangan kondisi...")}
         rows={3}
       />
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -65,15 +68,15 @@ export function IncidentUpdateForm({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="KEEP">Status tetap</SelectItem>
+            <SelectItem value="KEEP">{tr("Status tetap")}</SelectItem>
             {currentStatus !== "IN_PROGRESS" && (
-              <SelectItem value="IN_PROGRESS">→ Ditangani</SelectItem>
+              <SelectItem value="IN_PROGRESS">{tr("→ Ditangani")}</SelectItem>
             )}
             {currentStatus !== "RESOLVED" && (
-              <SelectItem value="RESOLVED">→ Selesai</SelectItem>
+              <SelectItem value="RESOLVED">{tr("→ Selesai")}</SelectItem>
             )}
             {currentStatus === "RESOLVED" && (
-              <SelectItem value="OPEN">→ Buka kembali</SelectItem>
+              <SelectItem value="OPEN">{tr("→ Buka kembali")}</SelectItem>
             )}
           </SelectContent>
         </Select>
@@ -85,13 +88,11 @@ export function IncidentUpdateForm({
           {isPending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Menyimpan...
-            </>
+              {tr("Menyimpan...")}</>
           ) : (
             <>
               <MessageSquarePlus className="h-4 w-4" />
-              Simpan Update
-            </>
+              {tr("Simpan Update")}</>
           )}
         </Button>
       </div>

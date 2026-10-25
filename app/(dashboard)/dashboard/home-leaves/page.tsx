@@ -22,6 +22,11 @@ import {
   returnStatusClass,
 } from "@/components/home-leaves/home-leave-labels";
 import type { HomeLeaveReason } from "@prisma/client";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +34,10 @@ function toDateInput(date: Date | null): string | null {
   return date ? date.toISOString().slice(0, 10) : null;
 }
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(
     date
   );
 }
@@ -44,6 +51,9 @@ const reasonClass: Record<HomeLeaveReason, string> = {
 };
 
 export default async function HomeLeavesPage() {
+  const { tr, locale } = await getT();
+  const returnStatusClass = localizeLabels(__returnStatusClass, tr);
+
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -86,12 +96,9 @@ export default async function HomeLeavesPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Kepulangan Anak
-          </h2>
+            {tr("Kepulangan Anak")}</h2>
           <p className="text-sm text-muted-foreground">
-            {leaves.length} catatan · {activeChildIds.length} anak belum
-            kembali ke panti.
-          </p>
+            {leaves.length} {tr(" catatan · ")}{activeChildIds.length} {tr(" anak belum kembali ke panti.")}</p>
         </div>
         <AddHomeLeaveDialog
           childrenOptions={childrenOptions}
@@ -102,8 +109,7 @@ export default async function HomeLeavesPage() {
       {leaves.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Belum ada catatan kepulangan anak.
-          </CardContent>
+            {tr("Belum ada catatan kepulangan anak.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -118,9 +124,9 @@ export default async function HomeLeavesPage() {
                         {leave.child.fullName}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Pulang {formatDate(leave.leaveDate)}
+                        {tr("Pulang ")}{formatDate(leave.leaveDate, locale)}
                         {leave.plannedReturnDate
-                          ? ` · rencana kembali ${formatDate(leave.plannedReturnDate)}`
+                          ? tr(" · rencana kembali {0}", { "0": formatDate(leave.plannedReturnDate) })
                           : ""}
                       </p>
                     </div>
@@ -141,15 +147,15 @@ export default async function HomeLeavesPage() {
                       variant="outline"
                       className={reasonClass[leave.reason]}
                     >
-                      {homeLeaveReasonLabel[leave.reason]}
+                      {tr(homeLeaveReasonLabel[leave.reason])}
                     </Badge>
                     <Badge
                       variant="outline"
                       className={returnStatusClass[leave.returnStatus]}
                     >
-                      {returnStatusLabel[leave.returnStatus]}
+                      {tr(returnStatusLabel[leave.returnStatus])}
                       {leave.actualReturnDate
-                        ? ` (${formatDate(leave.actualReturnDate)})`
+                        ? ` (${formatDate(leave.actualReturnDate, locale)})`
                         : ""}
                     </Badge>
                   </div>
@@ -168,13 +174,13 @@ export default async function HomeLeavesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nama Anak</TableHead>
-                  <TableHead>Tujuan Kepulangan</TableHead>
-                  <TableHead>Tgl Kepulangan</TableHead>
-                  <TableHead>Rencana Kembali</TableHead>
-                  <TableHead>Status Kembali</TableHead>
-                  <TableHead>Dicatat oleh</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{tr("Nama Anak")}</TableHead>
+                  <TableHead>{tr("Tujuan Kepulangan")}</TableHead>
+                  <TableHead>{tr("Tgl Kepulangan")}</TableHead>
+                  <TableHead>{tr("Rencana Kembali")}</TableHead>
+                  <TableHead>{tr("Status Kembali")}</TableHead>
+                  <TableHead>{tr("Dicatat oleh")}</TableHead>
+                  <TableHead className="text-right">{tr("Aksi")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -195,13 +201,13 @@ export default async function HomeLeavesPage() {
                         variant="outline"
                         className={reasonClass[leave.reason]}
                       >
-                        {homeLeaveReasonLabel[leave.reason]}
+                        {tr(homeLeaveReasonLabel[leave.reason])}
                       </Badge>
                     </TableCell>
-                    <TableCell>{formatDate(leave.leaveDate)}</TableCell>
+                    <TableCell>{formatDate(leave.leaveDate, locale)}</TableCell>
                     <TableCell>
                       {leave.plannedReturnDate
-                        ? formatDate(leave.plannedReturnDate)
+                        ? formatDate(leave.plannedReturnDate, locale)
                         : "-"}
                     </TableCell>
                     <TableCell>
@@ -209,11 +215,11 @@ export default async function HomeLeavesPage() {
                         variant="outline"
                         className={returnStatusClass[leave.returnStatus]}
                       >
-                        {returnStatusLabel[leave.returnStatus]}
+                        {tr(returnStatusLabel[leave.returnStatus])}
                       </Badge>
                       {leave.actualReturnDate && (
                         <span className="block text-xs text-muted-foreground">
-                          {formatDate(leave.actualReturnDate)}
+                          {formatDate(leave.actualReturnDate, locale)}
                         </span>
                       )}
                     </TableCell>
@@ -243,3 +249,5 @@ export default async function HomeLeavesPage() {
     </div>
   );
 }
+
+const __returnStatusClass = returnStatusClass;

@@ -21,16 +21,27 @@ import {
   casePriorityLabel as priorityLabel,
   casePriorityClass as priorityClass,
 } from "@/components/cases/case-labels";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export const dynamic = "force-dynamic";
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(
     date
   );
 }
 
 export default async function CasesPage() {
+  const { tr, locale } = await getT();
+  const statusClass = localizeLabels(__statusClass, tr);
+  const priorityClass = localizeLabels(__priorityClass, tr);
+
   const session = await requireStaffSession();
   if (!session) redirect("/dashboard");
 
@@ -55,10 +66,9 @@ export default async function CasesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Kasus Anak</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{tr("Kasus Anak")}</h2>
           <p className="text-sm text-muted-foreground">
-            {openCount} kasus aktif dari total {cases.length} kasus.
-          </p>
+            {openCount} {tr(" kasus aktif dari total ")}{cases.length} {tr(" kasus.")}</p>
         </div>
         <NewCaseDialog children={children} />
       </div>
@@ -66,8 +76,7 @@ export default async function CasesPage() {
       {cases.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Belum ada kasus tercatat.
-          </CardContent>
+            {tr("Belum ada kasus tercatat.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -85,25 +94,25 @@ export default async function CasesPage() {
                         {caseItem.child.fullName}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {caseTypeLabel[caseItem.caseType]}
+                        {tr(caseTypeLabel[caseItem.caseType])}
                       </p>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Badge
                           variant="outline"
                           className={statusClass[caseItem.status]}
                         >
-                          {statusLabel[caseItem.status]}
+                          {tr(statusLabel[caseItem.status])}
                         </Badge>
                         <Badge
                           variant="outline"
                           className={priorityClass[caseItem.priority]}
                         >
-                          {priorityLabel[caseItem.priority]}
+                          {tr(priorityLabel[caseItem.priority])}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        PJ: {caseItem.assignedTo.name} · update{" "}
-                        {formatDate(caseItem.updatedAt)}
+                        {tr("PJ: ")}{caseItem.assignedTo.name} {tr(" · update")}{" "}
+                        {formatDate(caseItem.updatedAt, locale)}
                       </p>
                     </div>
                     <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
@@ -118,12 +127,12 @@ export default async function CasesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Anak</TableHead>
-                  <TableHead>Jenis Kasus</TableHead>
-                  <TableHead>Prioritas</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Penanggung Jawab</TableHead>
-                  <TableHead>Update Terakhir</TableHead>
+                  <TableHead>{tr("Anak")}</TableHead>
+                  <TableHead>{tr("Jenis Kasus")}</TableHead>
+                  <TableHead>{tr("Prioritas")}</TableHead>
+                  <TableHead>{tr("Status")}</TableHead>
+                  <TableHead>{tr("Penanggung Jawab")}</TableHead>
+                  <TableHead>{tr("Update Terakhir")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -137,13 +146,13 @@ export default async function CasesPage() {
                         {caseItem.child.fullName}
                       </Link>
                     </TableCell>
-                    <TableCell>{caseTypeLabel[caseItem.caseType]}</TableCell>
+                    <TableCell>{tr(caseTypeLabel[caseItem.caseType])}</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
                         className={priorityClass[caseItem.priority]}
                       >
-                        {priorityLabel[caseItem.priority]}
+                        {tr(priorityLabel[caseItem.priority])}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -151,11 +160,11 @@ export default async function CasesPage() {
                         variant="outline"
                         className={statusClass[caseItem.status]}
                       >
-                        {statusLabel[caseItem.status]}
+                        {tr(statusLabel[caseItem.status])}
                       </Badge>
                     </TableCell>
                     <TableCell>{caseItem.assignedTo.name}</TableCell>
-                    <TableCell>{formatDate(caseItem.updatedAt)}</TableCell>
+                    <TableCell>{formatDate(caseItem.updatedAt, locale)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -166,3 +175,6 @@ export default async function CasesPage() {
     </div>
   );
 }
+
+const __statusClass = statusClass;
+const __priorityClass = priorityClass;

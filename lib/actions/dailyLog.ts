@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { dailyLogSchema, type DailyLogInput } from "@/lib/validations";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type ActionResult =
   | { success: true; id?: string }
@@ -12,14 +15,17 @@ type ActionResult =
 export async function createDailyLog(
   values: DailyLogInput
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { dailyLogSchema } = getSchemas(locale);
+
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const parsed = dailyLogSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   const { childId, date, schoolAttendance, evaluationNotes, ...data } =
@@ -40,7 +46,7 @@ export async function createDailyLog(
       select: { id: true, status: true },
     });
     if (!child) {
-      return { success: false, error: "Data anak tidak ditemukan" };
+      return { success: false, error: tr("Data anak tidak ditemukan") };
     }
 
     const log = await prisma.dailyLog.create({
@@ -60,6 +66,6 @@ export async function createDailyLog(
     return { success: true, id: log.id };
   } catch (error) {
     console.error("createDailyLog error:", error);
-    return { success: false, error: "Gagal menyimpan log harian" };
+    return { success: false, error: tr("Gagal menyimpan log harian") };
   }
 }

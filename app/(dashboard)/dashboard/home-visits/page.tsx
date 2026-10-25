@@ -15,6 +15,10 @@ import {
 } from "@/components/ui/table";
 import { ChevronRight } from "lucide-react";
 import { ScheduleVisitDialog } from "@/components/home-visits/schedule-visit-dialog";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+
 
 export const dynamic = "force-dynamic";
 
@@ -30,13 +34,17 @@ const statusClass: Record<VisitStatus, string> = {
   CANCELLED: "border-transparent bg-gray-100 text-gray-600",
 };
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(
     date
   );
 }
 
 export default async function HomeVisitsPage() {
+  const { tr, locale } = await getT();
+
   const session = await requireStaffSession();
   if (!session) redirect("/dashboard");
 
@@ -77,10 +85,9 @@ export default async function HomeVisitsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Kunjungan Rumah
-          </h2>
+            {tr("Kunjungan Rumah")}</h2>
           <p className="text-sm text-muted-foreground">
-            {plannedCount} kunjungan terjadwal dari total {visits.length}.
+            {plannedCount} {tr(" kunjungan terjadwal dari total ")}{visits.length}.
           </p>
         </div>
         <ScheduleVisitDialog
@@ -96,8 +103,7 @@ export default async function HomeVisitsPage() {
       {visits.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Belum ada kunjungan rumah.
-          </CardContent>
+            {tr("Belum ada kunjungan rumah.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -115,22 +121,22 @@ export default async function HomeVisitsPage() {
                         {visit.child.fullName}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Wali: {visit.child.guardian?.name ?? "-"} ·{" "}
-                        {formatDate(visit.scheduledDate)}
+                        {tr("Wali: ")}{visit.child.guardian?.name ?? "-"} ·{" "}
+                        {formatDate(visit.scheduledDate, locale)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Petugas: {visit.officer?.name ?? "-"}
+                        {tr("Petugas: ")}{visit.officer?.name ?? "-"}
                       </p>
                       <div className="flex items-center gap-2">
                         <Badge
                           variant="outline"
                           className={statusClass[visit.status]}
                         >
-                          {statusLabel[visit.status]}
+                          {tr(statusLabel[visit.status])}
                         </Badge>
                         {visit.vulnerabilityScore !== null && (
                           <span className="text-xs text-muted-foreground">
-                            Skor: {visit.vulnerabilityScore}/10
+                            {tr("Skor: ")}{visit.vulnerabilityScore}/10
                           </span>
                         )}
                       </div>
@@ -147,13 +153,13 @@ export default async function HomeVisitsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Anak</TableHead>
-                  <TableHead>Wali</TableHead>
-                  <TableHead>Petugas</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Skor Kerentanan</TableHead>
-                  <TableHead>Tujuan</TableHead>
+                  <TableHead>{tr("Anak")}</TableHead>
+                  <TableHead>{tr("Wali")}</TableHead>
+                  <TableHead>{tr("Petugas")}</TableHead>
+                  <TableHead>{tr("Tanggal")}</TableHead>
+                  <TableHead>{tr("Status")}</TableHead>
+                  <TableHead>{tr("Skor Kerentanan")}</TableHead>
+                  <TableHead>{tr("Tujuan")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -169,13 +175,13 @@ export default async function HomeVisitsPage() {
                     </TableCell>
                     <TableCell>{visit.child.guardian?.name ?? "-"}</TableCell>
                     <TableCell>{visit.officer?.name ?? "-"}</TableCell>
-                    <TableCell>{formatDate(visit.scheduledDate)}</TableCell>
+                    <TableCell>{formatDate(visit.scheduledDate, locale)}</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
                         className={statusClass[visit.status]}
                       >
-                        {statusLabel[visit.status]}
+                        {tr(statusLabel[visit.status])}
                       </Badge>
                     </TableCell>
                     <TableCell>

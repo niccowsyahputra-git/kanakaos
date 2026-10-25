@@ -31,6 +31,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { homeLeaveReasonOptions } from "@/components/home-leaves/home-leave-labels";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 const NONE = "NONE";
 
@@ -59,6 +62,9 @@ function HomeLeaveFormDialog({
   /** Anak yang sedang pulang (belum kembali) — tidak boleh dicatat lagi */
   activeChildIds: string[];
 }) {
+  const { tr, locale } = useI18n();
+  const homeLeaveReasonOptions = localizeLabels(__homeLeaveReasonOptions, tr);
+
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -106,24 +112,24 @@ function HomeLeaveFormDialog({
 
   function handleSubmit() {
     if (!childId) {
-      toast.error("Pilih anak terlebih dahulu");
+      toast.error(tr("Pilih anak terlebih dahulu"));
       return;
     }
     if (!leaveDate) {
-      toast.error("Tanggal kepulangan wajib diisi");
+      toast.error(tr("Tanggal kepulangan wajib diisi"));
       return;
     }
     if (reason === NONE) {
-      toast.error("Pilih tujuan kepulangan");
+      toast.error(tr("Pilih tujuan kepulangan"));
       return;
     }
     if (plannedReturnDate && plannedReturnDate < leaveDate) {
-      toast.error("Rencana kembali tidak boleh sebelum tanggal kepulangan");
+      toast.error(tr("Rencana kembali tidak boleh sebelum tanggal kepulangan"));
       return;
     }
     if (actualReturnDate && actualReturnDate < leaveDate) {
       toast.error(
-        "Tanggal aktual kembali tidak boleh sebelum tanggal kepulangan"
+        tr("Tanggal aktual kembali tidak boleh sebelum tanggal kepulangan")
       );
       return;
     }
@@ -150,8 +156,8 @@ function HomeLeaveFormDialog({
       if (result.success) {
         toast.success(
           mode === "create"
-            ? "Kepulangan anak tercatat"
-            : "Data kepulangan diperbarui"
+            ? tr("Kepulangan anak tercatat")
+            : tr("Data kepulangan diperbarui")
         );
         if (mode === "create") resetForm();
         setOpen(false);
@@ -168,30 +174,27 @@ function HomeLeaveFormDialog({
         {mode === "create" ? (
           <Button className="w-full sm:w-auto">
             <Plus className="h-4 w-4" />
-            Catat Kepulangan
-          </Button>
+            {tr("Catat Kepulangan")}</Button>
         ) : (
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit">
+          <Button variant="ghost" size="icon" className="h-8 w-8" title={tr("Edit")}>
             <Pencil className="h-4 w-4" />
-            <span className="sr-only">Edit kepulangan {leave?.childName}</span>
+            <span className="sr-only">{tr("Edit kepulangan ")}{leave?.childName}</span>
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Catat Kepulangan Anak" : "Edit Kepulangan"}
+            {mode === "create" ? tr("Catat Kepulangan Anak") : tr("Edit Kepulangan")}
           </DialogTitle>
           <DialogDescription>
-            Anak yang belum kembali tidak bisa dicatat pulang lagi. Status
-            kembali dihitung otomatis dari rencana vs tanggal aktual.
-          </DialogDescription>
+            {tr("Anak yang belum kembali tidak bisa dicatat pulang lagi. Status kembali dihitung otomatis dari rencana vs tanggal aktual.")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
           {/* Pilih anak: search + single select */}
           <div className="space-y-2">
-            <Label htmlFor="hl-child-search">Nama Anak *</Label>
+            <Label htmlFor="hl-child-search">{tr("Nama Anak *")}</Label>
             {selectedChild ? (
               <div className="flex items-center justify-between rounded-lg border-2 border-primary bg-primary/5 px-3 py-2.5">
                 <span className="text-sm font-medium">
@@ -201,7 +204,7 @@ function HomeLeaveFormDialog({
                   type="button"
                   onClick={() => setChildId("")}
                   className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  aria-label="Ganti anak"
+                  aria-label={tr("Ganti anak")}
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -216,8 +219,8 @@ function HomeLeaveFormDialog({
                     onChange={(e) => setChildQuery(e.target.value)}
                     placeholder={
                       childrenOptions.length === 0
-                        ? "Belum ada data anak"
-                        : "Ketik nama anak untuk mencari..."
+                        ? tr("Belum ada data anak")
+                        : tr("Ketik nama anak untuk mencari...")
                     }
                     autoComplete="off"
                     disabled={childrenOptions.length === 0}
@@ -228,8 +231,7 @@ function HomeLeaveFormDialog({
                   <div className="max-h-44 overflow-y-auto rounded-md border">
                     {searchResults.length === 0 ? (
                       <p className="px-3 py-2 text-sm text-muted-foreground">
-                        Tidak ada anak yang cocok.
-                      </p>
+                        {tr("Tidak ada anak yang cocok.")}</p>
                     ) : (
                       searchResults.map((child) => {
                         const onLeave = isChildOnLeave(child.id);
@@ -250,8 +252,7 @@ function HomeLeaveFormDialog({
                             </span>
                             {onLeave && (
                               <span className="shrink-0 text-xs text-amber-600">
-                                sedang pulang — belum kembali
-                              </span>
+                                {tr("sedang pulang — belum kembali")}</span>
                             )}
                           </button>
                         );
@@ -265,7 +266,7 @@ function HomeLeaveFormDialog({
 
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="hl-leave-date">Tanggal Kepulangan *</Label>
+              <Label htmlFor="hl-leave-date">{tr("Tanggal Kepulangan *")}</Label>
               <Input
                 id="hl-leave-date"
                 type="date"
@@ -275,10 +276,9 @@ function HomeLeaveFormDialog({
             </div>
             <div className="w-full space-y-2 md:w-1/2">
               <Label htmlFor="hl-planned-date">
-                Rencana Tanggal Kembali{" "}
+                {tr("Rencana Tanggal Kembali")}{" "}
                 <span className="font-normal text-muted-foreground">
-                  (opsional)
-                </span>
+                  {tr("(opsional)")}</span>
               </Label>
               <Input
                 id="hl-planned-date"
@@ -292,10 +292,9 @@ function HomeLeaveFormDialog({
 
           <div className="space-y-2">
             <Label htmlFor="hl-actual-date">
-              Tanggal Aktual Kembali{" "}
+              {tr("Tanggal Aktual Kembali")}{" "}
               <span className="font-normal text-muted-foreground">
-                (isi saat anak sudah tiba di panti)
-              </span>
+                {tr("(isi saat anak sudah tiba di panti)")}</span>
             </Label>
             <Input
               id="hl-actual-date"
@@ -306,24 +305,21 @@ function HomeLeaveFormDialog({
               className="md:w-1/2"
             />
             <p className="text-xs text-muted-foreground">
-              Lebih cepat dari rencana → &quot;Kembali Lebih Cepat&quot;;
-              lewat dari rencana → &quot;Kembali Terlambat&quot;.
-            </p>
+              {tr("Lebih cepat dari rencana → \"Kembali Lebih Cepat\"; lewat dari rencana → \"Kembali Terlambat\".")}</p>
           </div>
 
           <div className="space-y-2">
-            <Label>Tujuan Kepulangan *</Label>
+            <Label>{tr("Tujuan Kepulangan *")}</Label>
             <Select value={reason} onValueChange={setReason}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih tujuan" />
+                <SelectValue placeholder={tr("Pilih tujuan")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE} disabled>
-                  Pilih tujuan
-                </SelectItem>
+                  {tr("Pilih tujuan")}</SelectItem>
                 {homeLeaveReasonOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -332,16 +328,15 @@ function HomeLeaveFormDialog({
 
           <div className="space-y-2">
             <Label htmlFor="hl-description">
-              Deskripsi Detail{" "}
+              {tr("Deskripsi Detail")}{" "}
               <span className="font-normal text-muted-foreground">
-                (opsional)
-              </span>
+                {tr("(opsional)")}</span>
             </Label>
             <Textarea
               id="hl-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Alamat tujuan, penjemput, kontak yang bisa dihubungi, dll."
+              placeholder={tr("Alamat tujuan, penjemput, kontak yang bisa dihubungi, dll.")}
               rows={3}
               maxLength={1000}
             />
@@ -354,8 +349,7 @@ function HomeLeaveFormDialog({
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             onClick={handleSubmit}
             disabled={
@@ -365,12 +359,11 @@ function HomeLeaveFormDialog({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menyimpan...
-              </>
+                {tr("Menyimpan...")}</>
             ) : mode === "create" ? (
-              "Simpan"
+              tr("Simpan")
             ) : (
-              "Simpan Perubahan"
+              tr("Simpan Perubahan")
             )}
           </Button>
         </DialogFooter>
@@ -421,6 +414,8 @@ export function DeleteHomeLeaveButton({
   leaveId: string;
   childName: string;
 }) {
+  const { tr, locale } = useI18n();
+
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -428,7 +423,7 @@ export function DeleteHomeLeaveButton({
     startTransition(async () => {
       const result = await deleteHomeLeave(leaveId);
       if (result.success) {
-        toast.success(`Data kepulangan ${childName} dihapus`);
+        toast.success(tr("Data kepulangan {0} dihapus", { "0": childName }));
         setOpen(false);
       } else {
         toast.error(result.error);
@@ -443,18 +438,17 @@ export function DeleteHomeLeaveButton({
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-destructive hover:text-destructive"
-          title="Hapus"
+          title={tr("Hapus")}
         >
           <Trash2 className="h-4 w-4" />
-          <span className="sr-only">Hapus kepulangan {childName}</span>
+          <span className="sr-only">{tr("Hapus kepulangan ")}{childName}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Hapus Data Kepulangan?</DialogTitle>
+          <DialogTitle>{tr("Hapus Data Kepulangan?")}</DialogTitle>
           <DialogDescription>
-            Catatan kepulangan <b>{childName}</b> akan dihapus permanen.
-          </DialogDescription>
+            {tr("Catatan kepulangan ")}<b>{childName}</b> {tr(" akan dihapus permanen.")}</DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2">
           <Button
@@ -462,8 +456,7 @@ export function DeleteHomeLeaveButton({
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             variant="destructive"
             onClick={handleDelete}
@@ -472,10 +465,9 @@ export function DeleteHomeLeaveButton({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menghapus...
-              </>
+                {tr("Menghapus...")}</>
             ) : (
-              "Ya, Hapus"
+              tr("Ya, Hapus")
             )}
           </Button>
         </DialogFooter>
@@ -483,3 +475,5 @@ export function DeleteHomeLeaveButton({
     </Dialog>
   );
 }
+
+const __homeLeaveReasonOptions = homeLeaveReasonOptions;

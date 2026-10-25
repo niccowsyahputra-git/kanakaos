@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { getT } from "@/lib/i18n/server";
 import {
   getUnrestrictedBalance,
   getProgramBalances,
+  fundraisingProgramWhere,
 } from "@/lib/finance-balance";
 import type { EducationLevel } from "@prisma/client";
 
@@ -63,6 +65,7 @@ const ATTENDANCE_REASON: Record<string, string> = {
 };
 
 export async function getOperationalData(): Promise<OperationalData> {
+  const { tr } = await getT();
   const todayStart = startOfToday();
   const weekAgo = new Date(todayStart);
   weekAgo.setDate(weekAgo.getDate() - 6);
@@ -120,14 +123,14 @@ export async function getOperationalData(): Promise<OperationalData> {
     .filter((g) => g.lastEducation)
     .map((g) => ({
       level: g.lastEducation as string,
-      label: EDUCATION_LABEL[g.lastEducation as EducationLevel],
+      label: tr(EDUCATION_LABEL[g.lastEducation as EducationLevel]),
       count: g._count,
     }))
     .sort((a, b) => b.count - a.count);
 
   const attendanceAlerts = alertLogs.map((l) => ({
     childName: l.child.fullName,
-    reason: ATTENDANCE_REASON[l.schoolAttendance ?? ""] ?? "-",
+    reason: tr(ATTENDANCE_REASON[l.schoolAttendance ?? ""] ?? "-"),
   }));
 
   // Tren emosional mingguan: rata-rata mood per hari (7 hari terakhir)
@@ -223,12 +226,13 @@ export type FinancialData = {
 };
 
 export async function getFinancialData(): Promise<FinancialData> {
+  const { tr } = await getT();
   const unrestrictedBalance = await getUnrestrictedBalance();
 
   // Rata-rata pengeluaran operasional (tidak terikat) 6 bulan terakhir
   const sixMonthsAgo = startOfMonth(-5);
   const opExpenses = await prisma.financeExpense.aggregate({
-    where: { pocket: "TIDAK_TERIKAT", date: { gte: sixMonthsAgo } },
+    where: { pocket: "TIDAK_TERIKAT", programId: null, date: { gte: sixMonthsAgo } },
     _sum: { amount: true },
   });
   const avgMonthlyExpense = (opExpenses._sum.amount ?? 0) / 6;
@@ -266,7 +270,7 @@ export async function getFinancialData(): Promise<FinancialData> {
     const keluar = expenses
       .filter((e) => e.date.getMonth() === m)
       .reduce((s, e) => s + e.amount, 0);
-    cashflow.push({ month: MONTH_LABELS[m], masuk, keluar });
+    cashflow.push({ month: tr(MONTH_LABELS[m]), masuk, keluar });
   }
 
   return {
@@ -297,12 +301,13 @@ export type ProgramDonorData = {
 };
 
 export async function getProgramDonorData(): Promise<ProgramDonorData> {
+  const { tr } = await getT();
   const monthStart = startOfMonth();
 
   const [activePrograms, incomesByProgram, donors, monthIncomes, yearDonors] =
     await Promise.all([
       prisma.program.findMany({
-        where: { status: { in: ["AKTIF", "PENYALURAN"] } },
+        where: { ...fundraisingProgramWhere, status: { in: ["AKTIF", "PENYALURAN"] } },
         select: { id: true, code: true, name: true, fundraisingTarget: true },
         orderBy: { createdAt: "desc" },
       }),
@@ -359,7 +364,7 @@ export async function getProgramDonorData(): Promise<ProgramDonorData> {
     const count = yearDonors.filter(
       (d) => d.createdAt.getMonth() === m
     ).length;
-    acquisition.push({ month: MONTH_LABELS[m], count });
+    acquisition.push({ month: tr(MONTH_LABELS[m]), count });
   }
 
   return {

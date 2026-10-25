@@ -24,6 +24,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 const ROLE_OPTIONS = [
   { value: "SUPER_ADMIN", label: "Super Admin" },
@@ -47,6 +50,9 @@ type EditableUser = {
  * - Dengan prop `user` -> mode edit (email readonly, password opsional)
  */
 export function UserDialog({ user }: { user?: EditableUser }) {
+  const { tr, locale } = useI18n();
+  const ROLE_OPTIONS = localizeLabels(__ROLE_OPTIONS, tr);
+
   const isEdit = Boolean(user);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(user?.name ?? "");
@@ -82,7 +88,7 @@ export function UserDialog({ user }: { user?: EditableUser }) {
           });
 
       if (result.success) {
-        toast.success(isEdit ? "User diperbarui" : "User berhasil dibuat");
+        toast.success(isEdit ? tr("User diperbarui") : tr("User berhasil dibuat"));
         setOpen(false);
       } else {
         toast.error(result.error);
@@ -103,38 +109,37 @@ export function UserDialog({ user }: { user?: EditableUser }) {
         {isEdit ? (
           <Button variant="ghost" size="icon" className="h-8 w-8">
             <Pencil className="h-4 w-4" />
-            <span className="sr-only">Edit {user!.name}</span>
+            <span className="sr-only">{tr("Edit ")}{user!.name}</span>
           </Button>
         ) : (
           <Button className="w-full sm:w-auto">
             <Plus className="h-4 w-4" />
-            Tambah User
-          </Button>
+            {tr("Tambah User")}</Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit User" : "Tambah User"}</DialogTitle>
+          <DialogTitle>{isEdit ? tr("Edit User") : tr("Tambah User")}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Ubah nama, role, atau reset password user."
-              : "Buat akun untuk staff/relawan panti."}
+              ? tr("Ubah nama, role, atau reset password user.")
+              : tr("Buat akun untuk staff/relawan panti.")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
           <div className="space-y-2">
-            <Label htmlFor="user-name">Nama Lengkap</Label>
+            <Label htmlFor="user-name">{tr("Nama Lengkap")}</Label>
             <Input
               id="user-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Nama user"
+              placeholder={tr("Nama user")}
               autoComplete="off"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="user-email">Email</Label>
+            <Label htmlFor="user-email">{tr("Email")}</Label>
             <Input
               id="user-email"
               type="email"
@@ -147,7 +152,7 @@ export function UserDialog({ user }: { user?: EditableUser }) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="user-password">
-              {isEdit ? "Password Baru (opsional)" : "Password"}
+              {isEdit ? tr("Password Baru (opsional)") : tr("Password")}
             </Label>
             <Input
               id="user-password"
@@ -155,21 +160,21 @@ export function UserDialog({ user }: { user?: EditableUser }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={
-                isEdit ? "Kosongkan jika tidak diganti" : "Minimal 8 karakter"
+                isEdit ? tr("Kosongkan jika tidak diganti") : tr("Minimal 8 karakter")
               }
               autoComplete="new-password"
             />
           </div>
           <div className="space-y-2">
-            <Label>Role</Label>
+            <Label>{tr("Role")}</Label>
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih role" />
+                <SelectValue placeholder={tr("Pilih role")} />
               </SelectTrigger>
               <SelectContent>
                 {ROLE_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                    {tr(option.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -183,18 +188,16 @@ export function UserDialog({ user }: { user?: EditableUser }) {
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button onClick={handleSubmit} disabled={submitDisabled}>
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menyimpan...
-              </>
+                {tr("Menyimpan...")}</>
             ) : isEdit ? (
-              "Simpan Perubahan"
+              tr("Simpan Perubahan")
             ) : (
-              "Buat User"
+              tr("Buat User")
             )}
           </Button>
         </DialogFooter>
@@ -202,3 +205,5 @@ export function UserDialog({ user }: { user?: EditableUser }) {
     </Dialog>
   );
 }
+
+const __ROLE_OPTIONS = ROLE_OPTIONS;

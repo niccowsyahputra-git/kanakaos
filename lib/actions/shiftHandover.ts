@@ -8,6 +8,9 @@ import {
   shiftHandoverSchema,
   type ShiftHandoverInput,
 } from "@/lib/validations";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type ActionResult =
   | { success: true; id?: string }
@@ -16,14 +19,17 @@ type ActionResult =
 export async function createShiftHandover(
   values: ShiftHandoverInput
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { shiftHandoverSchema } = getSchemas(locale);
+
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const parsed = shiftHandoverSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   // Konsistensi: jika dicentang "semua anak aman" tapi ada catatan sakit,
@@ -31,7 +37,7 @@ export async function createShiftHandover(
   if (parsed.data.allChildrenSafe === false && !parsed.data.sickChildrenNotes) {
     return {
       success: false,
-      error: "Sebutkan anak yang sakit/bermasalah di kolom catatan anak sakit",
+      error: tr("Sebutkan anak yang sakit/bermasalah di kolom catatan anak sakit"),
     };
   }
 
@@ -60,6 +66,6 @@ export async function createShiftHandover(
     return { success: true, id: handover.id };
   } catch (error) {
     console.error("createShiftHandover error:", error);
-    return { success: false, error: "Gagal menyimpan serah terima shift" };
+    return { success: false, error: tr("Gagal menyimpan serah terima shift") };
   }
 }

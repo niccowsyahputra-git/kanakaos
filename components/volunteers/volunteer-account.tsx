@@ -19,6 +19,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useI18n } from "@/lib/i18n/client";
+
 
 /** Badge status akun relawan yang sudah tertaut */
 export function VolunteerAccountBadge({
@@ -28,6 +30,8 @@ export function VolunteerAccountBadge({
   email: string;
   isActive: boolean;
 }) {
+  const { tr, locale } = useI18n();
+
   return (
     <div className="flex flex-col gap-0.5">
       <Badge
@@ -38,8 +42,7 @@ export function VolunteerAccountBadge({
             : "w-fit border-transparent bg-gray-100 text-gray-500"
         }
       >
-        Relawan
-        {!isActive && " (nonaktif)"}
+        {tr("Relawan")}{!isActive && tr(" (nonaktif)")}
       </Badge>
       <span className="text-xs text-muted-foreground">{email}</span>
     </div>
@@ -56,6 +59,8 @@ export function CreateVolunteerAccountDialog({
   volunteerName: string;
   volunteerEmail: string | null;
 }) {
+  const { tr, locale } = useI18n();
+
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -82,8 +87,8 @@ export function CreateVolunteerAccountDialog({
         password,
       });
       if (result.success) {
-        toast.success(`Akun login untuk ${name} berhasil dibuat`, {
-          description: `Email login: ${email}`,
+        toast.success(tr("Akun login untuk {0} berhasil dibuat", { "0": name }), {
+          description: tr("Email login: {0}", { "0": email }),
         });
         setOpen(false);
         router.refresh();
@@ -98,21 +103,19 @@ export function CreateVolunteerAccountDialog({
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 gap-1">
           <KeyRound className="h-3.5 w-3.5" />
-          Buatkan Akun
-        </Button>
+          {tr("Buatkan Akun")}</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Buat Akun Login Relawan</DialogTitle>
+          <DialogTitle>{tr("Buat Akun Login Relawan")}</DialogTitle>
           <DialogDescription>
-            Akun ini akan tertaut ke relawan <b>{volunteerName}</b> dengan role{" "}
-            <b>Relawan</b> dan bisa dipakai untuk login ke sistem.
-          </DialogDescription>
+            {tr("Akun ini akan tertaut ke relawan ")}<b>{volunteerName}</b> {tr(" dengan role")}{" "}
+            <b>{tr("Relawan")}</b> {tr(" dan bisa dipakai untuk login ke sistem.")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
           <div className="space-y-2">
-            <Label htmlFor="vacc-name">Nama Tampilan</Label>
+            <Label htmlFor="vacc-name">{tr("Nama Tampilan")}</Label>
             <Input
               id="vacc-name"
               value={name}
@@ -120,7 +123,7 @@ export function CreateVolunteerAccountDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="vacc-email">Email Login</Label>
+            <Label htmlFor="vacc-email">{tr("Email Login")}</Label>
             <Input
               id="vacc-email"
               type="email"
@@ -130,13 +133,13 @@ export function CreateVolunteerAccountDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="vacc-password">Password Awal</Label>
+            <Label htmlFor="vacc-password">{tr("Password Awal")}</Label>
             <Input
               id="vacc-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Minimal 8 karakter"
+              placeholder={tr("Minimal 8 karakter")}
             />
           </div>
         </div>
@@ -147,8 +150,7 @@ export function CreateVolunteerAccountDialog({
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             onClick={handleSubmit}
             disabled={
@@ -161,10 +163,9 @@ export function CreateVolunteerAccountDialog({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Membuat...
-              </>
+                {tr("Membuat...")}</>
             ) : (
-              "Buat Akun"
+              tr("Buat Akun")
             )}
           </Button>
         </DialogFooter>

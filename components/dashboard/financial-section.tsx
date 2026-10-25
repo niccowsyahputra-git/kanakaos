@@ -18,8 +18,12 @@ import {
   FundAllocationPie,
   CashflowTrendChart,
 } from "@/components/dashboard/dashboard-charts";
+import { getT } from "@/lib/i18n/server";
+
 
 export async function FinancialSection() {
+  const { tr, locale } = await getT();
+
   const data = await getFinancialData();
 
   // Ambang alarm runway
@@ -34,11 +38,9 @@ export async function FinancialSection() {
         </div>
         <div>
           <h3 className="text-lg font-bold tracking-tight">
-            Finansial Strategis
-          </h3>
+            {tr("Finansial Strategis")}</h3>
           <p className="text-xs text-muted-foreground">
-            Kesehatan napas keuangan jangka panjang yayasan.
-          </p>
+            {tr("Kesehatan napas keuangan jangka panjang yayasan.")}</p>
         </div>
       </div>
 
@@ -47,17 +49,15 @@ export async function FinancialSection() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">
-              Rasio Kesehatan Kas (Cash Runway)
-            </CardTitle>
+              {tr("Rasio Kesehatan Kas (Cash Runway)")}</CardTitle>
             <Gauge className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
               <p className="text-xs text-muted-foreground">
-                Sisa Dana Tidak Terikat (Operasional)
-              </p>
+                {tr("Sisa Dana Tidak Terikat (Operasional)")}</p>
               <p className="text-2xl font-bold text-green-600">
-                {formatRupiah(data.unrestrictedBalance)}
+                {formatRupiah(data.unrestrictedBalance, locale)}
               </p>
             </div>
             <div
@@ -67,30 +67,23 @@ export async function FinancialSection() {
             >
               {data.runwayMonths === null ? (
                 <p className="text-sm text-muted-foreground">
-                  Belum ada data pengeluaran operasional untuk menghitung
-                  runway.
-                </p>
+                  {tr("Belum ada data pengeluaran operasional untuk menghitung runway.")}</p>
               ) : (
                 <>
                   <p className="text-sm">
-                    Kas operasional cukup untuk{" "}
+                    {tr("Kas operasional cukup untuk")}{" "}
                     <span
                       className={`font-bold ${runwayAlert ? "text-red-600" : "text-foreground"}`}
                     >
-                      {data.runwayMonths.toLocaleString("id-ID")} bulan
-                    </span>{" "}
-                    ke depan.
-                  </p>
+                      {data.runwayMonths.toLocaleString((locale === "en" ? "en-US" : "id-ID"))} {tr(" bulan")}</span>{" "}
+                    {tr("ke depan.")}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Rata-rata pengeluaran{" "}
-                    {formatRupiah(data.avgMonthlyExpense)}/bulan.
-                  </p>
+                    {tr("Rata-rata pengeluaran")}{" "}
+                    {formatRupiah(data.avgMonthlyExpense, locale)}{tr("/bulan.")}</p>
                   {runwayAlert && (
                     <p className="mt-2 flex items-center gap-1 text-xs font-medium text-red-700">
                       <AlertCircle className="h-3.5 w-3.5" />
-                      Alarm: saatnya menggenjot kampanye donasi operasional
-                      baru!
-                    </p>
+                      {tr("Alarm: saatnya menggenjot kampanye donasi operasional baru!")}</p>
                   )}
                 </>
               )}
@@ -102,8 +95,7 @@ export async function FinancialSection() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">
-              Alokasi Dompet Dana
-            </CardTitle>
+              {tr("Alokasi Dompet Dana")}</CardTitle>
             <PieIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -114,10 +106,7 @@ export async function FinancialSection() {
             {data.unrestrictedTotal < data.restrictedTotal &&
               data.restrictedTotal > 0 && (
                 <p className="mt-2 rounded-md bg-amber-50 p-2 text-xs text-amber-800">
-                  Dana terikat mendominasi sementara kas umum menipis — sinyal
-                  untuk mengarahkan kampanye ke &quot;Sedekah Operasional
-                  Panti&quot;.
-                </p>
+                  {tr("Dana terikat mendominasi sementara kas umum menipis — sinyal untuk mengarahkan kampanye ke \"Sedekah Operasional Panti\".")}</p>
               )}
           </CardContent>
         </Card>
@@ -128,14 +117,13 @@ export async function FinancialSection() {
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            Tren Arus Kas {new Date().getFullYear()}
+            {tr("Tren Arus Kas ")}{new Date().getFullYear()}
           </CardTitle>
           <Link
             href="/dashboard/finance/overview"
             className="text-xs text-primary hover:underline"
           >
-            Detail keuangan →
-          </Link>
+            {tr("Detail keuangan →")}</Link>
         </CardHeader>
         <CardContent>
           <CashflowTrendChart data={data.cashflow} />

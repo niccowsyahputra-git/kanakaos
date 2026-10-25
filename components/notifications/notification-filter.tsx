@@ -4,8 +4,12 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/client";
+
 
 export function NotificationDateFilter() {
+  const { tr, locale } = useI18n();
+
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -27,15 +31,15 @@ export function NotificationDateFilter() {
           className="w-full sm:w-40"
           value={searchParams.get("from") ?? ""}
           onChange={(e) => setParam("from", e.target.value || null)}
-          aria-label="Dari tanggal"
+          aria-label={tr("Dari tanggal")}
         />
-        <span className="text-sm text-muted-foreground">s/d</span>
+        <span className="text-sm text-muted-foreground">{tr("s/d")}</span>
         <Input
           type="date"
           className="w-full sm:w-40"
           value={searchParams.get("to") ?? ""}
           onChange={(e) => setParam("to", e.target.value || null)}
-          aria-label="Sampai tanggal"
+          aria-label={tr("Sampai tanggal")}
         />
       </div>
       {hasFilter && (
@@ -46,8 +50,7 @@ export function NotificationDateFilter() {
           className="w-fit gap-1"
         >
           <X className="h-3.5 w-3.5" />
-          Reset
-        </Button>
+          {tr("Reset")}</Button>
       )}
     </div>
   );

@@ -219,7 +219,21 @@ enum VolunteerStatus {
 
 enum VolunteerNeedStatus {
   OPEN
+  SUSPENDED
   CLOSED
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum VolunteerAttachmentKind {
+  PHOTO
+  CERTIFICATE
+  KTP
+  SKCK
 }
 
 enum PartnerType {
@@ -227,6 +241,11 @@ enum PartnerType {
   SEKOLAH
   POLISI
   CSR
+  LBH
+  ORMAS
+  YAYASAN
+  LEMBAGA_PENDIDIKAN
+  LEMBAGA_KEAGAMAAN
 }
 
 enum AuditAction {
@@ -362,6 +381,7 @@ model User {
   createdExpenses   FinanceExpense[]   @relation("ExpenseCreator")
   reviewedExpenses  FinanceExpense[]   @relation("ExpenseReviewer")
   approvedExpenses  FinanceExpense[]   @relation("ExpenseApprover")
+  programInternalAllocations ProgramInternalAllocation[]
   employee          Employee?
   volunteer         Volunteer?
 }
@@ -554,6 +574,9 @@ model Employee {
   employmentStatus EmploymentStatus @default(TETAP)
   ptkpStatus       String?
   entityLocation   String?
+  entityLocationId String?
+  location         EmployeeLocation? @relation(fields: [entityLocationId], references: [id], onDelete: Restrict)
+  status           EmployeeStatus @default(ACTIVE)
   // Gaji & Pajak
   basicSalary      Float?
   salaryEffectiveDate DateTime?
@@ -572,6 +595,18 @@ model Employee {
 
   @@index([employeeCode])
   @@index([department])
+  @@index([entityLocationId])
+  @@index([status])
+}
+
+model EmployeeLocation {
+  id             String @id @default(cuid())
+  name           String
+  normalizedName String @unique
+  isActive       Boolean @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  employees      Employee[]
 }
 
 model Inventory {
@@ -593,6 +628,11 @@ model Volunteer {
   name                String
   phone               String?
   skill               String?
+  skillsJson          String?
+  highestEducation    String?
+  major               String?
+  submissionKey       String? @unique
+  attachments         VolunteerAttachment[]
   status              VolunteerStatus @default(PENDING)
   hasSafeguardingCert Boolean         @default(false)
   redFlagNotes        String?
@@ -618,6 +658,23 @@ model Volunteer {
   @@index([needId])
 }
 
+model VolunteerAttachment {
+  id           String @id @default(cuid())
+  volunteerId  String
+  kind         VolunteerAttachmentKind
+  filename     String
+  publicId     String @unique
+  resourceType String
+  deliveryType String @default("authenticated")
+  format       String
+  bytes        Int
+  version      Int
+  createdAt    DateTime @default(now())
+  volunteer    Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
+
+  @@index([volunteerId, kind])
+}
+
 /// Kebutuhan relawan yayasan per bidang (bisa dibuka/ditutup kembali)
 model VolunteerNeed {
   id          String              @id @default(cuid())
@@ -625,6 +682,10 @@ model VolunteerNeed {
   description String?
   quantity    Int
   schedule    String?
+  field       String?
+  otherField  String?
+  startDate   DateTime?
+  endDate     DateTime?
   status      VolunteerNeedStatus @default(OPEN)
   closedAt    DateTime?
   volunteers  Volunteer[]
@@ -871,6 +932,18 @@ enum LeftoverRule {
   KE_PROGRAM_LAIN
 }
 
+// Program type may combine sources; an expense always uses a single source.
+enum ProgramFundingSource {
+  PENGGALANGAN
+  INTERNAL
+  CAMPURAN
+}
+
+enum ProgramExpenseSource {
+  PENGGALANGAN
+  INTERNAL
+}
+
 enum DonorCategory {
   PERORANGAN
   KORPORAT
@@ -934,6 +1007,9 @@ model Program {
   name              String
   field             ProgramField
   fundraisingTarget Float         @default(0)
+  // Nullable for staged rollout and legacy writers; populated by a separate backfill.
+  sumberDana        ProgramFundingSource?
+  porsiPenggalangan Float?
   maxBudget         Float         @default(0)
   startDate         DateTime?
   picId             String?
@@ -947,8 +1023,24 @@ model Program {
   pic      User?            @relation("ProgramPic", fields: [picId], references: [id], onDelete: SetNull)
   incomes  FinanceIncome[]
   expenses FinanceExpense[]
+  internalAllocations ProgramInternalAllocation[]
 
   @@index([status])
+}
+
+// Internal allocations are transfers into a program wallet, not new income.
+model ProgramInternalAllocation {
+  id          String   @id @default(cuid())
+  programId   String
+  amount      Float
+  createdById String
+  createdAt   DateTime @default(now())
+
+  program   Program @relation(fields: [programId], references: [id], onDelete: Restrict)
+  createdBy User    @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([programId])
+  @@index([createdById])
 }
 
 // Profil donatur / sumber dana
@@ -1021,6 +1113,8 @@ model FinanceExpense {
   date               DateTime
   accountId          String
   pocket             ExpensePocket  @default(TIDAK_TERIKAT)
+  // Unknown historical sources remain null; the existing pocket is unchanged.
+  sumberDana         ProgramExpenseSource?
   programId          String?
   coa                ExpenseCoa
   beneficiaryChildId String?

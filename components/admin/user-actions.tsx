@@ -16,6 +16,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { UserDialog } from "./user-dialog";
+import { useI18n } from "@/lib/i18n/client";
+
 
 export function UserActions({
   user,
@@ -30,6 +32,8 @@ export function UserActions({
   };
   isSelf: boolean;
 }) {
+  const { tr, locale } = useI18n();
+
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -39,8 +43,8 @@ export function UserActions({
       if (result.success) {
         toast.success(
           user.isActive
-            ? `${user.name} dinonaktifkan`
-            : `${user.name} diaktifkan kembali`
+            ? tr("{0} dinonaktifkan", { "0": user.name })
+            : tr("{0} diaktifkan kembali", { "0": user.name })
         );
       } else {
         toast.error(result.error);
@@ -52,7 +56,7 @@ export function UserActions({
     startTransition(async () => {
       const result = await deleteUser(user.id);
       if (result.success) {
-        toast.success(`User ${user.name} dihapus`);
+        toast.success(tr("User {0} dihapus", { "0": user.name }));
         setDeleteOpen(false);
       } else {
         toast.error(result.error);
@@ -70,11 +74,11 @@ export function UserActions({
         className={`h-8 w-8 ${user.isActive ? "text-amber-600" : "text-green-600"}`}
         onClick={handleToggle}
         disabled={isPending || isSelf}
-        title={user.isActive ? "Nonaktifkan" : "Aktifkan"}
+        title={user.isActive ? tr("Nonaktifkan") : tr("Aktifkan")}
       >
         <Power className="h-4 w-4" />
         <span className="sr-only">
-          {user.isActive ? "Nonaktifkan" : "Aktifkan"} {user.name}
+          {user.isActive ? tr("Nonaktifkan") : tr("Aktifkan")} {user.name}
         </span>
       </Button>
 
@@ -85,19 +89,17 @@ export function UserActions({
             size="icon"
             className="h-8 w-8 text-destructive hover:text-destructive"
             disabled={isSelf}
-            title="Hapus"
+            title={tr("Hapus")}
           >
             <Trash2 className="h-4 w-4" />
-            <span className="sr-only">Hapus {user.name}</span>
+            <span className="sr-only">{tr("Hapus ")}{user.name}</span>
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Hapus user?</DialogTitle>
+            <DialogTitle>{tr("Hapus user?")}</DialogTitle>
             <DialogDescription>
-              Akun <b>{user.name}</b> ({user.email}) akan dihapus permanen.
-              User yang punya riwayat log/kasus sebaiknya dinonaktifkan saja.
-            </DialogDescription>
+              {tr("Akun ")}<b>{user.name}</b> ({user.email}{tr(") akan dihapus permanen. User yang punya riwayat log/kasus sebaiknya dinonaktifkan saja.")}</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button
@@ -105,8 +107,7 @@ export function UserActions({
               onClick={() => setDeleteOpen(false)}
               disabled={isPending}
             >
-              Batal
-            </Button>
+              {tr("Batal")}</Button>
             <Button
               variant="destructive"
               onClick={handleDelete}
@@ -115,10 +116,9 @@ export function UserActions({
               {isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Menghapus...
-                </>
+                  {tr("Menghapus...")}</>
               ) : (
-                "Ya, hapus"
+                tr("Ya, hapus")
               )}
             </Button>
           </DialogFooter>

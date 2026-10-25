@@ -22,6 +22,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AISettingsForm } from "@/components/admin/ai-settings-form";
 import { LandingSettingsForm } from "@/components/admin/landing-settings-form";
 import type { LandingContent } from "@/lib/site-content";
+import { useI18n } from "@/lib/i18n/client";
+
 
 export type SettingsValues = {
   yayasanName: string;
@@ -56,6 +58,7 @@ export function SettingsTabs({
   defaultTab = "general",
   usersSection,
   auditSection,
+  locationsSection,
 }: {
   initial: SettingsValues;
   landing: LandingContent;
@@ -63,7 +66,10 @@ export function SettingsTabs({
   defaultTab?: string;
   usersSection: React.ReactNode;
   auditSection: React.ReactNode;
+  locationsSection: React.ReactNode;
 }) {
+  const { tr, locale } = useI18n();
+
   // --- Tab 1: General ---
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [yayasanName, setYayasanName] = useState(initial.yayasanName);
@@ -128,7 +134,7 @@ export function SettingsTabs({
 
       const result = await saveGeneralSettings(formData);
       if (result.success) {
-        toast.success("Pengaturan umum tersimpan");
+        toast.success(tr("Pengaturan umum tersimpan"));
         if (logoInputRef.current) logoInputRef.current.value = "";
         setLogoDirty(false);
         setRemoveLogo(false);
@@ -147,7 +153,7 @@ export function SettingsTabs({
         notifLowStock,
       });
       if (result.success) {
-        toast.success("Pengaturan notifikasi tersimpan");
+        toast.success(tr("Pengaturan notifikasi tersimpan"));
       } else {
         toast.error(result.error);
       }
@@ -159,7 +165,7 @@ export function SettingsTabs({
       const result = await exportDataCsv();
       if (result.success) {
         downloadBase64(result.contentBase64, result.fileName, result.mime);
-        toast.success("Export CSV berhasil di-download");
+        toast.success(tr("Export CSV berhasil di-download"));
       } else {
         toast.error(result.error);
       }
@@ -171,7 +177,7 @@ export function SettingsTabs({
       const result = await backupDatabase();
       if (result.success) {
         downloadBase64(result.contentBase64, result.fileName, result.mime);
-        toast.success("Backup database berhasil di-download");
+        toast.success(tr("Backup database berhasil di-download"));
       } else {
         toast.error(result.error);
       }
@@ -180,28 +186,29 @@ export function SettingsTabs({
 
   return (
     <Tabs defaultValue={defaultTab} className="w-full">
-      <TabsList className="grid h-auto w-full grid-cols-4 sm:grid-cols-7">
-        <TabsTrigger value="general">Umum</TabsTrigger>
-        <TabsTrigger value="landing">Halaman Publik</TabsTrigger>
-        <TabsTrigger value="notification">Notifikasi</TabsTrigger>
-        <TabsTrigger value="users">Pengguna</TabsTrigger>
-        <TabsTrigger value="audit">Audit Log</TabsTrigger>
+      <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-4">
+        <TabsTrigger value="general">{tr("Umum")}</TabsTrigger>
+        <TabsTrigger value="locations">{tr("Entitas Lokasi")}</TabsTrigger>
+        <TabsTrigger value="landing">{tr("Halaman Publik")}</TabsTrigger>
+        <TabsTrigger value="notification">{tr("Notifikasi")}</TabsTrigger>
+        <TabsTrigger value="users">{tr("Pengguna")}</TabsTrigger>
+        <TabsTrigger value="audit">{tr("Audit Log")}</TabsTrigger>
         <TabsTrigger value="ai">AI</TabsTrigger>
-        <TabsTrigger value="backup">Backup</TabsTrigger>
+        <TabsTrigger value="backup">{tr("Backup")}</TabsTrigger>
       </TabsList>
+      <TabsContent value="locations">{locationsSection}</TabsContent>
 
       {/* ============ TAB 1: GENERAL ============ */}
       <TabsContent value="general">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Pengaturan Umum</CardTitle>
+            <CardTitle className="text-lg">{tr("Pengaturan Umum")}</CardTitle>
             <CardDescription>
-              Identitas yayasan yang tampil di website, kwitansi & laporan.
-            </CardDescription>
+              {tr("Identitas yayasan yang tampil di website, kwitansi & laporan.")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <div className="space-y-2">
-              <Label htmlFor="yayasan-name">Nama Yayasan</Label>
+              <Label htmlFor="yayasan-name">{tr("Nama Yayasan")}</Label>
               <Input
                 id="yayasan-name"
                 value={yayasanName}
@@ -210,29 +217,29 @@ export function SettingsTabs({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="yayasan-address">Alamat</Label>
+              <Label htmlFor="yayasan-address">{tr("Alamat")}</Label>
               <Textarea
                 id="yayasan-address"
                 value={yayasanAddress}
                 onChange={(e) => setYayasanAddress(e.target.value)}
-                placeholder="Alamat lengkap yayasan"
+                placeholder={tr("Alamat lengkap yayasan")}
                 rows={3}
               />
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="yayasan-phone">No. Telp / WhatsApp</Label>
+                <Label htmlFor="yayasan-phone">{tr("No. Telp / WhatsApp")}</Label>
                 <Input
                   id="yayasan-phone"
                   type="tel"
                   value={yayasanPhone}
                   onChange={(e) => setYayasanPhone(e.target.value)}
-                  placeholder="mis. 0812-3456-7890"
+                  placeholder={tr("mis. 0812-3456-7890")}
                   maxLength={30}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="yayasan-email">Email Yayasan</Label>
+                <Label htmlFor="yayasan-email">{tr("Email Yayasan")}</Label>
                 <Input
                   id="yayasan-email"
                   type="email"
@@ -245,32 +252,31 @@ export function SettingsTabs({
             </div>
 
             <div className="space-y-1">
-              <p className="text-sm font-semibold">Legalitas &amp; Dokumen</p>
+              <p className="text-sm font-semibold">{tr("Legalitas & Dokumen")}</p>
               <p className="text-xs text-muted-foreground">
-                Nomor dokumen resmi yayasan.
-              </p>
+                {tr("Nomor dokumen resmi yayasan.")}</p>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="yayasan-deed">No. Akta Pendirian</Label>
+                <Label htmlFor="yayasan-deed">{tr("No. Akta Pendirian")}</Label>
                 <Input
                   id="yayasan-deed"
                   value={deedNumber}
                   onChange={(e) => setDeedNumber(e.target.value)}
-                  placeholder="mis. 12 tanggal 01-01-2020"
+                  placeholder={tr("mis. 12 tanggal 01-01-2020")}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="yayasan-sk">SK KEMENKUMHAM</Label>
+                <Label htmlFor="yayasan-sk">{tr("SK KEMENKUMHAM")}</Label>
                 <Input
                   id="yayasan-sk"
                   value={skKemenkumham}
                   onChange={(e) => setSkKemenkumham(e.target.value)}
-                  placeholder="mis. AHU-0001234.AH.01.04"
+                  placeholder={tr("mis. AHU-0001234.AH.01.04")}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="yayasan-npwp">NPWP Yayasan</Label>
+                <Label htmlFor="yayasan-npwp">{tr("NPWP Yayasan")}</Label>
                 <Input
                   id="yayasan-npwp"
                   value={npwp}
@@ -284,44 +290,43 @@ export function SettingsTabs({
                   id="yayasan-nib"
                   value={nib}
                   onChange={(e) => setNib(e.target.value)}
-                  placeholder="Nomor Induk Berusaha"
+                  placeholder={tr("Nomor Induk Berusaha")}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="yayasan-tdy">Tanda Daftar Yayasan</Label>
+                <Label htmlFor="yayasan-tdy">{tr("Tanda Daftar Yayasan")}</Label>
                 <Input
                   id="yayasan-tdy"
                   value={tdy}
                   onChange={(e) => setTdy(e.target.value)}
-                  placeholder="Nomor tanda daftar yayasan"
+                  placeholder={tr("Nomor tanda daftar yayasan")}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="yayasan-permit">Izin Kegiatan Yayasan</Label>
+                <Label htmlFor="yayasan-permit">{tr("Izin Kegiatan Yayasan")}</Label>
                 <Input
                   id="yayasan-permit"
                   value={activityPermit}
                   onChange={(e) => setActivityPermit(e.target.value)}
-                  placeholder="Nomor izin kegiatan"
+                  placeholder={tr("Nomor izin kegiatan")}
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="yayasan-domicile">Surat Domisili</Label>
+                <Label htmlFor="yayasan-domicile">{tr("Surat Domisili")}</Label>
                 <Input
                   id="yayasan-domicile"
                   value={domicileLetter}
                   onChange={(e) => setDomicileLetter(e.target.value)}
-                  placeholder="Nomor surat keterangan domisili"
+                  placeholder={tr("Nomor surat keterangan domisili")}
                 />
               </div>
             </div>
 
             <div className="w-full space-y-2 md:w-1/2">
               <Label htmlFor="yayasan-logo">
-                Logo Yayasan{" "}
+                {tr("Logo Yayasan")}{" "}
                 <span className="font-normal text-muted-foreground">
-                  (JPG, JPEG, PNG — maks 1MB)
-                </span>
+                  {tr("(JPG, JPEG, PNG — maks 1MB)")}</span>
               </Label>
               <Input
                 id="yayasan-logo"
@@ -336,14 +341,14 @@ export function SettingsTabs({
               <div className="flex items-center gap-3 rounded-md border p-3">
                 <Image
                   src={logoPreview}
-                  alt="Logo yayasan"
+                  alt={tr("Logo yayasan")}
                   width={48}
                   height={48}
                   unoptimized
                   className="h-12 w-12 rounded object-contain"
                 />
                 <span className="flex-1 text-sm text-muted-foreground">
-                  {logoDirty ? "Logo baru (belum disimpan)" : "Logo saat ini"}
+                  {logoDirty ? tr("Logo baru (belum disimpan)") : tr("Logo saat ini")}
                 </span>
                 <Button
                   type="button"
@@ -352,14 +357,12 @@ export function SettingsTabs({
                   className="text-destructive hover:text-destructive"
                   onClick={handleRemoveLogo}
                 >
-                  <Trash2 className="h-4 w-4" /> Hapus
-                </Button>
+                  <Trash2 className="h-4 w-4" /> {tr(" Hapus")}</Button>
               </div>
             )}
             {removeLogo && (
               <p className="text-xs text-muted-foreground">
-                Logo akan dihapus setelah pengaturan disimpan.
-              </p>
+                {tr("Logo akan dihapus setelah pengaturan disimpan.")}</p>
             )}
             <div className="flex justify-end">
               <Button
@@ -368,9 +371,9 @@ export function SettingsTabs({
                 className="w-full md:w-auto"
               >
                 {isSavingGeneral ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Menyimpan...</>
+                  <><Loader2 className="h-4 w-4 animate-spin" /> {tr(" Menyimpan...")}</>
                 ) : (
-                  <><Save className="h-4 w-4" /> Simpan Pengaturan</>
+                  <><Save className="h-4 w-4" /> {tr(" Simpan Pengaturan")}</>
                 )}
               </Button>
             </div>
@@ -387,15 +390,13 @@ export function SettingsTabs({
       <TabsContent value="notification">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Pengaturan Notifikasi</CardTitle>
+            <CardTitle className="text-lg">{tr("Pengaturan Notifikasi")}</CardTitle>
             <CardDescription>
-              Email tujuan notifikasi untuk kejadian penting. (Pengiriman email
-              diaktifkan saat integrasi SMTP tersedia.)
-            </CardDescription>
+              {tr("Email tujuan notifikasi untuk kejadian penting. (Pengiriman email diaktifkan saat integrasi SMTP tersedia.)")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <div className="space-y-2">
-              <Label htmlFor="notif-email">Email Penerima Notifikasi</Label>
+              <Label htmlFor="notif-email">{tr("Email Penerima Notifikasi")}</Label>
               <Input
                 id="notif-email"
                 type="email"
@@ -407,20 +408,20 @@ export function SettingsTabs({
 
             {[
               {
-                label: "Donasi baru masuk",
-                desc: "Kirim email setiap ada donasi tercatat",
+                label: tr("Donasi baru masuk"),
+                desc: tr("Kirim email setiap ada donasi tercatat"),
                 checked: notifNewDonation,
                 onChange: setNotifNewDonation,
               },
               {
-                label: "Red flag relawan",
-                desc: "Kirim email saat relawan di-suspend dengan red flag",
+                label: tr("Red flag relawan"),
+                desc: tr("Kirim email saat relawan di-suspend dengan red flag"),
                 checked: notifRedFlag,
                 onChange: setNotifRedFlag,
               },
               {
-                label: "Stok menipis",
-                desc: "Kirim email saat stok inventory di bawah minimum",
+                label: tr("Stok menipis"),
+                desc: tr("Kirim email saat stok inventory di bawah minimum"),
                 checked: notifLowStock,
                 onChange: setNotifLowStock,
               },
@@ -430,7 +431,7 @@ export function SettingsTabs({
                 className="flex items-center justify-between rounded-md border p-3"
               >
                 <div>
-                  <p className="text-sm font-medium">{item.label}</p>
+                  <p className="text-sm font-medium">{tr(item.label)}</p>
                   <p className="text-xs text-muted-foreground">{item.desc}</p>
                 </div>
                 <Switch
@@ -447,9 +448,9 @@ export function SettingsTabs({
                 className="w-full md:w-auto"
               >
                 {isSavingNotif ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Menyimpan...</>
+                  <><Loader2 className="h-4 w-4 animate-spin" /> {tr(" Menyimpan...")}</>
                 ) : (
-                  <><Save className="h-4 w-4" /> Simpan Notifikasi</>
+                  <><Save className="h-4 w-4" /> {tr(" Simpan Notifikasi")}</>
                 )}
               </Button>
             </div>
@@ -467,9 +468,7 @@ export function SettingsTabs({
       <TabsContent value="ai">
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Konfigurasi provider AI untuk fitur analisis kondisi anak. API key
-            disimpan di database, tidak pernah dikirim ke browser.
-          </p>
+            {tr("Konfigurasi provider AI untuk fitur analisis kondisi anak. API key disimpan di database, tidak pernah dikirim ke browser.")}</p>
           <AISettingsForm initialConfig={aiConfig} />
         </div>
       </TabsContent>
@@ -478,19 +477,16 @@ export function SettingsTabs({
       <TabsContent value="backup">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Backup & Export</CardTitle>
+            <CardTitle className="text-lg">{tr("Backup & Export")}</CardTitle>
             <CardDescription>
-              Unduh salinan data untuk arsip offline atau pindah sistem.
-            </CardDescription>
+              {tr("Unduh salinan data untuk arsip offline atau pindah sistem.")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <div className="flex flex-col items-start justify-between gap-3 rounded-md border p-4 md:flex-row md:items-center">
               <div>
-                <p className="text-sm font-medium">Export Semua Data ke CSV</p>
+                <p className="text-sm font-medium">{tr("Export Semua Data ke CSV")}</p>
                 <p className="text-xs text-muted-foreground">
-                  Anak asuh, donasi, dan relawan dalam satu file CSV (bisa
-                  dibuka di Excel).
-                </p>
+                  {tr("Anak asuh, donasi, dan relawan dalam satu file CSV (bisa dibuka di Excel).")}</p>
               </div>
               <Button
                 variant="outline"
@@ -499,20 +495,18 @@ export function SettingsTabs({
                 className="w-full md:w-auto"
               >
                 {isExporting ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Menyiapkan...</>
+                  <><Loader2 className="h-4 w-4 animate-spin" /> {tr(" Menyiapkan...")}</>
                 ) : (
-                  <><FileDown className="h-4 w-4" /> Export CSV</>
+                  <><FileDown className="h-4 w-4" /> {tr(" Export CSV")}</>
                 )}
               </Button>
             </div>
 
             <div className="flex flex-col items-start justify-between gap-3 rounded-md border p-4 md:flex-row md:items-center">
               <div>
-                <p className="text-sm font-medium">Backup Database</p>
+                <p className="text-sm font-medium">{tr("Backup Database")}</p>
                 <p className="text-xs text-muted-foreground">
-                  Dump semua tabel dalam format JSON (tanpa password &
-                  API key).
-                </p>
+                  {tr("Dump semua tabel dalam format JSON (tanpa password & API key).")}</p>
               </div>
               <Button
                 variant="outline"
@@ -521,9 +515,9 @@ export function SettingsTabs({
                 className="w-full md:w-auto"
               >
                 {isBackingUp ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Menyiapkan...</>
+                  <><Loader2 className="h-4 w-4 animate-spin" /> {tr(" Menyiapkan...")}</>
                 ) : (
-                  <><DatabaseBackup className="h-4 w-4" /> Backup Database</>
+                  <><DatabaseBackup className="h-4 w-4" /> {tr(" Backup Database")}</>
                 )}
               </Button>
             </div>

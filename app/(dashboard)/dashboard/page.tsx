@@ -6,6 +6,8 @@ import { OperationalSection } from "@/components/dashboard/operational-section";
 import { FinancialSection } from "@/components/dashboard/financial-section";
 import { ProgramDonorSection } from "@/components/dashboard/program-donor-section";
 import { ComplianceSection } from "@/components/dashboard/compliance-section";
+import { getT } from "@/lib/i18n/server";
+
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +20,8 @@ const FINANCE_ROLES: UserRole[] = ["SUPER_ADMIN", "FINANCE"];
 const COMPLIANCE_ROLES: UserRole[] = ["SUPER_ADMIN"];
 
 export default async function DashboardHomePage() {
+  const { tr, locale } = await getT();
+
   const session = await auth();
   const role = (session?.user?.role ?? "CAREGIVER") as UserRole;
 
@@ -30,11 +34,10 @@ export default async function DashboardHomePage() {
     <div className="space-y-8">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">
-          Halo, {session?.user?.name?.split(" ")[0] ?? "Kawan"}! 👋
+          {tr("Halo, ")}{session?.user?.name?.split(" ")[0] ?? tr("Kawan")}! 👋
         </h2>
         <p className="text-sm text-muted-foreground">
-          Ringkasan strategis panti — dibagi per perspektif sesuai peran Anda.
-        </p>
+          {tr("Ringkasan strategis panti — dibagi per perspektif sesuai peran Anda.")}</p>
       </div>
 
       {showOperational && <OperationalSection />}
@@ -46,15 +49,12 @@ export default async function DashboardHomePage() {
         <Card>
           <CardContent className="space-y-3 py-10 text-center">
             <p className="text-sm text-muted-foreground">
-              Selamat datang di KanakaOS. Gunakan menu di samping untuk
-              mengakses modul sesuai tugas Anda.
-            </p>
+              {tr("Selamat datang di KanakaOS. Gunakan menu di samping untuk mengakses modul sesuai tugas Anda.")}</p>
             <Link
               href="/dashboard/profile"
               className="text-sm font-medium text-primary hover:underline"
             >
-              Lihat profil saya →
-            </Link>
+              {tr("Lihat profil saya →")}</Link>
           </CardContent>
         </Card>
       )}

@@ -10,10 +10,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { ExpenseForm } from "@/components/finance/expense-form";
+import { getT } from "@/lib/i18n/server";
+
 
 export const dynamic = "force-dynamic";
 
 export default async function NewExpensePage() {
+  const { tr, locale } = await getT();
+
   const session = await requireFinanceSession();
   if (!session) redirect("/dashboard");
 
@@ -34,17 +38,11 @@ export default async function NewExpensePage() {
       <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
         <Link href="/dashboard/finance/expense">
           <ArrowLeft className="h-4 w-4" />
-          Daftar Kas Keluar
-        </Link>
+          {tr("Daftar Kas Keluar")}</Link>
       </Button>
       <ExpenseForm
         accounts={accounts}
-        programs={programBalances.map((p) => ({
-          id: p.id,
-          code: p.code,
-          name: p.name,
-          balance: p.balance,
-        }))}
+        programs={programBalances}
         childrenOptions={children}
         unrestrictedBalance={unrestrictedBalance}
       />

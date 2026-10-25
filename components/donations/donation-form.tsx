@@ -19,6 +19,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { donationCategoryOptions } from "@/components/donations/donation-labels";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 const NONE = "NONE";
 
@@ -55,6 +58,11 @@ function downloadPdf(base64: string, fileName: string) {
 }
 
 export function DonationForm() {
+  const { tr, locale } = useI18n();
+  const donationCategoryOptions = localizeLabels(__donationCategoryOptions, tr);
+  const METHOD_OPTIONS = localizeLabels(__METHOD_OPTIONS, tr);
+  const UNIT_OPTIONS = localizeLabels(__UNIT_OPTIONS, tr);
+
   const [isPending, startTransition] = useTransition();
 
   const [donorType, setDonorType] = useState("PERORANGAN");
@@ -101,15 +109,15 @@ export function DonationForm() {
 
   function handleSubmit() {
     if (donaturName.trim().length < 3) {
-      toast.error("Nama donatur minimal 3 karakter");
+      toast.error(tr("Nama donatur minimal 3 karakter"));
       return;
     }
     if (!type) {
-      toast.error("Pilih metode donasi");
+      toast.error(tr("Pilih metode donasi"));
       return;
     }
     if (isMoney && amountNumber < 1000) {
-      toast.error("Nominal minimal Rp 1.000");
+      toast.error(tr("Nominal minimal Rp 1.000"));
       return;
     }
 
@@ -123,12 +131,12 @@ export function DonationForm() {
 
     if (isInKind) {
       if (filledItems.length === 0) {
-        toast.error("Tambahkan minimal 1 barang");
+        toast.error(tr("Tambahkan minimal 1 barang"));
         return;
       }
       const invalidQty = filledItems.find((item) => item.quantity < 1);
       if (invalidQty) {
-        toast.error(`Qty untuk "${invalidQty.itemName}" minimal 1`);
+        toast.error(tr("Qty untuk \"{0}\" minimal 1", { "0": invalidQty.itemName }));
         return;
       }
     }
@@ -149,16 +157,16 @@ export function DonationForm() {
       if (result.success) {
         downloadPdf(result.pdfBase64, result.fileName);
         if (result.warning) {
-          toast.warning("Donasi tersimpan", {
-            description: `Kwitansi ${result.receiptNumber} ter-download. ${result.warning}.`,
+          toast.warning(tr("Donasi tersimpan"), {
+            description: tr("Kwitansi {0} ter-download. {1}.", { "0": result.receiptNumber, "1": result.warning }),
           });
         } else {
           toast.success(
             isInKind
-              ? "Donasi barang tersimpan & stok inventori diperbarui"
-              : "Berhasil disimpan",
+              ? tr("Donasi barang tersimpan & stok inventori diperbarui")
+              : tr("Berhasil disimpan"),
             {
-              description: `Kwitansi ${result.receiptNumber} sedang di-download.`,
+              description: tr("Kwitansi {0} sedang di-download.", { "0": result.receiptNumber }),
             }
           );
         }
@@ -174,11 +182,11 @@ export function DonationForm() {
       <CardContent className="flex flex-col gap-5 p-4 md:p-6">
         {/* Jenis donatur */}
         <div className="space-y-2">
-          <Label>Jenis Donatur</Label>
+          <Label>{tr("Jenis Donatur")}</Label>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { value: "PERORANGAN", label: "🙋 Perorangan" },
-              { value: "PERUSAHAAN", label: "🏢 Perusahaan" },
+              { value: "PERORANGAN", label: tr("🙋 Perorangan") },
+              { value: "PERUSAHAAN", label: tr("🏢 Perusahaan") },
             ].map((option) => (
               <button
                 key={option.value}
@@ -189,7 +197,7 @@ export function DonationForm() {
                   donorType === option.value && "border-primary bg-primary/10"
                 )}
               >
-                {option.label}
+                {tr(option.label)}
               </button>
             ))}
           </div>
@@ -197,7 +205,7 @@ export function DonationForm() {
 
         <div className="space-y-2">
           <Label htmlFor="donaturName">
-            {donorType === "PERUSAHAAN" ? "Nama Perusahaan" : "Nama Donatur"}
+            {donorType === "PERUSAHAAN" ? tr("Nama Perusahaan") : tr("Nama Donatur")}
           </Label>
           <Input
             id="donaturName"
@@ -205,8 +213,8 @@ export function DonationForm() {
             onChange={(e) => setDonaturName(e.target.value)}
             placeholder={
               donorType === "PERUSAHAAN"
-                ? "mis. PT Maju Bersama"
-                : "Nama lengkap donatur"
+                ? tr("mis. PT Maju Bersama")
+                : tr("Nama lengkap donatur")
             }
             autoComplete="off"
           />
@@ -215,31 +223,29 @@ export function DonationForm() {
         <div className="flex flex-col gap-5 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
             <Label htmlFor="donaturContact">
-              Kontak{" "}
+              {tr("Kontak")}{" "}
               <span className="font-normal text-muted-foreground">
-                (opsional)
-              </span>
+                {tr("(opsional)")}</span>
             </Label>
             <Input
               id="donaturContact"
               value={donaturContact}
               onChange={(e) => setDonaturContact(e.target.value)}
-              placeholder="No. HP / email donatur"
+              placeholder={tr("No. HP / email donatur")}
               autoComplete="off"
             />
           </div>
           <div className="w-full space-y-2 md:w-1/2">
             <Label htmlFor="donaturAddress">
-              Alamat{" "}
+              {tr("Alamat")}{" "}
               <span className="font-normal text-muted-foreground">
-                (opsional)
-              </span>
+                {tr("(opsional)")}</span>
             </Label>
             <Input
               id="donaturAddress"
               value={donaturAddress}
               onChange={(e) => setDonaturAddress(e.target.value)}
-              placeholder="Alamat donatur / perusahaan"
+              placeholder={tr("Alamat donatur / perusahaan")}
               autoComplete="off"
             />
           </div>
@@ -248,20 +254,19 @@ export function DonationForm() {
         {/* Kategori dana */}
         <div className="space-y-2">
           <Label>
-            Kategori Dana{" "}
+            {tr("Kategori Dana")}{" "}
             <span className="font-normal text-muted-foreground">
-              (opsional)
-            </span>
+              {tr("(opsional)")}</span>
           </Label>
           <Select value={category} onValueChange={setCategory}>
             <SelectTrigger>
-              <SelectValue placeholder="Pilih kategori dana" />
+              <SelectValue placeholder={tr("Pilih kategori dana")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NONE}>Tidak ditentukan</SelectItem>
+              <SelectItem value={NONE}>{tr("Tidak ditentukan")}</SelectItem>
               {donationCategoryOptions.map((o) => (
                 <SelectItem key={o.value} value={o.value}>
-                  {o.label}
+                  {tr(o.label)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -270,7 +275,7 @@ export function DonationForm() {
 
         {/* Metode donasi */}
         <div className="space-y-2">
-          <Label>Metode Donasi</Label>
+          <Label>{tr("Metode Donasi")}</Label>
           <div className="grid grid-cols-3 gap-2">
             {METHOD_OPTIONS.map((option) => (
               <button
@@ -282,7 +287,7 @@ export function DonationForm() {
                   type === option.value && "border-primary bg-primary/10"
                 )}
               >
-                {option.label}
+                {tr(option.label)}
               </button>
             ))}
           </div>
@@ -291,7 +296,7 @@ export function DonationForm() {
         {/* Kondisional: Nominal untuk Tunai/Transfer */}
         {isMoney && (
           <div className="space-y-2">
-            <Label htmlFor="amount">Nominal (Rp)</Label>
+            <Label htmlFor="amount">{tr("Nominal (Rp)")}</Label>
             <Input
               id="amount"
               type="number"
@@ -305,8 +310,8 @@ export function DonationForm() {
             />
             {amountNumber > 0 && (
               <p className="text-xs text-muted-foreground">
-                {formatRupiah(amountNumber)} —{" "}
-                <span className="italic">{numberToWords(amountNumber)}</span>
+                {formatRupiah(amountNumber, locale)} —{" "}
+                <span className="italic">{numberToWords(amountNumber, locale)}</span>
               </p>
             )}
           </div>
@@ -316,10 +321,9 @@ export function DonationForm() {
         {isInKind && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Barang yang Didonasikan</Label>
+              <Label>{tr("Barang yang Didonasikan")}</Label>
               <span className="text-xs text-muted-foreground">
-                Otomatis menambah stok Inventori
-              </span>
+                {tr("Otomatis menambah stok Inventori")}</span>
             </div>
             <div className="flex flex-col gap-2">
               {items.map((item, index) => (
@@ -332,15 +336,14 @@ export function DonationForm() {
                       htmlFor={`item-name-${index}`}
                       className="text-xs text-muted-foreground"
                     >
-                      Nama Barang
-                    </Label>
+                      {tr("Nama Barang")}</Label>
                     <Input
                       id={`item-name-${index}`}
                       value={item.itemName}
                       onChange={(e) =>
                         setItem(index, "itemName", e.target.value)
                       }
-                      placeholder="mis. Beras Premium 5kg"
+                      placeholder={tr("mis. Beras Premium 5kg")}
                     />
                   </div>
                   <div className="flex gap-2">
@@ -349,8 +352,7 @@ export function DonationForm() {
                         htmlFor={`item-qty-${index}`}
                         className="text-xs text-muted-foreground"
                       >
-                        Qty
-                      </Label>
+                        {tr("Qty")}</Label>
                       <Input
                         id={`item-qty-${index}`}
                         type="number"
@@ -365,8 +367,7 @@ export function DonationForm() {
                     </div>
                     <div className="w-24 space-y-1">
                       <Label className="text-xs text-muted-foreground">
-                        Satuan
-                      </Label>
+                        {tr("Satuan")}</Label>
                       <Select
                         value={item.unit}
                         onValueChange={(v) => setItem(index, "unit", v)}
@@ -390,7 +391,7 @@ export function DonationForm() {
                       onClick={() => removeItem(index)}
                       disabled={items.length === 1}
                       className="h-10 w-10 shrink-0 self-end text-destructive hover:text-destructive"
-                      title="Hapus barang"
+                      title={tr("Hapus barang")}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -406,23 +407,21 @@ export function DonationForm() {
               className="gap-1"
             >
               <Plus className="h-4 w-4" />
-              Tambah Barang
-            </Button>
+              {tr("Tambah Barang")}</Button>
           </div>
         )}
 
         <div className="space-y-2">
           <Label htmlFor="purpose">
-            Peruntukan{" "}
+            {tr("Peruntukan")}{" "}
             <span className="font-normal text-muted-foreground">
-              (opsional)
-            </span>
+              {tr("(opsional)")}</span>
           </Label>
           <Textarea
             id="purpose"
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
-            placeholder="Contoh: Biaya pendidikan anak asuh"
+            placeholder={tr("Contoh: Biaya pendidikan anak asuh")}
             rows={3}
           />
         </div>
@@ -436,16 +435,18 @@ export function DonationForm() {
           {isPending ? (
             <>
               <Loader2 className="h-5 w-5 animate-spin" />
-              Memproses kwitansi...
-            </>
+              {tr("Memproses kwitansi...")}</>
           ) : (
             <>
               <FileDown className="h-5 w-5" />
-              Simpan & Cetak Kwitansi
-            </>
+              {tr("Simpan & Cetak Kwitansi")}</>
           )}
         </Button>
       </CardContent>
     </Card>
   );
 }
+
+const __donationCategoryOptions = donationCategoryOptions;
+const __METHOD_OPTIONS = METHOD_OPTIONS;
+const __UNIT_OPTIONS = UNIT_OPTIONS;

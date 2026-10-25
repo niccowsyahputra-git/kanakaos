@@ -11,6 +11,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 const ROLE_FILTER_OPTIONS = [
   { value: "ALL", label: "Semua Role" },
@@ -23,6 +26,9 @@ const ROLE_FILTER_OPTIONS = [
 ];
 
 export function UserFilters() {
+  const { tr, locale } = useI18n();
+  const ROLE_FILTER_OPTIONS = localizeLabels(__ROLE_FILTER_OPTIONS, tr);
+
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -51,7 +57,7 @@ export function UserFilters() {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Cari nama atau email... (Enter)"
+          placeholder={tr("Cari nama atau email... (Enter)")}
           className="pl-9"
         />
       </form>
@@ -60,12 +66,12 @@ export function UserFilters() {
         onValueChange={(role) => applyFilter(query, role)}
       >
         <SelectTrigger className="w-full md:w-52">
-          <SelectValue placeholder="Filter role" />
+          <SelectValue placeholder={tr("Filter role")} />
         </SelectTrigger>
         <SelectContent>
           {ROLE_FILTER_OPTIONS.map((option) => (
             <SelectItem key={option.value} value={option.value}>
-              {option.label}
+              {tr(option.label)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -73,3 +79,5 @@ export function UserFilters() {
     </div>
   );
 }
+
+const __ROLE_FILTER_OPTIONS = ROLE_FILTER_OPTIONS;

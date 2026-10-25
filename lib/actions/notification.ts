@@ -4,18 +4,22 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { getT } from "@/lib/i18n/server";
+
 
 type ActionResult = { success: true } | { success: false; error: string };
 
 export async function markNotificationRead(id: string): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const idParsed = z.string().cuid().safeParse(id);
   if (!idParsed.success) {
-    return { success: false, error: "ID notifikasi tidak valid" };
+    return { success: false, error: tr("ID notifikasi tidak valid") };
   }
 
   try {
@@ -29,14 +33,16 @@ export async function markNotificationRead(id: string): Promise<ActionResult> {
     return { success: true };
   } catch (error) {
     console.error("markNotificationRead error:", error);
-    return { success: false, error: "Gagal menandai notifikasi" };
+    return { success: false, error: tr("Gagal menandai notifikasi") };
   }
 }
 
 export async function markAllNotificationsRead(): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   try {
@@ -49,6 +55,6 @@ export async function markAllNotificationsRead(): Promise<ActionResult> {
     return { success: true };
   } catch (error) {
     console.error("markAllNotificationsRead error:", error);
-    return { success: false, error: "Gagal menandai semua notifikasi" };
+    return { success: false, error: tr("Gagal menandai semua notifikasi") };
   }
 }

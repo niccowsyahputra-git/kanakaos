@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { canAccessAccount } from "@/lib/employee-policy";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -31,12 +32,13 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: email.toLowerCase() },
+          include: { employee: { select: { status: true } } },
         });
 
         if (!user || !user.password) return null;
 
         // User nonaktif tidak boleh login
-        if (!user.isActive) return null;
+        if (!canAccessAccount(user)) return null;
 
         const isValid = await bcrypt.compare(password, user.password);
         if (!isValid) return null;

@@ -11,11 +11,18 @@ import {
   prStatusLabel,
   prStatusClass,
 } from "@/components/inventory/pr-labels";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export const dynamic = "force-dynamic";
 
-function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
+function formatDateTime(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), {
     dateStyle: "long",
     timeStyle: "short",
   }).format(date);
@@ -29,6 +36,9 @@ export default async function PurchaseRequestDetailPage({
 }: {
   params: { id: string };
 }) {
+  const { tr, locale } = await getT();
+  const prStatusClass = localizeLabels(__prStatusClass, tr);
+
   const session = await requireLogisticsSession();
   if (!session) redirect("/dashboard");
 
@@ -54,8 +64,7 @@ export default async function PurchaseRequestDetailPage({
       <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
         <Link href="/dashboard/inventory/purchase-requests">
           <ArrowLeft className="h-4 w-4" />
-          Semua PR
-        </Link>
+          {tr("Semua PR")}</Link>
       </Button>
 
       <Card>
@@ -65,28 +74,28 @@ export default async function PurchaseRequestDetailPage({
               {pr.inventory.itemName} × {pr.quantity} {pr.inventory.unit}
             </h2>
             <Badge variant="outline" className={prStatusClass[pr.status]}>
-              {prStatusLabel[pr.status]}
+              {tr(prStatusLabel[pr.status])}
             </Badge>
           </div>
 
           <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
             <div className="flex justify-between sm:block">
-              <dt className="text-muted-foreground">Pemohon</dt>
+              <dt className="text-muted-foreground">{tr("Pemohon")}</dt>
               <dd className="font-medium">{pr.requestedBy.name}</dd>
             </div>
             <div className="flex justify-between sm:block">
-              <dt className="text-muted-foreground">Diajukan</dt>
-              <dd className="font-medium">{formatDateTime(pr.createdAt)}</dd>
+              <dt className="text-muted-foreground">{tr("Diajukan")}</dt>
+              <dd className="font-medium">{formatDateTime(pr.createdAt, locale)}</dd>
             </div>
             <div className="flex justify-between sm:block">
-              <dt className="text-muted-foreground">Stok saat ini</dt>
+              <dt className="text-muted-foreground">{tr("Stok saat ini")}</dt>
               <dd className="font-medium">
                 {pr.inventory.quantity} {pr.inventory.unit}
               </dd>
             </div>
             {pr.decidedBy && (
               <div className="flex justify-between sm:block">
-                <dt className="text-muted-foreground">Diputuskan oleh</dt>
+                <dt className="text-muted-foreground">{tr("Diputuskan oleh")}</dt>
                 <dd className="font-medium">{pr.decidedBy.name}</dd>
               </div>
             )}
@@ -95,8 +104,7 @@ export default async function PurchaseRequestDetailPage({
           {pr.notes && (
             <div className="rounded-md bg-muted/60 p-3">
               <p className="text-xs font-medium uppercase text-muted-foreground">
-                Catatan Pemohon
-              </p>
+                {tr("Catatan Pemohon")}</p>
               <p className="mt-1 whitespace-pre-line text-sm">{pr.notes}</p>
             </div>
           )}
@@ -104,8 +112,7 @@ export default async function PurchaseRequestDetailPage({
           {pr.decisionNotes && (
             <div className="rounded-md border p-3">
               <p className="text-xs font-medium uppercase text-muted-foreground">
-                Catatan Keputusan
-              </p>
+                {tr("Catatan Keputusan")}</p>
               <p className="mt-1 whitespace-pre-line text-sm">
                 {pr.decisionNotes}
               </p>
@@ -117,11 +124,11 @@ export default async function PurchaseRequestDetailPage({
       {/* Approval workflow */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Status Workflow</CardTitle>
+          <CardTitle className="text-lg">{tr("Status Workflow")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {isRejected ? (
-            <Badge variant="destructive">PR Ditolak</Badge>
+            <Badge variant="destructive">{tr("PR Ditolak")}</Badge>
           ) : (
             <ol className="flex flex-wrap items-center gap-2">
               {WORKFLOW_STEPS.map((step, index) => {
@@ -136,7 +143,7 @@ export default async function PurchaseRequestDetailPage({
                       }`}
                     >
                       {done && <CheckCircle2 className="h-3 w-3" />}
-                      {prStatusLabel[step]}
+                      {tr(prStatusLabel[step])}
                     </span>
                     {index < WORKFLOW_STEPS.length - 1 && (
                       <span className="text-muted-foreground">→</span>
@@ -157,3 +164,5 @@ export default async function PurchaseRequestDetailPage({
     </div>
   );
 }
+
+const __prStatusClass = prStatusClass;

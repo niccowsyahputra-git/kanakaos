@@ -7,6 +7,7 @@
  */
 import { prisma } from "../lib/prisma";
 import bcrypt from "bcryptjs";
+import { VOLUNTEER_FIELDS, VOLUNTEER_FIELD_CODES } from "../lib/option-catalogs";
 
 // ---------- Util acak ----------
 const rand = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
@@ -334,11 +335,13 @@ async function main() {
   console.log("🙌 Membuat 10 relawan...");
   for (let i = 0; i < 10; i++) {
     const isMale = chance(0.5);
+    const skill = rand([...VOLUNTEER_FIELD_CODES]);
     await prisma.volunteer.create({
       data: {
         name: `${isMale ? rand(MALE_NAMES) : rand(FEMALE_NAMES)} ${rand(LAST_NAMES)}`,
         phone: `0857${randInt(1000000, 9999999)}`,
-        skill: rand(["Mengajar", "Dokter/Medis", "Desain Grafis", "Memasak", "Fotografi", "Fundraising"]),
+        skill: VOLUNTEER_FIELDS[skill],
+        skillsJson: JSON.stringify([skill]),
         status: rand(["APPROVED", "APPROVED", "PENDING", "REJECTED", "SUSPENDED"] as const),
         hasSafeguardingCert: chance(0.6),
         email: `relawan${i + 1}@mail.com`,

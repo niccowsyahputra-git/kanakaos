@@ -18,11 +18,17 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ExportTransactionsButton } from "@/components/finance/transaction-dialog";
 import { TransactionFilters } from "@/components/finance/transaction-filters";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+
 
 export const dynamic = "force-dynamic";
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(
     date
   );
 }
@@ -37,6 +43,8 @@ export default async function TransactionsPage({
     to?: string;
   };
 }) {
+  const { tr, locale } = await getT();
+
   const session = await requireFinanceSession();
   if (!session) redirect("/dashboard");
 
@@ -107,21 +115,21 @@ export default async function TransactionsPage({
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Transaksi Kas</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{tr("Transaksi Kas")}</h2>
           <p className="text-sm text-muted-foreground">
-            {visible.length} transaksi ditampilkan · saldo akhir{" "}
+            {visible.length} {tr(" transaksi ditampilkan · saldo akhir")}{" "}
             <span className="font-semibold text-foreground">
-              {formatRupiah(running)}
+              {formatRupiah(running, locale)}
             </span>
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <ExportTransactionsButton />
           <Button asChild className="w-full sm:w-auto">
-            <Link href="/dashboard/finance/income/new">Catat Kas Masuk</Link>
+            <Link href="/dashboard/finance/income/new">{tr("Catat Kas Masuk")}</Link>
           </Button>
           <Button asChild variant="secondary" className="w-full sm:w-auto">
-            <Link href="/dashboard/finance/expense/new">Buat Voucher Keluar</Link>
+            <Link href="/dashboard/finance/expense/new">{tr("Buat Voucher Keluar")}</Link>
           </Button>
         </div>
       </div>
@@ -131,8 +139,7 @@ export default async function TransactionsPage({
       {visible.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Tidak ada transaksi untuk filter ini.
-          </CardContent>
+            {tr("Tidak ada transaksi untuk filter ini.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -153,11 +160,11 @@ export default async function TransactionsPage({
                       }`}
                     >
                       {transaction.type === "DEBIT" ? "+" : "−"}
-                      {formatRupiah(Number(transaction.amount))}
+                      {formatRupiah(Number(transaction.amount), locale)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{formatDate(transaction.date)}</span>
+                    <span>{formatDate(transaction.date, locale)}</span>
                     <Badge variant="secondary" className="text-[10px]">
                       {transaction.category.name}
                     </Badge>
@@ -169,12 +176,11 @@ export default async function TransactionsPage({
                         className="inline-flex items-center gap-0.5 text-primary"
                       >
                         <Paperclip className="h-3 w-3" />
-                        bukti
-                      </a>
+                        {tr("bukti")}</a>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Saldo: {formatRupiah(transaction.balanceAfter)}
+                    {tr("Saldo: ")}{formatRupiah(transaction.balanceAfter, locale)}
                   </p>
                 </CardContent>
               </Card>
@@ -186,20 +192,20 @@ export default async function TransactionsPage({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Deskripsi</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead className="text-right">Masuk</TableHead>
-                  <TableHead className="text-right">Keluar</TableHead>
-                  <TableHead className="text-right">Saldo</TableHead>
-                  <TableHead>Bukti</TableHead>
+                  <TableHead>{tr("Tanggal")}</TableHead>
+                  <TableHead>{tr("Deskripsi")}</TableHead>
+                  <TableHead>{tr("Kategori")}</TableHead>
+                  <TableHead className="text-right">{tr("Kas Masuk")}</TableHead>
+                  <TableHead className="text-right">{tr("Kas Keluar")}</TableHead>
+                  <TableHead className="text-right">{tr("Saldo")}</TableHead>
+                  <TableHead>{tr("Bukti")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {visible.map((transaction) => (
                   <TableRow key={transaction.id}>
                     <TableCell className="whitespace-nowrap">
-                      {formatDate(transaction.date)}
+                      {formatDate(transaction.date, locale)}
                     </TableCell>
                     <TableCell className="max-w-xs font-medium">
                       {transaction.description}
@@ -211,16 +217,16 @@ export default async function TransactionsPage({
                     </TableCell>
                     <TableCell className="text-right text-green-600">
                       {transaction.type === "DEBIT"
-                        ? formatRupiah(Number(transaction.amount))
+                        ? formatRupiah(Number(transaction.amount), locale)
                         : "-"}
                     </TableCell>
                     <TableCell className="text-right text-destructive">
                       {transaction.type === "CREDIT"
-                        ? formatRupiah(Number(transaction.amount))
+                        ? formatRupiah(Number(transaction.amount), locale)
                         : "-"}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatRupiah(transaction.balanceAfter)}
+                      {formatRupiah(transaction.balanceAfter, locale)}
                     </TableCell>
                     <TableCell>
                       {transaction.proofUrl ? (
@@ -231,8 +237,7 @@ export default async function TransactionsPage({
                           className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                         >
                           <Paperclip className="h-3 w-3" />
-                          Lihat
-                        </a>
+                          {tr("Lihat")}</a>
                       ) : (
                         <span className="text-xs text-muted-foreground">-</span>
                       )}

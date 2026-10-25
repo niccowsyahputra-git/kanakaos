@@ -3,9 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus, SlidersHorizontal } from "lucide-react";
+import { Loader2, Plus, Pencil, SlidersHorizontal } from "lucide-react";
 
-import { createInventoryItem, adjustStock } from "@/lib/actions/inventory";
+import { createInventoryItem, updateInventoryItem, adjustStock } from "@/lib/actions/inventory";
+import type { Inventory } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export const INVENTORY_CATEGORY_OPTIONS = [
   { value: "MAKANAN", label: "Makanan" },
@@ -39,6 +43,9 @@ export const INVENTORY_CATEGORY_OPTIONS = [
 // ---------- Filter kategori ----------
 
 export function InventoryFilters() {
+  const { tr, locale } = useI18n();
+  const INVENTORY_CATEGORY_OPTIONS = localizeLabels(__INVENTORY_CATEGORY_OPTIONS, tr);
+
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -54,13 +61,13 @@ export function InventoryFilters() {
       }}
     >
       <SelectTrigger className="w-full md:w-52">
-        <SelectValue placeholder="Filter kategori" />
+        <SelectValue placeholder={tr("Filter kategori")} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="ALL">Semua Kategori</SelectItem>
+        <SelectItem value="ALL">{tr("Semua Kategori")}</SelectItem>
         {INVENTORY_CATEGORY_OPTIONS.map((option) => (
           <SelectItem key={option.value} value={option.value}>
-            {option.label}
+            {tr(option.label)}
           </SelectItem>
         ))}
       </SelectContent>
@@ -70,26 +77,26 @@ export function InventoryFilters() {
 
 // ---------- Tambah barang ----------
 
-export function AddItemDialog() {
+export function AddItemDialog({ item }: { item?: Pick<Inventory, "id" | "itemName" | "category" | "quantity" | "unit" | "minStock"> }) {
+  const { tr, locale } = useI18n();
+  const INVENTORY_CATEGORY_OPTIONS = localizeLabels(__INVENTORY_CATEGORY_OPTIONS, tr);
+
   const [open, setOpen] = useState(false);
-  const [itemName, setItemName] = useState("");
-  const [category, setCategory] = useState("");
-  const [quantity, setQuantity] = useState("0");
-  const [unit, setUnit] = useState("pcs");
-  const [minStock, setMinStock] = useState("0");
+  const [itemName, setItemName] = useState(item?.itemName ?? "");
+  const [category, setCategory] = useState<string>(item?.category ?? "");
+  const [quantity, setQuantity] = useState(String(item?.quantity ?? 0));
+  const [unit, setUnit] = useState(item?.unit ?? "pcs");
+  const [minStock, setMinStock] = useState(String(item?.minStock ?? 0));
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit() {
     startTransition(async () => {
-      const result = await createInventoryItem({
-        itemName,
-        category: category as "LAINNYA",
-        quantity: Number(quantity),
-        unit,
-        minStock: Number(minStock),
-      });
+      const values = { itemName, category: category as "LAINNYA", unit, minStock: Number(minStock) };
+      const result = item
+        ? await updateInventoryItem(item.id, values)
+        : await createInventoryItem({ ...values, quantity: Number(quantity) });
       if (result.success) {
-        toast.success("Barang ditambahkan");
+        toast.success(item ? tr("Barang diperbarui") : tr("Barang ditambahkan"));
         setOpen(false);
         setItemName("");
         setCategory("");
@@ -103,60 +110,64 @@ export function AddItemDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(next) => {
+      if (next && item) {
+        setItemName(item.itemName); setCategory(item.category); setQuantity(String(item.quantity));
+        setUnit(item.unit); setMinStock(String(item.minStock));
+      }
+      setOpen(next);
+    }}>
       <DialogTrigger asChild>
-        <Button className="w-full sm:w-auto">
-          <Plus className="h-4 w-4" />
-          Tambah Barang
-        </Button>
+        <Button variant={item ? "outline" : "default"} size={item ? "sm" : "default"} className={item ? "gap-1" : "w-full sm:w-auto"}>
+          {item ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+          {item ? tr("Edit") : tr("Tambah Barang")}</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Tambah Barang Inventory</DialogTitle>
+          <DialogTitle>{item ? tr("Edit Barang Inventori") : tr("Tambah Barang Inventory")}</DialogTitle>
           <DialogDescription>
-            Daftarkan barang baru beserta stok awal & batas minimum.
-          </DialogDescription>
+            {item ? tr("Ubah informasi barang. Gunakan penyesuaian stok untuk mengubah jumlah.") : tr("Daftarkan barang baru beserta stok awal & batas minimum.")}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="space-y-2">
-            <Label htmlFor="inv-name">Nama Barang</Label>
+            <Label htmlFor="inv-name">{tr("Nama Barang")}</Label>
             <Input
               id="inv-name"
               value={itemName}
               onChange={(e) => setItemName(e.target.value)}
-              placeholder="Contoh: Beras"
+              placeholder={tr("Contoh: Beras")}
               autoComplete="off"
             />
           </div>
           <div className="flex flex-col gap-4 sm:flex-row">
             <div className="w-full space-y-2 sm:w-1/2">
-              <Label>Kategori</Label>
+              <Label>{tr("Kategori")}</Label>
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih kategori" />
+                  <SelectValue placeholder={tr("Pilih kategori")} />
                 </SelectTrigger>
                 <SelectContent>
                   {INVENTORY_CATEGORY_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                      {tr(option.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="w-full space-y-2 sm:w-1/2">
-              <Label htmlFor="inv-unit">Satuan</Label>
+              <Label htmlFor="inv-unit">{tr("Satuan")}</Label>
               <Input
                 id="inv-unit"
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
-                placeholder="kg / pcs / liter"
+                placeholder={tr("kg / pcs / liter")}
               />
             </div>
           </div>
           <div className="flex flex-col gap-4 sm:flex-row">
-            <div className="w-full space-y-2 sm:w-1/2">
-              <Label htmlFor="inv-qty">Stok Awal</Label>
+            {!item && <div className="w-full space-y-2 sm:w-1/2">
+              <Label htmlFor="inv-qty">{tr("Stok Awal")}</Label>
               <Input
                 id="inv-qty"
                 type="number"
@@ -165,9 +176,9 @@ export function AddItemDialog() {
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
               />
-            </div>
+            </div>}
             <div className="w-full space-y-2 sm:w-1/2">
-              <Label htmlFor="inv-min">Stok Minimum</Label>
+              <Label htmlFor="inv-min">{tr("Stok Minimum")}</Label>
               <Input
                 id="inv-min"
                 type="number"
@@ -185,8 +196,7 @@ export function AddItemDialog() {
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             onClick={handleSubmit}
             disabled={
@@ -196,10 +206,9 @@ export function AddItemDialog() {
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menyimpan...
-              </>
+                {tr("Menyimpan...")}</>
             ) : (
-              "Simpan Barang"
+              tr("Simpan Barang")
             )}
           </Button>
         </DialogFooter>
@@ -221,6 +230,8 @@ export function AdjustStockDialog({
   unit: string;
   currentQuantity: number;
 }) {
+  const { tr, locale } = useI18n();
+
   const [open, setOpen] = useState(false);
   const [direction, setDirection] = useState<"IN" | "OUT">("OUT");
   const [amount, setAmount] = useState("");
@@ -237,7 +248,7 @@ export function AdjustStockDialog({
         reason,
       });
       if (result.success) {
-        toast.success(`Stok ${itemName} diperbarui`);
+        toast.success(tr("Stok {0} diperbarui", { "0": itemName }));
         setOpen(false);
         setAmount("");
         setReason("");
@@ -252,14 +263,13 @@ export function AdjustStockDialog({
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 gap-1">
           <SlidersHorizontal className="h-3.5 w-3.5" />
-          Adjust
-        </Button>
+          {tr("Adjust")}</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Adjust Stok: {itemName}</DialogTitle>
+          <DialogTitle>{tr("Adjust Stok: ")}{itemName}</DialogTitle>
           <DialogDescription>
-            Stok saat ini: {currentQuantity} {unit}
+            {tr("Stok saat ini: ")}{currentQuantity} {unit}
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
@@ -274,8 +284,7 @@ export function AdjustStockDialog({
                   : "border-muted hover:bg-accent"
               )}
             >
-              + Tambah Stok
-            </button>
+              {tr("+ Tambah Stok")}</button>
             <button
               type="button"
               onClick={() => setDirection("OUT")}
@@ -286,11 +295,10 @@ export function AdjustStockDialog({
                   : "border-muted hover:bg-accent"
               )}
             >
-              − Kurangi Stok
-            </button>
+              {tr("− Kurangi Stok")}</button>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="adj-amount">Jumlah ({unit})</Label>
+            <Label htmlFor="adj-amount">{tr("Jumlah (")}{unit})</Label>
             <Input
               id="adj-amount"
               type="number"
@@ -302,12 +310,12 @@ export function AdjustStockDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="adj-reason">Alasan</Label>
+            <Label htmlFor="adj-reason">{tr("Alasan")}</Label>
             <Textarea
               id="adj-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Contoh: Pemakaian dapur mingguan / donasi barang masuk"
+              placeholder={tr("Contoh: Pemakaian dapur mingguan / donasi barang masuk")}
               rows={2}
             />
           </div>
@@ -318,8 +326,7 @@ export function AdjustStockDialog({
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             onClick={handleSubmit}
             disabled={
@@ -329,10 +336,9 @@ export function AdjustStockDialog({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menyimpan...
-              </>
+                {tr("Menyimpan...")}</>
             ) : (
-              "Simpan Adjustment"
+              tr("Simpan Adjustment")
             )}
           </Button>
         </DialogFooter>
@@ -340,3 +346,5 @@ export function AdjustStockDialog({
     </Dialog>
   );
 }
+
+const __INVENTORY_CATEGORY_OPTIONS = INVENTORY_CATEGORY_OPTIONS;

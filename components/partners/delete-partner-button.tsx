@@ -15,6 +15,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useI18n } from "@/lib/i18n/client";
+
 
 export function DeletePartnerButton({
   partnerId,
@@ -23,6 +25,8 @@ export function DeletePartnerButton({
   partnerId: string;
   partnerName: string;
 }) {
+  const { tr, locale } = useI18n();
+
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -30,7 +34,7 @@ export function DeletePartnerButton({
     startTransition(async () => {
       const result = await deletePartner(partnerId);
       if (result.success) {
-        toast.success(`Mitra ${partnerName} dihapus`);
+        toast.success(tr("Mitra {0} dihapus", { "0": partnerName }));
         setOpen(false);
       } else {
         toast.error(result.error);
@@ -45,18 +49,17 @@ export function DeletePartnerButton({
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-destructive hover:text-destructive"
-          title="Hapus mitra"
+          title={tr("Hapus mitra")}
         >
           <Trash2 className="h-4 w-4" />
-          <span className="sr-only">Hapus {partnerName}</span>
+          <span className="sr-only">{tr("Hapus ")}{partnerName}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Hapus Mitra?</DialogTitle>
+          <DialogTitle>{tr("Hapus Mitra?")}</DialogTitle>
           <DialogDescription>
-            Mitra <b>{partnerName}</b> akan dihapus permanen dari daftar.
-          </DialogDescription>
+            {tr("Mitra ")}<b>{partnerName}</b> {tr(" akan dihapus permanen dari daftar.")}</DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2">
           <Button
@@ -64,8 +67,7 @@ export function DeletePartnerButton({
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             variant="destructive"
             onClick={handleDelete}
@@ -74,10 +76,9 @@ export function DeletePartnerButton({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menghapus...
-              </>
+                {tr("Menghapus...")}</>
             ) : (
-              "Ya, Hapus"
+              tr("Ya, Hapus")
             )}
           </Button>
         </DialogFooter>

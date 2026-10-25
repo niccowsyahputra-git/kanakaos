@@ -1,5 +1,7 @@
 "use server";
 
+import { notificationMessage } from "@/lib/i18n/notification";
+
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -14,6 +16,9 @@ import {
   uploadFileToCloudinary,
   isCloudinaryConfigured,
 } from "@/lib/cloudinary";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type ActionResult =
   | { success: true; id?: string; warning?: string }
@@ -22,9 +27,12 @@ type ActionResult =
 export async function reportIncident(
   formData: FormData
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { incidentSchema } = getSchemas(locale);
+
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const parsed = incidentSchema.safeParse({
@@ -35,7 +43,7 @@ export async function reportIncident(
     urgency: formData.get("urgency"),
   });
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -43,7 +51,7 @@ export async function reportIncident(
       where: { id: parsed.data.childId },
       select: { id: true, fullName: true },
     });
-    if (!child) return { success: false, error: "Data anak tidak ditemukan" };
+    if (!child) return { success: false, error: tr("Data anak tidak ditemukan") };
 
     // Upload foto pendukung (opsional)
     let photoUrl: string | null = null;
@@ -51,13 +59,13 @@ export async function reportIncident(
     const photo = formData.get("photo");
     if (photo instanceof File && photo.size > 0) {
       if (!photo.type.startsWith("image/")) {
-        return { success: false, error: "Foto harus berupa gambar" };
+        return { success: false, error: tr("Foto harus berupa gambar") };
       }
       if (photo.size > 5 * 1024 * 1024) {
-        return { success: false, error: "Ukuran foto maksimal 5MB" };
+        return { success: false, error: tr("Ukuran foto maksimal 5MB") };
       }
       if (!isCloudinaryConfigured()) {
-        warning = "Foto tidak tersimpan: Cloudinary belum dikonfigurasi";
+        warning = tr("Foto tidak tersimpan: Cloudinary belum dikonfigurasi");
       } else {
         try {
           photoUrl = await uploadFileToCloudinary(
@@ -66,7 +74,7 @@ export async function reportIncident(
           );
         } catch (error) {
           console.error("reportIncident upload error:", error);
-          return { success: false, error: "Gagal meng-upload foto" };
+          return { success: false, error: tr("Gagal meng-upload foto") };
         }
       }
     }
@@ -96,18 +104,18 @@ export async function reportIncident(
     await notifyRoles(
       ["SUPER_ADMIN", "SOCIAL_WORKER"],
       {
-        title: `Insiden baru: ${child.fullName}`,
-        description: `${parsed.data.urgency === "CRITICAL" ? "⚠️ KRITIS — " : ""}${parsed.data.description.slice(0, 100)}`,
+        title: notificationMessage("Insiden baru: {0}", { 0: child.fullName }),
+        description: notificationMessage(parsed.data.urgency === "CRITICAL" ? "⚠️ KRITIS — {0}" : "{0}", { 0: parsed.data.description.slice(0, 100) }),
         link: `/dashboard/incidents/${incident.id}`,
       },
       session.user.id
     );
 
     revalidatePath("/dashboard/incidents");
-    return { success: true, id: incident.id, warning };
+    return { success: true, id: incident.id, warning: warning ? tr(warning) : undefined };
   } catch (error) {
     console.error("reportIncident error:", error);
-    return { success: false, error: "Gagal melaporkan insiden" };
+    return { success: false, error: tr("Gagal melaporkan insiden") };
   }
 }
 
@@ -116,14 +124,17 @@ export async function addIncidentUpdate(values: {
   notes: string;
   newStatus?: "OPEN" | "IN_PROGRESS" | "RESOLVED";
 }): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { incidentUpdateSchema } = getSchemas(locale);
+
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const parsed = incidentUpdateSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -131,11 +142,11 @@ export async function addIncidentUpdate(values: {
       where: { id: parsed.data.incidentId },
       select: { id: true, status: true },
     });
-    if (!incident) return { success: false, error: "Insiden tidak ditemukan" };
+    if (!incident) return { success: false, error: tr("Insiden tidak ditemukan") };
     if (incident.status === "RESOLVED" && !parsed.data.newStatus) {
       return {
         success: false,
-        error: "Insiden sudah selesai. Ubah status jika perlu dibuka kembali",
+        error: tr("Insiden sudah selesai. Ubah status jika perlu dibuka kembali"),
       };
     }
 
@@ -171,7 +182,7 @@ export async function addIncidentUpdate(values: {
     return { success: true, id: update.id };
   } catch (error) {
     console.error("addIncidentUpdate error:", error);
-    return { success: false, error: "Gagal menambah update penanganan" };
+    return { success: false, error: tr("Gagal menambah update penanganan") };
   }
 }
 
@@ -181,14 +192,17 @@ export async function updateIncidentHandling(values: {
   handling: string;
   status: "BERJALAN" | "SELESAI";
 }): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { incidentHandlingSchema } = getSchemas(locale);
+
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const parsed = incidentHandlingSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -197,7 +211,7 @@ export async function updateIncidentHandling(values: {
       select: { id: true, status: true },
     });
     if (!incident) {
-      return { success: false, error: "Insiden tidak ditemukan" };
+      return { success: false, error: tr("Insiden tidak ditemukan") };
     }
 
     const newStatus =
@@ -239,6 +253,6 @@ export async function updateIncidentHandling(values: {
     return { success: true, id: incident.id };
   } catch (error) {
     console.error("updateIncidentHandling error:", error);
-    return { success: false, error: "Gagal menyimpan penanganan insiden" };
+    return { success: false, error: tr("Gagal menyimpan penanganan insiden") };
   }
 }

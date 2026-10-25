@@ -18,6 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 const moodOptions = [
   { value: 1, emoji: "😢", label: "Sangat sedih" },
@@ -78,6 +81,11 @@ export function DailyLogForm({
   reporterName: string;
   reporterRole: string;
 }) {
+  const { tr, locale } = useI18n();
+  const moodOptions = localizeLabels(__moodOptions, tr);
+  const sleepOptions = localizeLabels(__sleepOptions, tr);
+  const SCHOOL_OPTIONS = localizeLabels(__SCHOOL_OPTIONS, tr);
+
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -109,15 +117,15 @@ export function DailyLogForm({
 
   function handleSubmit() {
     if (!childId) {
-      toast.error("Pilih anak terlebih dahulu");
+      toast.error(tr("Pilih anak terlebih dahulu"));
       return;
     }
     if (!moodScore) {
-      toast.error("Pilih mood anak");
+      toast.error(tr("Pilih mood anak"));
       return;
     }
     if (!sleepQuality) {
-      toast.error("Pilih kualitas tidur");
+      toast.error(tr("Pilih kualitas tidur"));
       return;
     }
 
@@ -140,7 +148,7 @@ export function DailyLogForm({
       });
 
       if (result.success) {
-        toast.success("Log harian tersimpan");
+        toast.success(tr("Log harian tersimpan"));
         router.push(`/dashboard/children/${childId}`);
         router.refresh();
       } else {
@@ -156,7 +164,7 @@ export function DailyLogForm({
         <div className="flex items-center gap-3 rounded-lg bg-muted/60 px-4 py-3">
           <UserCircle className="h-8 w-8 shrink-0 text-primary" />
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">Diisi oleh</p>
+            <p className="text-xs text-muted-foreground">{tr("Diisi oleh")}</p>
             <p className="truncate text-sm font-semibold">
               {reporterName}
               <span className="ml-1 font-normal capitalize text-muted-foreground">
@@ -168,16 +176,15 @@ export function DailyLogForm({
 
         {/* Pilih anak */}
         <div className="space-y-2">
-          <Label className="text-base">Nama Anak</Label>
+          <Label className="text-base">{tr("Nama Anak")}</Label>
           <Select value={childId} onValueChange={setChildId}>
             <SelectTrigger className="h-14 text-base">
-              <SelectValue placeholder="Ketuk untuk pilih anak" />
+              <SelectValue placeholder={tr("Ketuk untuk pilih anak")} />
             </SelectTrigger>
             <SelectContent>
               {childOptions.length === 0 ? (
                 <SelectItem value="EMPTY" disabled>
-                  Belum ada anak aktif
-                </SelectItem>
+                  {tr("Belum ada anak aktif")}</SelectItem>
               ) : (
                 childOptions.map((child) => (
                   <SelectItem
@@ -195,7 +202,7 @@ export function DailyLogForm({
 
         {/* Mood: emoji besar */}
         <div className="space-y-2">
-          <Label className="text-base">Mood Anak Hari Ini</Label>
+          <Label className="text-base">{tr("Mood Anak Hari Ini")}</Label>
           <div className="grid grid-cols-5 gap-2">
             {moodOptions.map((mood) => (
               <button
@@ -219,7 +226,7 @@ export function DailyLogForm({
         {/* Porsi makan: 3 waktu, habis semua = 100% */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-base">Porsi Makan Hari Ini</Label>
+            <Label className="text-base">{tr("Porsi Makan Hari Ini")}</Label>
             <span className="rounded-md bg-secondary px-2 py-1 text-sm font-semibold">
               {mealPercentage}%
             </span>
@@ -248,20 +255,19 @@ export function DailyLogForm({
                         : "bg-muted text-muted-foreground"
                     )}
                   >
-                    {done ? "Habis ✓" : "Tidak"}
+                    {done ? tr("Habis ✓") : tr("Tidak")}
                   </span>
                 </button>
               );
             })}
           </div>
           <p className="text-xs text-muted-foreground">
-            Habis dari pagi sampai malam = 100%.
-          </p>
+            {tr("Habis dari pagi sampai malam = 100%.")}</p>
         </div>
 
         {/* Kualitas tidur */}
         <div className="space-y-2">
-          <Label className="text-base">Kualitas Tidur</Label>
+          <Label className="text-base">{tr("Kualitas Tidur")}</Label>
           <div className="grid grid-cols-3 gap-2">
             {sleepOptions.map((sleep) => (
               <button
@@ -282,7 +288,7 @@ export function DailyLogForm({
         {/* Sholat 5 waktu: checklist */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-base">Sholat 5 Waktu</Label>
+            <Label className="text-base">{tr("Sholat 5 Waktu")}</Label>
             <span className="rounded-md bg-secondary px-2 py-1 text-sm font-semibold">
               {prayersDone}/5
             </span>
@@ -316,7 +322,7 @@ export function DailyLogForm({
 
         {/* Piket */}
         <div className="space-y-2">
-          <Label className="text-base">Piket</Label>
+          <Label className="text-base">{tr("Piket")}</Label>
           <button
             type="button"
             onClick={() => toggle("piketDone")}
@@ -326,8 +332,7 @@ export function DailyLogForm({
             )}
           >
             <span className="text-sm font-medium">
-              🧹 Anak sudah piket sesuai jadwal?
-            </span>
+              {tr("🧹 Anak sudah piket sesuai jadwal?")}</span>
             <span
               className={cn(
                 "rounded-full px-3 py-1 text-xs font-semibold",
@@ -336,7 +341,7 @@ export function DailyLogForm({
                   : "bg-muted text-muted-foreground"
               )}
             >
-              {bools.piketDone ? "Sudah ✓" : "Belum"}
+              {bools.piketDone ? tr("Sudah ✓") : tr("Belum")}
             </span>
           </button>
         </div>
@@ -344,10 +349,9 @@ export function DailyLogForm({
         {/* Kehadiran sekolah */}
         <div className="space-y-2">
           <Label className="text-base">
-            Kehadiran Sekolah{" "}
+            {tr("Kehadiran Sekolah")}{" "}
             <span className="font-normal text-muted-foreground">
-              (kosongkan jika libur)
-            </span>
+              {tr("(kosongkan jika libur)")}</span>
           </Label>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {SCHOOL_OPTIONS.map((option) => (
@@ -365,7 +369,7 @@ export function DailyLogForm({
                     "border-primary bg-primary/10"
                 )}
               >
-                {option.label}
+                {tr(option.label)}
               </button>
             ))}
           </div>
@@ -374,16 +378,15 @@ export function DailyLogForm({
         {/* Catatan evaluasi */}
         <div className="space-y-2">
           <Label htmlFor="evaluationNotes" className="text-base">
-            Catatan Evaluasi{" "}
+            {tr("Catatan Evaluasi")}{" "}
             <span className="font-normal text-muted-foreground">
-              (opsional)
-            </span>
+              {tr("(opsional)")}</span>
           </Label>
           <Textarea
             id="evaluationNotes"
             value={evaluationNotes}
             onChange={(e) => setEvaluationNotes(e.target.value)}
-            placeholder="Evaluasi perkembangan / perilaku anak hari ini..."
+            placeholder={tr("Evaluasi perkembangan / perilaku anak hari ini...")}
             rows={4}
             className="text-base"
             maxLength={2000}
@@ -399,13 +402,16 @@ export function DailyLogForm({
           {isPending ? (
             <>
               <Loader2 className="h-5 w-5 animate-spin" />
-              Menyimpan...
-            </>
+              {tr("Menyimpan...")}</>
           ) : (
-            "Simpan Log Harian"
+            tr("Simpan Log Harian")
           )}
         </Button>
       </CardContent>
     </Card>
   );
 }
+
+const __moodOptions = moodOptions;
+const __sleepOptions = sleepOptions;
+const __SCHOOL_OPTIONS = SCHOOL_OPTIONS;

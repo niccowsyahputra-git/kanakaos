@@ -6,6 +6,9 @@ import { requireLogisticsSession } from "@/lib/auth-guard";
 import { logAudit } from "@/lib/audit";
 import { assetSchema, maintenanceSchema } from "@/lib/validations";
 import { z } from "zod";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type ActionResult =
   | { success: true; id?: string }
@@ -17,12 +20,15 @@ const FORBIDDEN_ERROR =
 export async function createAsset(
   values: z.input<typeof assetSchema>
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { assetSchema } = getSchemas(locale);
+
   const session = await requireLogisticsSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const parsed = assetSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -50,19 +56,22 @@ export async function createAsset(
     return { success: true, id: asset.id };
   } catch (error) {
     console.error("createAsset error:", error);
-    return { success: false, error: "Gagal menambah aset" };
+    return { success: false, error: tr("Gagal menambah aset") };
   }
 }
 
 export async function scheduleMaintenance(
   values: z.input<typeof maintenanceSchema>
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { maintenanceSchema } = getSchemas(locale);
+
   const session = await requireLogisticsSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const parsed = maintenanceSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -70,7 +79,7 @@ export async function scheduleMaintenance(
       where: { id: parsed.data.assetId },
       select: { id: true, name: true },
     });
-    if (!asset) return { success: false, error: "Aset tidak ditemukan" };
+    if (!asset) return { success: false, error: tr("Aset tidak ditemukan") };
 
     const maintenance = await prisma.assetMaintenance.create({
       data: {
@@ -95,17 +104,19 @@ export async function scheduleMaintenance(
     return { success: true, id: maintenance.id };
   } catch (error) {
     console.error("scheduleMaintenance error:", error);
-    return { success: false, error: "Gagal menjadwalkan maintenance" };
+    return { success: false, error: tr("Gagal menjadwalkan maintenance") };
   }
 }
 
 export async function completeMaintenance(id: string): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+
   const session = await requireLogisticsSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const idParsed = z.string().cuid().safeParse(id);
   if (!idParsed.success) {
-    return { success: false, error: "ID maintenance tidak valid" };
+    return { success: false, error: tr("ID maintenance tidak valid") };
   }
 
   try {
@@ -114,10 +125,10 @@ export async function completeMaintenance(id: string): Promise<ActionResult> {
       include: { asset: { select: { name: true } } },
     });
     if (!maintenance) {
-      return { success: false, error: "Jadwal maintenance tidak ditemukan" };
+      return { success: false, error: tr("Jadwal maintenance tidak ditemukan") };
     }
     if (maintenance.completedAt) {
-      return { success: false, error: "Maintenance sudah ditandai selesai" };
+      return { success: false, error: tr("Maintenance sudah ditandai selesai") };
     }
 
     await prisma.assetMaintenance.update({
@@ -138,6 +149,6 @@ export async function completeMaintenance(id: string): Promise<ActionResult> {
     return { success: true };
   } catch (error) {
     console.error("completeMaintenance error:", error);
-    return { success: false, error: "Gagal menandai maintenance selesai" };
+    return { success: false, error: tr("Gagal menandai maintenance selesai") };
   }
 }

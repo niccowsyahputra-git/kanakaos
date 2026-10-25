@@ -17,6 +17,9 @@ import {
   uploadFileToCloudinary,
   isCloudinaryConfigured,
 } from "@/lib/cloudinary";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type ActionResult =
   | { success: true; id?: string; warning?: string }
@@ -37,16 +40,18 @@ const ALLOWED_DOC_TYPES = [
 async function uploadCaseFile(
   file: File
 ): Promise<{ url: string | null; warning?: string; error?: string }> {
+  const { tr, locale } = await getT();
+
   if (!ALLOWED_DOC_TYPES.includes(file.type)) {
-    return { url: null, error: "File harus JPG, PNG, WebP, atau PDF" };
+    return { url: null, error: tr("File harus JPG, PNG, WebP, atau PDF") };
   }
   if (file.size > MAX_FILE_SIZE) {
-    return { url: null, error: "Ukuran file maksimal 5MB" };
+    return { url: null, error: tr("Ukuran file maksimal 5MB") };
   }
   if (!isCloudinaryConfigured()) {
     return {
       url: null,
-      warning: "File tidak tersimpan: Cloudinary belum dikonfigurasi",
+      warning: tr("File tidak tersimpan: Cloudinary belum dikonfigurasi"),
     };
   }
   try {
@@ -60,17 +65,20 @@ async function uploadCaseFile(
     return { url };
   } catch (error) {
     console.error("uploadCaseFile error:", error);
-    return { url: null, error: "Gagal meng-upload file" };
+    return { url: null, error: tr("Gagal meng-upload file") };
   }
 }
 
 export async function createCase(values: CaseInput): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { caseSchema } = getSchemas(locale);
+
   const session = await requireStaffSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const parsed = caseSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -78,7 +86,7 @@ export async function createCase(values: CaseInput): Promise<ActionResult> {
       where: { id: parsed.data.childId },
       select: { id: true, fullName: true },
     });
-    if (!child) return { success: false, error: "Data anak tidak ditemukan" };
+    if (!child) return { success: false, error: tr("Data anak tidak ditemukan") };
 
     const newCase = await prisma.case.create({
       data: {
@@ -104,15 +112,18 @@ export async function createCase(values: CaseInput): Promise<ActionResult> {
     return { success: true, id: newCase.id };
   } catch (error) {
     console.error("createCase error:", error);
-    return { success: false, error: "Gagal membuka kasus" };
+    return { success: false, error: tr("Gagal membuka kasus") };
   }
 }
 
 export async function addIntervention(
   formData: FormData
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { interventionSchema } = getSchemas(locale);
+
   const session = await requireStaffSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const parsed = interventionSchema.safeParse({
     caseId: formData.get("caseId"),
@@ -121,7 +132,7 @@ export async function addIntervention(
     notes: formData.get("notes"),
   });
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -129,9 +140,9 @@ export async function addIntervention(
       where: { id: parsed.data.caseId },
       select: { id: true, status: true },
     });
-    if (!caseRecord) return { success: false, error: "Kasus tidak ditemukan" };
+    if (!caseRecord) return { success: false, error: tr("Kasus tidak ditemukan") };
     if (caseRecord.status === "CLOSED") {
-      return { success: false, error: "Kasus sudah ditutup" };
+      return { success: false, error: tr("Kasus sudah ditutup") };
     }
 
     // Upload lampiran opsional
@@ -140,7 +151,7 @@ export async function addIntervention(
     const attachment = formData.get("attachment");
     if (attachment instanceof File && attachment.size > 0) {
       const uploaded = await uploadCaseFile(attachment);
-      if (uploaded.error) return { success: false, error: uploaded.error };
+      if (uploaded.error) return { success: false, error: tr(uploaded.error) };
       attachmentUrl = uploaded.url;
       warning = uploaded.warning;
     }
@@ -172,10 +183,10 @@ export async function addIntervention(
     });
 
     revalidatePath(`/dashboard/cases/${parsed.data.caseId}`);
-    return { success: true, id: intervention.id, warning };
+    return { success: true, id: intervention.id, warning: warning ? tr(warning) : undefined };
   } catch (error) {
     console.error("addIntervention error:", error);
-    return { success: false, error: "Gagal menambah intervensi" };
+    return { success: false, error: tr("Gagal menambah intervensi") };
   }
 }
 
@@ -183,12 +194,15 @@ export async function addCaseNote(values: {
   caseId: string;
   content: string;
 }): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { caseNoteSchema } = getSchemas(locale);
+
   const session = await requireStaffSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const parsed = caseNoteSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -204,31 +218,33 @@ export async function addCaseNote(values: {
     return { success: true, id: note.id };
   } catch (error) {
     console.error("addCaseNote error:", error);
-    return { success: false, error: "Gagal menambah catatan" };
+    return { success: false, error: tr("Gagal menambah catatan") };
   }
 }
 
 export async function uploadCaseDocument(
   formData: FormData
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+
   const session = await requireStaffSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const caseId = z.string().cuid().safeParse(formData.get("caseId"));
-  if (!caseId.success) return { success: false, error: "ID kasus tidak valid" };
+  if (!caseId.success) return { success: false, error: tr("ID kasus tidak valid") };
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return { success: false, error: "Pilih file terlebih dahulu" };
+    return { success: false, error: tr("Pilih file terlebih dahulu") };
   }
 
   try {
     const uploaded = await uploadCaseFile(file);
-    if (uploaded.error) return { success: false, error: uploaded.error };
+    if (uploaded.error) return { success: false, error: tr(uploaded.error) };
     if (!uploaded.url) {
       return {
         success: false,
-        error: uploaded.warning ?? "Storage belum dikonfigurasi",
+        error: tr(uploaded.warning ?? "Storage belum dikonfigurasi"),
       };
     }
 
@@ -254,7 +270,7 @@ export async function uploadCaseDocument(
     return { success: true, id: document.id };
   } catch (error) {
     console.error("uploadCaseDocument error:", error);
-    return { success: false, error: "Gagal meng-upload dokumen" };
+    return { success: false, error: tr("Gagal meng-upload dokumen") };
   }
 }
 
@@ -262,12 +278,15 @@ export async function closeCase(values: {
   caseId: string;
   closeReason: string;
 }): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { closeCaseSchema } = getSchemas(locale);
+
   const session = await requireStaffSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const parsed = closeCaseSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -275,9 +294,9 @@ export async function closeCase(values: {
       where: { id: parsed.data.caseId },
       select: { id: true, status: true },
     });
-    if (!caseRecord) return { success: false, error: "Kasus tidak ditemukan" };
+    if (!caseRecord) return { success: false, error: tr("Kasus tidak ditemukan") };
     if (caseRecord.status === "CLOSED") {
-      return { success: false, error: "Kasus sudah ditutup sebelumnya" };
+      return { success: false, error: tr("Kasus sudah ditutup sebelumnya") };
     }
 
     await prisma.case.update({
@@ -303,7 +322,7 @@ export async function closeCase(values: {
     return { success: true };
   } catch (error) {
     console.error("closeCase error:", error);
-    return { success: false, error: "Gagal menutup kasus" };
+    return { success: false, error: tr("Gagal menutup kasus") };
   }
 }
 
@@ -313,12 +332,15 @@ export async function updateCaseHandling(values: {
   handling: string;
   status: "BERJALAN" | "SELESAI";
 }): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { caseHandlingSchema } = getSchemas(locale);
+
   const session = await requireStaffSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const parsed = caseHandlingSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -327,7 +349,7 @@ export async function updateCaseHandling(values: {
       select: { id: true, status: true },
     });
     if (!caseRecord) {
-      return { success: false, error: "Kasus tidak ditemukan" };
+      return { success: false, error: tr("Kasus tidak ditemukan") };
     }
 
     const isDone = parsed.data.status === "SELESAI";
@@ -355,6 +377,6 @@ export async function updateCaseHandling(values: {
     return { success: true, id: caseRecord.id };
   } catch (error) {
     console.error("updateCaseHandling error:", error);
-    return { success: false, error: "Gagal menyimpan penanganan kasus" };
+    return { success: false, error: tr("Gagal menyimpan penanganan kasus") };
   }
 }

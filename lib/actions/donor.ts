@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { requireFinanceSession } from "@/lib/auth-guard";
 import { logAudit } from "@/lib/audit";
 import { donorSchema, type DonorInput } from "@/lib/validations";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type DonorResult =
   | { success: true; donor: { id: string; name: string } }
@@ -12,17 +15,20 @@ type DonorResult =
 
 /** Buat profil donatur baru (dipanggil dari form Kas Masuk) */
 export async function createDonor(values: DonorInput): Promise<DonorResult> {
+  const { tr, locale } = await getT();
+  const { donorSchema } = getSchemas(locale);
+
   const session = await requireFinanceSession();
   if (!session) {
     return {
       success: false,
-      error: "Hanya Super Admin dan Bendahara yang boleh menambah donatur",
+      error: tr("Hanya Super Admin dan Bendahara yang boleh menambah donatur"),
     };
   }
 
   const parsed = donorSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -54,6 +60,6 @@ export async function createDonor(values: DonorInput): Promise<DonorResult> {
     return { success: true, donor: { id: donor.id, name: donor.name } };
   } catch (error) {
     console.error("createDonor error:", error);
-    return { success: false, error: "Gagal menyimpan profil donatur" };
+    return { success: false, error: tr("Gagal menyimpan profil donatur") };
   }
 }

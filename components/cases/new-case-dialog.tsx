@@ -25,6 +25,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export const CASE_TYPE_OPTIONS = [
   { value: "PROTECTION", label: "Perlindungan Anak" },
@@ -46,6 +49,10 @@ export const PRIORITY_OPTIONS = [
 type ChildOption = { id: string; fullName: string };
 
 export function NewCaseDialog({ children }: { children: ChildOption[] }) {
+  const { tr, locale } = useI18n();
+  const CASE_TYPE_OPTIONS = localizeLabels(__CASE_TYPE_OPTIONS, tr);
+  const PRIORITY_OPTIONS = localizeLabels(__PRIORITY_OPTIONS, tr);
+
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [childId, setChildId] = useState("");
@@ -65,7 +72,7 @@ export function NewCaseDialog({ children }: { children: ChildOption[] }) {
 
   function handleSubmit() {
     if (!isFormValid()) {
-      toast.error("Lengkapi semua field yang wajib diisi");
+      toast.error(tr("Lengkapi semua field yang wajib diisi"));
       return;
     }
 
@@ -78,7 +85,7 @@ export function NewCaseDialog({ children }: { children: ChildOption[] }) {
         handling,
       });
       if (result.success) {
-        toast.success("Kasus berhasil dibuka");
+        toast.success(tr("Kasus berhasil dibuka"));
         setOpen(false);
         setChildId("");
         setCaseType("");
@@ -96,24 +103,21 @@ export function NewCaseDialog({ children }: { children: ChildOption[] }) {
       <DialogTrigger asChild>
         <Button className="w-full sm:w-auto">
           <FolderPlus className="h-4 w-4" />
-          Buka Kasus Baru
-        </Button>
+          {tr("Buka Kasus Baru")}</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Buka Kasus Baru</DialogTitle>
+          <DialogTitle>{tr("Buka Kasus Baru")}</DialogTitle>
           <DialogDescription>
-            Kasus akan otomatis di-assign ke Anda sebagai pekerja sosial
-            penanggung jawab.
-          </DialogDescription>
+            {tr("Kasus akan otomatis di-assign ke Anda sebagai pekerja sosial penanggung jawab.")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
           <div className="space-y-2">
-            <Label>Anak</Label>
+            <Label>{tr("Anak")}</Label>
             <Select value={childId} onValueChange={setChildId}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih anak" />
+                <SelectValue placeholder={tr("Pilih anak")} />
               </SelectTrigger>
               <SelectContent>
                 {children.map((child) => (
@@ -127,30 +131,30 @@ export function NewCaseDialog({ children }: { children: ChildOption[] }) {
 
           <div className="flex flex-col gap-4 sm:flex-row">
             <div className="w-full space-y-2 sm:w-1/2">
-              <Label>Jenis Kasus</Label>
+              <Label>{tr("Jenis Kasus")}</Label>
               <Select value={caseType} onValueChange={setCaseType}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih jenis" />
+                  <SelectValue placeholder={tr("Pilih jenis")} />
                 </SelectTrigger>
                 <SelectContent>
                   {CASE_TYPE_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                      {tr(option.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="w-full space-y-2 sm:w-1/2">
-              <Label>Prioritas</Label>
+              <Label>{tr("Prioritas")}</Label>
               <Select value={priority} onValueChange={setPriority}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih prioritas" />
+                  <SelectValue placeholder={tr("Pilih prioritas")} />
                 </SelectTrigger>
                 <SelectContent>
                   {PRIORITY_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                      {tr(option.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -159,28 +163,27 @@ export function NewCaseDialog({ children }: { children: ChildOption[] }) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="case-description">Deskripsi Kasus</Label>
+            <Label htmlFor="case-description">{tr("Deskripsi Kasus")}</Label>
             <Textarea
               id="case-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Jelaskan situasi/permasalahan anak (min. 10 karakter)..."
+              placeholder={tr("Jelaskan situasi/permasalahan anak (min. 10 karakter)...")}
               rows={4}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="case-handling">
-              Penanganan Kasus{" "}
+              {tr("Penanganan Kasus")}{" "}
               <span className="font-normal text-muted-foreground">
-                (opsional)
-              </span>
+                {tr("(opsional)")}</span>
             </Label>
             <Textarea
               id="case-handling"
               value={handling}
               onChange={(e) => setHandling(e.target.value)}
-              placeholder="Rencana / tindakan penanganan kasus..."
+              placeholder={tr("Rencana / tindakan penanganan kasus...")}
               rows={3}
             />
           </div>
@@ -192,8 +195,7 @@ export function NewCaseDialog({ children }: { children: ChildOption[] }) {
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             onClick={handleSubmit}
             disabled={isPending || !isFormValid()}
@@ -202,10 +204,9 @@ export function NewCaseDialog({ children }: { children: ChildOption[] }) {
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Membuka...
-              </>
+                {tr("Membuka...")}</>
             ) : (
-              "Buka Kasus"
+              tr("Buka Kasus")
             )}
           </Button>
         </DialogFooter>
@@ -213,3 +214,6 @@ export function NewCaseDialog({ children }: { children: ChildOption[] }) {
     </Dialog>
   );
 }
+
+const __CASE_TYPE_OPTIONS = CASE_TYPE_OPTIONS;
+const __PRIORITY_OPTIONS = PRIORITY_OPTIONS;

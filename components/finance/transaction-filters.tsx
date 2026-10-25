@@ -11,6 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+
 
 type CategoryOption = { id: string; name: string };
 
@@ -19,6 +21,8 @@ export function TransactionFilters({
 }: {
   categories: CategoryOption[];
 }) {
+  const { tr, locale } = useI18n();
+
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -43,12 +47,12 @@ export function TransactionFilters({
         onValueChange={(v) => setParam("type", v)}
       >
         <SelectTrigger className="w-full md:w-40">
-          <SelectValue placeholder="Tipe" />
+          <SelectValue placeholder={tr("Tipe")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">Semua Tipe</SelectItem>
-          <SelectItem value="DEBIT">Kas Masuk</SelectItem>
-          <SelectItem value="CREDIT">Kas Keluar</SelectItem>
+          <SelectItem value="ALL">{tr("Semua Tipe")}</SelectItem>
+          <SelectItem value="DEBIT">{tr("Kas Masuk")}</SelectItem>
+          <SelectItem value="CREDIT">{tr("Kas Keluar")}</SelectItem>
         </SelectContent>
       </Select>
 
@@ -57,10 +61,10 @@ export function TransactionFilters({
         onValueChange={(v) => setParam("categoryId", v)}
       >
         <SelectTrigger className="w-full md:w-48">
-          <SelectValue placeholder="Kategori" />
+          <SelectValue placeholder={tr("Kategori")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">Semua Kategori</SelectItem>
+          <SelectItem value="ALL">{tr("Semua Kategori")}</SelectItem>
           {categories.map((category) => (
             <SelectItem key={category.id} value={category.id}>
               {category.name}
@@ -75,15 +79,15 @@ export function TransactionFilters({
           className="w-full md:w-40"
           value={searchParams.get("from") ?? ""}
           onChange={(e) => setParam("from", e.target.value || null)}
-          aria-label="Dari tanggal"
+          aria-label={tr("Dari tanggal")}
         />
-        <span className="text-sm text-muted-foreground">s/d</span>
+        <span className="text-sm text-muted-foreground">{tr("s/d")}</span>
         <Input
           type="date"
           className="w-full md:w-40"
           value={searchParams.get("to") ?? ""}
           onChange={(e) => setParam("to", e.target.value || null)}
-          aria-label="Sampai tanggal"
+          aria-label={tr("Sampai tanggal")}
         />
       </div>
 
@@ -95,8 +99,7 @@ export function TransactionFilters({
           className="w-fit gap-1"
         >
           <X className="h-3.5 w-3.5" />
-          Reset
-        </Button>
+          {tr("Reset")}</Button>
       )}
     </div>
   );

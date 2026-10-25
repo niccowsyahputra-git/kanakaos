@@ -14,6 +14,10 @@ import {
   uploadFileToCloudinary,
   isCloudinaryConfigured,
 } from "@/lib/cloudinary";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 type ProcessDonationResult =
   | {
@@ -49,14 +53,18 @@ async function generateReceiptNumber(date: Date): Promise<string> {
 export async function processDonation(
   data: DonationInput
 ): Promise<ProcessDonationResult> {
+  const { tr, locale } = await getT();
+  const donationCategoryLabel = localizeLabels(__donationCategoryLabel, tr);
+  const { donationSchema } = getSchemas(locale);
+
   const session = await auth();
   if (!session?.user) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const parsed = donationSchema.safeParse(data);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   const input = parsed.data;
@@ -104,7 +112,7 @@ export async function processDonation(
       }
     }
     if (!donation) {
-      return { success: false, error: "Gagal membuat nomor kwitansi" };
+      return { success: false, error: tr("Gagal membuat nomor kwitansi") };
     }
 
     // Donasi barang: catat rincian + sinkron otomatis ke modul Inventori.
@@ -165,7 +173,7 @@ export async function processDonation(
       } catch (error) {
         console.error("processDonation inventory sync error:", error);
         inventoryWarning =
-          "Sinkronisasi ke inventori gagal — tambahkan stok secara manual";
+          tr("Sinkronisasi ke inventori gagal — tambahkan stok secara manual");
       }
     }
 
@@ -202,6 +210,7 @@ export async function processDonation(
     const pdfBuffer = await renderToBuffer(
       createElement(ReceiptPdf, {
         data: receiptData,
+        locale,
       }) as ReactElement<DocumentProps>
     );
 
@@ -214,7 +223,7 @@ export async function processDonation(
 
     if (!isCloudinaryConfigured()) {
       warning =
-        "PDF tidak tersimpan ke storage: Cloudinary belum dikonfigurasi";
+        tr("PDF tidak tersimpan ke storage: Cloudinary belum dikonfigurasi");
     } else {
       try {
         receiptPdfUrl = await uploadFileToCloudinary(
@@ -225,7 +234,7 @@ export async function processDonation(
         );
       } catch (error) {
         console.error("processDonation upload PDF error:", error);
-        warning = "PDF gagal di-upload ke storage, tapi kwitansi tetap sah";
+        warning = tr("PDF gagal di-upload ke storage, tapi kwitansi tetap sah");
       }
     }
 
@@ -275,10 +284,12 @@ export async function processDonation(
       receiptPdfUrl,
       pdfBase64: pdfBuffer.toString("base64"),
       fileName: safeFileName,
-      warning: combinedWarning,
+      warning: combinedWarning ? tr(combinedWarning) : undefined
     };
   } catch (error) {
     console.error("processDonation error:", error);
-    return { success: false, error: "Gagal memproses donasi" };
+    return { success: false, error: tr("Gagal memproses donasi") };
   }
 }
+
+const __donationCategoryLabel = donationCategoryLabel;

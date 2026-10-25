@@ -11,6 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+
 
 type CaregiverOption = { id: string; name: string };
 
@@ -23,6 +25,8 @@ export function AssignCaregiverSelect({
   currentCaregiverId: string | null;
   caregivers: CaregiverOption[];
 }) {
+  const { tr, locale } = useI18n();
+
   const [isPending, startTransition] = useTransition();
 
   function handleChange(value: string) {
@@ -32,7 +36,7 @@ export function AssignCaregiverSelect({
         value === "NONE" ? null : value
       );
       if (result.success) {
-        toast.success("Penugasan diperbarui");
+        toast.success(tr("Penugasan diperbarui"));
       } else {
         toast.error(result.error);
       }
@@ -46,10 +50,10 @@ export function AssignCaregiverSelect({
       disabled={isPending}
     >
       <SelectTrigger className="h-9 w-full md:w-52">
-        <SelectValue placeholder="Pilih pengasuh" />
+        <SelectValue placeholder={tr("Pilih pengasuh")} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="NONE">— Belum ditugaskan —</SelectItem>
+        <SelectItem value="NONE">{tr("— Belum ditugaskan —")}</SelectItem>
         {caregivers.map((caregiver) => (
           <SelectItem key={caregiver.id} value={caregiver.id}>
             {caregiver.name}

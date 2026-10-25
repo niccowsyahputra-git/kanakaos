@@ -23,6 +23,11 @@ import {
   EmployeeAccountBadge,
 } from "@/components/employees/employee-account";
 import { employmentStatusLabel } from "@/components/employees/employee-labels";
+import { getT } from "@/lib/i18n/server";
+import { EmployeeDetailDialog, EmployeeStatusControl, EmployeeStatusFilter } from "@/components/employees/employee-detail";
+import { EMPLOYEE_STATUSES, EMPLOYEE_STATUS_LABELS, EMPLOYEE_DEPARTMENTS, EMPLOYEE_POSITIONS, catalogLabel } from "@/lib/option-catalogs";
+import type { EmployeeStatus } from "@prisma/client";
+
 
 export const dynamic = "force-dynamic";
 
@@ -36,16 +41,21 @@ const statusClass: Record<string, string> = {
   HARIAN: "border-transparent bg-amber-100 text-amber-800",
 };
 
-export default async function EmployeesPage() {
+export default async function EmployeesPage({ searchParams }: { searchParams: { status?: string } }) {
+  const { tr, locale } = await getT();
+
   const session = await requireSuperAdminSession();
   if (!session) redirect("/dashboard");
 
-  const employees = await prisma.employee.findMany({
-    orderBy: { employeeCode: "asc" },
-    include: {
-      user: { select: { email: true, role: true, isActive: true } },
-    },
-  });
+  const status = EMPLOYEE_STATUSES.includes(searchParams.status as EmployeeStatus) ? searchParams.status as EmployeeStatus : undefined;
+  const [employees, locations] = await Promise.all([
+    prisma.employee.findMany({
+      where: { status },
+      orderBy: { employeeCode: "asc" },
+      include: { location: true, user: { select: { email: true, role: true, isActive: true } } },
+    }),
+    prisma.employeeLocation.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, isActive: true } }),
+  ]);
 
   // Map ke tipe form (Date -> string yyyy-mm-dd) untuk dialog edit
   function toFormData(e: (typeof employees)[number]): EmployeeData {
@@ -66,7 +76,10 @@ export default async function EmployeesPage() {
       grade: e.grade,
       employmentStatus: e.employmentStatus,
       ptkpStatus: e.ptkpStatus,
-      entityLocation: e.entityLocation,
+      entityLocation: e.location?.name ?? e.entityLocation,
+      entityLocationId: e.entityLocationId,
+      status: e.status,
+      account: e.user ? { ...e.user, isActive: e.user.isActive && e.status === "ACTIVE" } : null,
       basicSalary: e.basicSalary,
       salaryEffectiveDate: toDateInput(e.salaryEffectiveDate),
       npwp: e.npwp,
@@ -84,20 +97,18 @@ export default async function EmployeesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Data Pegawai</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{tr("Data Pegawai")}</h2>
           <p className="text-sm text-muted-foreground">
-            {employees.length} pegawai yayasan terdaftar. Data gaji &amp; pajak
-            bersifat rahasia.
-          </p>
+            {employees.length} {tr(" pegawai yayasan terdaftar. Data gaji & pajak bersifat rahasia.")}</p>
         </div>
-        <AddEmployeeDialog />
+        <AddEmployeeDialog locations={locations} />
       </div>
 
+      <EmployeeStatusFilter />
       {employees.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Belum ada data pegawai. Tambahkan pegawai pertama.
-          </CardContent>
+            {tr("Belum ada data pegawai. Tambahkan pegawai pertama.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -111,11 +122,12 @@ export default async function EmployeesPage() {
                       <p className="truncate font-semibold">{fullName(e)}</p>
                       <p className="text-xs text-muted-foreground">
                         {e.employeeCode}
-                        {e.position ? ` · ${e.position}` : ""}
+                        {e.position ? ` · ${catalogLabel(e.position, EMPLOYEE_POSITIONS, tr)}` : ""}
                       </p>
                     </div>
-                    <div className="flex shrink-0">
-                      <EditEmployeeDialog employee={toFormData(e)} />
+                    <div className="flex shrink-0 flex-wrap gap-1">
+                      <EmployeeDetailDialog employee={toFormData(e)} />
+                                            <EditEmployeeDialog employee={toFormData(e)} locations={locations} />
                       <DeleteEmployeeButton
                         employeeId={e.id}
                         employeeName={fullName(e)}
@@ -127,14 +139,14 @@ export default async function EmployeesPage() {
                       variant="outline"
                       className={statusClass[e.employmentStatus]}
                     >
-                      {employmentStatusLabel[e.employmentStatus]}
+                      {tr(employmentStatusLabel[e.employmentStatus])}
                     </Badge>
                     {e.department && (
-                      <Badge variant="secondary">{e.department}</Badge>
+                      <Badge variant="secondary">{catalogLabel(e.department, EMPLOYEE_DEPARTMENTS, tr)}</Badge>
                     )}
                     {e.basicSalary != null && (
                       <Badge variant="outline">
-                        {formatRupiah(e.basicSalary)}
+                        {formatRupiah(e.basicSalary, locale)}
                       </Badge>
                     )}
                   </div>
@@ -143,18 +155,20 @@ export default async function EmployeesPage() {
                       {[e.phone, e.email].filter(Boolean).join(" · ")}
                     </p>
                   )}
+                  <div className="flex flex-wrap items-center gap-2"><Badge variant={e.status === "ACTIVE" ? "secondary" : "outline"}>{tr(EMPLOYEE_STATUS_LABELS[e.status])}</Badge><EmployeeStatusControl id={e.id} status={e.status} /></div>
                   <div className="border-t pt-2">
                     {e.user ? (
                       <EmployeeAccountBadge
                         email={e.user.email}
                         role={e.user.role}
-                        isActive={e.user.isActive}
+                        isActive={e.user.isActive && e.status === "ACTIVE"}
                       />
                     ) : (
                       <CreateAccountDialog
                         employeeId={e.id}
                         employeeName={fullName(e)}
                         employeeEmail={e.email}
+                                                disabled={e.status !== "ACTIVE"}
                       />
                     )}
                   </div>
@@ -168,14 +182,14 @@ export default async function EmployeesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Kode</TableHead>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Jabatan</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Akun Login</TableHead>
-                  <TableHead className="text-right">Gaji Pokok</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{tr("Kode")}</TableHead>
+                  <TableHead>{tr("Nama")}</TableHead>
+                  <TableHead>{tr("Department")}</TableHead>
+                  <TableHead>{tr("Jabatan")}</TableHead>
+                  <TableHead>{tr("Status")}</TableHead>
+                  <TableHead>{tr("Akun Login")}</TableHead>
+                  <TableHead className="text-right">{tr("Gaji Pokok")}</TableHead>
+                  <TableHead className="text-right">{tr("Aksi")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -190,39 +204,42 @@ export default async function EmployeesPage() {
                         {[e.phone, e.email].filter(Boolean).join(" · ") || "-"}
                       </span>
                     </TableCell>
-                    <TableCell>{e.department ?? "-"}</TableCell>
-                    <TableCell>{e.position ?? "-"}</TableCell>
+                    <TableCell>{catalogLabel(e.department, EMPLOYEE_DEPARTMENTS, tr) ?? "-"}</TableCell>
+                    <TableCell>{catalogLabel(e.position, EMPLOYEE_POSITIONS, tr) ?? "-"}</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
                         className={statusClass[e.employmentStatus]}
                       >
-                        {employmentStatusLabel[e.employmentStatus]}
+                        {tr(employmentStatusLabel[e.employmentStatus])}
                       </Badge>
+                      <div className="mt-2 flex flex-wrap items-center gap-2"><Badge variant="outline">{tr(EMPLOYEE_STATUS_LABELS[e.status])}</Badge><EmployeeStatusControl id={e.id} status={e.status} /></div>
                     </TableCell>
                     <TableCell>
                       {e.user ? (
                         <EmployeeAccountBadge
                           email={e.user.email}
                           role={e.user.role}
-                          isActive={e.user.isActive}
+                          isActive={e.user.isActive && e.status === "ACTIVE"}
                         />
                       ) : (
                         <CreateAccountDialog
                           employeeId={e.id}
                           employeeName={fullName(e)}
                           employeeEmail={e.email}
+                                                  disabled={e.status !== "ACTIVE"}
                         />
                       )}
                     </TableCell>
                     <TableCell className="text-right">
                       {e.basicSalary != null
-                        ? formatRupiah(e.basicSalary)
+                        ? formatRupiah(e.basicSalary, locale)
                         : "-"}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end">
-                        <EditEmployeeDialog employee={toFormData(e)} />
+                        <EmployeeDetailDialog employee={toFormData(e)} />
+                                              <EditEmployeeDialog employee={toFormData(e)} locations={locations} />
                         <DeleteEmployeeButton
                           employeeId={e.id}
                           employeeName={fullName(e)}

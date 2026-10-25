@@ -13,6 +13,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { HandoverForm } from "@/components/handover/handover-form";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+
 
 export const dynamic = "force-dynamic";
 
@@ -22,13 +26,17 @@ const shiftLabel: Record<ShiftType, string> = {
   MALAM: "🌙 Malam",
 };
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(
     date
   );
 }
 
 export default async function ShiftHandoverPage() {
+  const { tr, locale } = await getT();
+
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -42,11 +50,9 @@ export default async function ShiftHandoverPage() {
     <div className="mx-auto w-full max-w-3xl space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">
-          Serah Terima Shift
-        </h2>
+          {tr("Serah Terima Shift")}</h2>
         <p className="text-sm text-muted-foreground">
-          Catat kondisi akhir shift agar pengasuh berikutnya siap.
-        </p>
+          {tr("Catat kondisi akhir shift agar pengasuh berikutnya siap.")}</p>
       </div>
 
       <HandoverForm />
@@ -55,17 +61,14 @@ export default async function ShiftHandoverPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
-            Riwayat Handover
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
-              (20 terakhir)
-            </span>
+            {tr("Riwayat Handover")}<span className="ml-2 text-sm font-normal text-muted-foreground">
+              {tr("(20 terakhir)")}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {handovers.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Belum ada riwayat serah terima.
-            </p>
+              {tr("Belum ada riwayat serah terima.")}</p>
           ) : (
             <>
               {/* Mobile: card list */}
@@ -74,8 +77,8 @@ export default async function ShiftHandoverPage() {
                   <div key={handover.id} className="rounded-md border p-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold">
-                        {shiftLabel[handover.shift]} ·{" "}
-                        {formatDate(handover.date)}
+                        {tr(shiftLabel[handover.shift])} ·{" "}
+                        {formatDate(handover.date, locale)}
                       </span>
                       <Badge
                         variant="outline"
@@ -85,7 +88,7 @@ export default async function ShiftHandoverPage() {
                             : "border-transparent bg-red-100 text-red-800"
                         }
                       >
-                        {handover.allChildrenSafe ? "Aman" : "Perlu Perhatian"}
+                        {handover.allChildrenSafe ? tr("Aman") : tr("Perlu Perhatian")}
                       </Badge>
                     </div>
                     {handover.sickChildrenNotes && (
@@ -97,7 +100,7 @@ export default async function ShiftHandoverPage() {
                       {handover.importantNotes}
                     </p>
                     <p className="mt-1.5 text-xs text-muted-foreground">
-                      oleh {handover.createdBy.name}
+                      {tr("oleh ")}{handover.createdBy.name}
                     </p>
                   </div>
                 ))}
@@ -108,20 +111,20 @@ export default async function ShiftHandoverPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Tanggal</TableHead>
-                      <TableHead>Shift</TableHead>
-                      <TableHead>Kondisi</TableHead>
-                      <TableHead>Catatan</TableHead>
-                      <TableHead>Pengasuh</TableHead>
+                      <TableHead>{tr("Tanggal")}</TableHead>
+                      <TableHead>{tr("Shift")}</TableHead>
+                      <TableHead>{tr("Kondisi")}</TableHead>
+                      <TableHead>{tr("Catatan")}</TableHead>
+                      <TableHead>{tr("Pengasuh")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {handovers.map((handover) => (
                       <TableRow key={handover.id}>
                         <TableCell className="whitespace-nowrap">
-                          {formatDate(handover.date)}
+                          {formatDate(handover.date, locale)}
                         </TableCell>
-                        <TableCell>{shiftLabel[handover.shift]}</TableCell>
+                        <TableCell>{tr(shiftLabel[handover.shift])}</TableCell>
                         <TableCell>
                           <Badge
                             variant="outline"
@@ -132,8 +135,8 @@ export default async function ShiftHandoverPage() {
                             }
                           >
                             {handover.allChildrenSafe
-                              ? "Aman"
-                              : "Perlu Perhatian"}
+                              ? tr("Aman")
+                              : tr("Perlu Perhatian")}
                           </Badge>
                         </TableCell>
                         <TableCell className="max-w-md">

@@ -14,6 +14,10 @@ import {
 import { Plus, ChevronRight } from "lucide-react";
 import { ChildStatus } from "@prisma/client";
 import { DeleteChildButton } from "@/components/children/delete-child-button";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+
 
 export const dynamic = "force-dynamic";
 
@@ -32,19 +36,25 @@ const statusVariant: Record<
   GRADUATED: "outline",
 };
 
-function formatAge(dob: Date) {
+function formatAge(dob: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
   const diff = Date.now() - dob.getTime();
   const years = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
-  return `${years} tahun`;
+  return tr("{0} tahun", { "0": years });
 }
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(
     date
   );
 }
 
 export default async function ChildrenPage() {
+  const { tr, locale } = await getT();
+
   const children = await prisma.child.findMany({
     include: { guardian: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
@@ -54,25 +64,23 @@ export default async function ChildrenPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Anak Asuh</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{tr("Anak Asuh")}</h2>
           <p className="text-sm text-muted-foreground">
-            Total {children.length} anak terdaftar.
-          </p>
+            {tr("Total ")}{children.length} {tr(" anak terdaftar.")}</p>
         </div>
         <Button asChild className="w-full sm:w-auto">
           <Link href="/dashboard/children/new">
             <Plus className="h-4 w-4" />
-            Tambah Anak
-          </Link>
+            {tr("Tambah Anak")}</Link>
         </Button>
       </div>
 
       {children.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-            <p className="text-muted-foreground">Belum ada data anak asuh.</p>
+            <p className="text-muted-foreground">{tr("Belum ada data anak asuh.")}</p>
             <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard/children/new">Tambah anak pertama</Link>
+              <Link href="/dashboard/children/new">{tr("Tambah anak pertama")}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -92,16 +100,16 @@ export default async function ChildrenPage() {
                         {child.fullName}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {child.gender === "MALE" ? "Laki-laki" : "Perempuan"}{" "}
-                        · {formatAge(child.dob)}
+                        {child.gender === "MALE" ? tr("Laki-laki") : tr("Perempuan")}{" "}
+                        · {formatAge(child.dob, locale)}
                       </p>
                       <div className="flex items-center gap-2 pt-1">
                         <Badge variant={statusVariant[child.status]}>
-                          {statusLabel[child.status]}
+                          {tr(statusLabel[child.status])}
                         </Badge>
                         {child.guardian && (
                           <span className="truncate text-xs text-muted-foreground">
-                            Wali: {child.guardian.name}
+                            {tr("Wali: ")}{child.guardian.name}
                           </span>
                         )}
                       </div>
@@ -118,13 +126,13 @@ export default async function ChildrenPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Jenis Kelamin</TableHead>
-                  <TableHead>Usia</TableHead>
-                  <TableHead>Masuk</TableHead>
-                  <TableHead>Wali</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{tr("Nama")}</TableHead>
+                  <TableHead>{tr("Jenis Kelamin")}</TableHead>
+                  <TableHead>{tr("Usia")}</TableHead>
+                  <TableHead>{tr("Tanggal Masuk")}</TableHead>
+                  <TableHead>{tr("Wali")}</TableHead>
+                  <TableHead>{tr("Status")}</TableHead>
+                  <TableHead className="text-right">{tr("Aksi")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -139,22 +147,21 @@ export default async function ChildrenPage() {
                       </Link>
                     </TableCell>
                     <TableCell>
-                      {child.gender === "MALE" ? "Laki-laki" : "Perempuan"}
+                      {child.gender === "MALE" ? tr("Laki-laki") : tr("Perempuan")}
                     </TableCell>
-                    <TableCell>{formatAge(child.dob)}</TableCell>
-                    <TableCell>{formatDate(child.admissionDate)}</TableCell>
+                    <TableCell>{formatAge(child.dob, locale)}</TableCell>
+                    <TableCell>{formatDate(child.admissionDate, locale)}</TableCell>
                     <TableCell>{child.guardian?.name ?? "-"}</TableCell>
                     <TableCell>
                       <Badge variant={statusVariant[child.status]}>
-                        {statusLabel[child.status]}
+                        {tr(statusLabel[child.status])}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button asChild variant="ghost" size="sm">
                           <Link href={`/dashboard/children/${child.id}`}>
-                            Detail
-                          </Link>
+                            {tr("Detail")}</Link>
                         </Button>
                         <DeleteChildButton
                           childId={child.id}

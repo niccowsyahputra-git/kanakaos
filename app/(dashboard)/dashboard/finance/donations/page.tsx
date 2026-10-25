@@ -20,6 +20,10 @@ import {
   DonationFilters,
   ReceiptActions,
 } from "@/components/finance/donation-tools";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +33,10 @@ const typeLabel: Record<DonationType, string> = {
   IN_KIND: "Barang",
 };
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(
     date
   );
 }
@@ -45,6 +51,8 @@ export default async function FinanceDonationsPage({
     to?: string;
   };
 }) {
+  const { tr, locale } = await getT();
+
   const session = await requireFinanceSession();
   if (!session) redirect("/dashboard");
 
@@ -94,12 +102,11 @@ export default async function FinanceDonationsPage({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Riwayat Donasi
-          </h2>
+            {tr("Riwayat Donasi")}</h2>
           <p className="text-sm text-muted-foreground">
-            {donations.length} donasi · total{" "}
+            {donations.length} {tr(" donasi · total")}{" "}
             <span className="font-semibold text-foreground">
-              {formatRupiah(total)}
+              {formatRupiah(total, locale)}
             </span>
           </p>
         </div>
@@ -107,8 +114,7 @@ export default async function FinanceDonationsPage({
           <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link href="/dashboard/finance/pledges">
               <Inbox className="h-4 w-4" />
-              Niat Donasi
-              {pendingPledges > 0 && (
+              {tr("Niat Donasi")}{pendingPledges > 0 && (
                 <span className="ml-1 rounded-full bg-destructive px-1.5 text-xs font-bold text-destructive-foreground">
                   {pendingPledges}
                 </span>
@@ -118,8 +124,7 @@ export default async function FinanceDonationsPage({
           <Button asChild className="w-full sm:w-auto">
             <Link href="/dashboard/donations/new">
               <Plus className="h-4 w-4" />
-              Catat Donasi Baru
-            </Link>
+              {tr("Catat Donasi Baru")}</Link>
           </Button>
         </div>
       </div>
@@ -129,8 +134,7 @@ export default async function FinanceDonationsPage({
       {donations.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Tidak ada donasi untuk filter ini.
-          </CardContent>
+            {tr("Tidak ada donasi untuk filter ini.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -146,16 +150,16 @@ export default async function FinanceDonationsPage({
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {donation.receiptNumber} ·{" "}
-                        {formatDate(donation.createdAt)}
+                        {formatDate(donation.createdAt, locale)}
                       </p>
                     </div>
                     <span className="shrink-0 font-bold text-green-600">
-                      {formatRupiah(Number(donation.amount))}
+                      {formatRupiah(Number(donation.amount), locale)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <Badge variant="secondary">
-                      {typeLabel[donation.type]}
+                      {tr(typeLabel[donation.type])}
                     </Badge>
                     <ReceiptActions
                       donationId={donation.id}
@@ -177,13 +181,13 @@ export default async function FinanceDonationsPage({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>No. Kwitansi</TableHead>
-                  <TableHead>Donatur</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Tipe</TableHead>
-                  <TableHead>Peruntukan</TableHead>
-                  <TableHead className="text-right">Jumlah</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{tr("No. Kwitansi")}</TableHead>
+                  <TableHead>{tr("Donatur")}</TableHead>
+                  <TableHead>{tr("Tanggal")}</TableHead>
+                  <TableHead>{tr("Tipe")}</TableHead>
+                  <TableHead>{tr("Peruntukan")}</TableHead>
+                  <TableHead className="text-right">{tr("Jumlah")}</TableHead>
+                  <TableHead className="text-right">{tr("Aksi")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -200,17 +204,17 @@ export default async function FinanceDonationsPage({
                         </span>
                       )}
                     </TableCell>
-                    <TableCell>{formatDate(donation.createdAt)}</TableCell>
+                    <TableCell>{formatDate(donation.createdAt, locale)}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">
-                        {typeLabel[donation.type]}
+                        {tr(typeLabel[donation.type])}
                       </Badge>
                     </TableCell>
                     <TableCell className="max-w-xs truncate text-muted-foreground">
                       {donation.purpose ?? "-"}
                     </TableCell>
                     <TableCell className="text-right font-medium text-green-600">
-                      {formatRupiah(Number(donation.amount))}
+                      {formatRupiah(Number(donation.amount), locale)}
                     </TableCell>
                     <TableCell>
                       <ReceiptActions

@@ -27,24 +27,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+import { PARTNER_TYPES, PARTNER_LABELS } from "@/lib/option-catalogs";
+import type { Translator } from "@/lib/i18n/translate";
 
-const formSchema = z.object({
+
+const getFormSchema = (tr: Translator) => z.object({
   name: z
     .string()
     .trim()
-    .min(3, "Nama mitra minimal 3 karakter")
-    .max(150, "Nama mitra maksimal 150 karakter"),
-  type: z.enum(["RS", "SEKOLAH", "POLISI", "CSR"], {
-    errorMap: () => ({ message: "Pilih jenis mitra" }),
+    .min(3, tr("Nama mitra minimal 3 karakter"))
+    .max(150, tr("Nama mitra maksimal 150 karakter")),
+  type: z.enum(PARTNER_TYPES, {
+    errorMap: () => ({ message: tr("Pilih jenis mitra") }),
   }),
-  picName: z.string().trim().max(100, "Nama PIC maksimal 100 karakter"),
-  picPhone: z.string().trim().max(20, "No. HP PIC maksimal 20 karakter"),
+  picName: z.string().trim().max(100, tr("Nama PIC maksimal 100 karakter")),
+  picPhone: z.string().trim().max(20, tr("No. HP PIC maksimal 20 karakter")),
   mouExpiryDate: z.string(),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<ReturnType<typeof getFormSchema>>;
 
 export function PartnerForm() {
+  const { tr, locale } = useI18n();
+  const formSchema = getFormSchema(tr);
+
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<FormValues>({
@@ -71,7 +78,7 @@ export function PartnerForm() {
       });
 
       if (result.success) {
-        toast.success("Berhasil disimpan");
+        toast.success(tr("Berhasil disimpan"));
         form.reset();
       } else {
         toast.error(result.error);
@@ -82,7 +89,7 @@ export function PartnerForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Tambah Mitra</CardTitle>
+        <CardTitle className="text-lg">{tr("Tambah Mitra")}</CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -96,10 +103,10 @@ export function PartnerForm() {
                 name="name"
                 render={({ field }) => (
                   <FormItem className="w-full md:w-2/3">
-                    <FormLabel>Nama Mitra</FormLabel>
+                    <FormLabel>{tr("Nama Mitra")}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Contoh: RSUD Wangaya"
+                        placeholder={tr("Contoh: RSUD Wangaya")}
                         autoComplete="off"
                         {...field}
                       />
@@ -114,18 +121,15 @@ export function PartnerForm() {
                 name="type"
                 render={({ field }) => (
                   <FormItem className="w-full md:w-1/3">
-                    <FormLabel>Jenis</FormLabel>
+                    <FormLabel>{tr("Jenis")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Pilih jenis" />
+                          <SelectValue placeholder={tr("Pilih jenis")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="RS">Rumah Sakit</SelectItem>
-                        <SelectItem value="SEKOLAH">Sekolah</SelectItem>
-                        <SelectItem value="POLISI">Kepolisian</SelectItem>
-                        <SelectItem value="CSR">CSR Perusahaan</SelectItem>
+                        {PARTNER_TYPES.map(type => <SelectItem key={type} value={type}>{tr(PARTNER_LABELS[type])}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -141,14 +145,13 @@ export function PartnerForm() {
                 render={({ field }) => (
                   <FormItem className="w-full md:w-1/3">
                     <FormLabel>
-                      Nama PIC{" "}
+                      {tr("Nama PIC")}{" "}
                       <span className="font-normal text-muted-foreground">
-                        (opsional)
-                      </span>
+                        {tr("(opsional)")}</span>
                     </FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Nama penanggung jawab"
+                        placeholder={tr("Nama penanggung jawab")}
                         autoComplete="off"
                         {...field}
                       />
@@ -164,14 +167,13 @@ export function PartnerForm() {
                 render={({ field }) => (
                   <FormItem className="w-full md:w-1/3">
                     <FormLabel>
-                      No. HP PIC{" "}
+                      {tr("No. HP PIC")}{" "}
                       <span className="font-normal text-muted-foreground">
-                        (opsional)
-                      </span>
+                        {tr("(opsional)")}</span>
                     </FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="08xxxxxxxxxx"
+                        placeholder={tr("08xxxxxxxxxx")}
                         inputMode="tel"
                         autoComplete="off"
                         {...field}
@@ -188,17 +190,15 @@ export function PartnerForm() {
                 render={({ field }) => (
                   <FormItem className="w-full md:w-1/3">
                     <FormLabel>
-                      MoU Berlaku Sampai{" "}
+                      {tr("MoU Berlaku Sampai")}{" "}
                       <span className="font-normal text-muted-foreground">
-                        (opsional)
-                      </span>
+                        {tr("(opsional)")}</span>
                     </FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
                     <FormDescription>
-                      Sistem akan mengingatkan 30 hari sebelum habis.
-                    </FormDescription>
+                      {tr("Sistem akan mengingatkan 30 hari sebelum habis.")}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -214,10 +214,9 @@ export function PartnerForm() {
                 {isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Menyimpan...
-                  </>
+                    {tr("Menyimpan...")}</>
                 ) : (
-                  "Simpan Mitra"
+                  tr("Simpan Mitra")
                 )}
               </Button>
             </div>

@@ -7,6 +7,9 @@ import { auth } from "@/auth";
 import { logAudit } from "@/lib/audit";
 import { homeLeaveSchema, type HomeLeaveInput } from "@/lib/validations";
 import type { HomeLeaveReturnStatus } from "@prisma/client";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type ActionResult =
   | { success: true; id?: string }
@@ -50,14 +53,17 @@ async function findActiveLeave(childId: string, excludeId?: string) {
 export async function createHomeLeave(
   values: HomeLeaveInput
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { homeLeaveSchema } = getSchemas(locale);
+
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const parsed = homeLeaveSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -65,14 +71,14 @@ export async function createHomeLeave(
       where: { id: parsed.data.childId },
       select: { id: true, fullName: true },
     });
-    if (!child) return { success: false, error: "Data anak tidak ditemukan" };
+    if (!child) return { success: false, error: tr("Data anak tidak ditemukan") };
 
     // Anak yang belum kembali tidak boleh dibuatkan kepulangan baru
     const active = await findActiveLeave(child.id);
     if (active) {
       return {
         success: false,
-        error: `${child.fullName} masih dalam masa kepulangan (belum kembali ke panti). Tandai kembali dulu sebelum mencatat kepulangan baru`,
+        error: tr(`${child.fullName} masih dalam masa kepulangan (belum kembali ke panti). Tandai kembali dulu sebelum mencatat kepulangan baru`),
       };
     }
 
@@ -107,7 +113,7 @@ export async function createHomeLeave(
     return { success: true, id: leave.id };
   } catch (error) {
     console.error("createHomeLeave error:", error);
-    return { success: false, error: "Gagal mencatat kepulangan anak" };
+    return { success: false, error: tr("Gagal mencatat kepulangan anak") };
   }
 }
 
@@ -115,19 +121,22 @@ export async function updateHomeLeave(
   id: string,
   values: HomeLeaveInput
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { homeLeaveSchema } = getSchemas(locale);
+
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const idParsed = z.string().cuid().safeParse(id);
   if (!idParsed.success) {
-    return { success: false, error: "ID kepulangan tidak valid" };
+    return { success: false, error: tr("ID kepulangan tidak valid") };
   }
 
   const parsed = homeLeaveSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -136,7 +145,7 @@ export async function updateHomeLeave(
       select: { id: true },
     });
     if (!existing) {
-      return { success: false, error: "Data kepulangan tidak ditemukan" };
+      return { success: false, error: tr("Data kepulangan tidak ditemukan") };
     }
 
     // Jika hasil edit membuat catatan ini "belum kembali", pastikan tidak
@@ -154,7 +163,7 @@ export async function updateHomeLeave(
         return {
           success: false,
           error:
-            "Anak ini sudah punya catatan kepulangan aktif lain yang belum kembali",
+            tr("Anak ini sudah punya catatan kepulangan aktif lain yang belum kembali"),
         };
       }
     }
@@ -185,19 +194,21 @@ export async function updateHomeLeave(
     return { success: true, id: idParsed.data };
   } catch (error) {
     console.error("updateHomeLeave error:", error);
-    return { success: false, error: "Gagal memperbarui data kepulangan" };
+    return { success: false, error: tr("Gagal memperbarui data kepulangan") };
   }
 }
 
 export async function deleteHomeLeave(id: string): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const idParsed = z.string().cuid().safeParse(id);
   if (!idParsed.success) {
-    return { success: false, error: "ID kepulangan tidak valid" };
+    return { success: false, error: tr("ID kepulangan tidak valid") };
   }
 
   try {
@@ -206,7 +217,7 @@ export async function deleteHomeLeave(id: string): Promise<ActionResult> {
       include: { child: { select: { fullName: true } } },
     });
     if (!leave) {
-      return { success: false, error: "Data kepulangan tidak ditemukan" };
+      return { success: false, error: tr("Data kepulangan tidak ditemukan") };
     }
 
     await prisma.homeLeave.delete({ where: { id: idParsed.data } });
@@ -224,6 +235,6 @@ export async function deleteHomeLeave(id: string): Promise<ActionResult> {
     return { success: true };
   } catch (error) {
     console.error("deleteHomeLeave error:", error);
-    return { success: false, error: "Gagal menghapus data kepulangan" };
+    return { success: false, error: tr("Gagal menghapus data kepulangan") };
   }
 }

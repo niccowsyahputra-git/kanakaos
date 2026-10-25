@@ -26,12 +26,20 @@ import {
   VolunteerAccountBadge,
   CreateVolunteerAccountDialog,
 } from "@/components/volunteers/volunteer-account";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+import { VOLUNTEER_FIELDS, readVolunteerSkills, needFieldLabel, dateOnlyLabel } from "@/lib/option-catalogs";
+import { attachmentUrl, type AttachmentSummary } from "@/lib/volunteer-upload-contract";
+
 
 export const dynamic = "force-dynamic";
 
-function formatDate(date: Date | null) {
+function formatDate(date: Date | null, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
   if (!date) return null;
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "long" }).format(date);
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "long" }).format(date);
 }
 
 // Data pendaftaran lengkap untuk dialog detail
@@ -39,6 +47,10 @@ function toDetail(volunteer: {
   name: string;
   phone: string | null;
   skill: string | null;
+  skillsJson: string | null;
+  highestEducation: string | null;
+  major: string | null;
+  attachments: AttachmentSummary[];
   email: string | null;
   dob: Date | null;
   address: string | null;
@@ -47,23 +59,34 @@ function toDetail(volunteer: {
   motivation: string | null;
   ktpUrl: string | null;
   skckUrl: string | null;
-  need: { title: string } | null;
+  need: { title: string; field: string | null; otherField: string | null } | null;
+  status: VolunteerStatus;
+  hasSafeguardingCert: boolean;
+  redFlagNotes: string | null;
   createdAt: Date;
-}) {
+}, locale: Locale) {
+
   return {
     name: volunteer.name,
     phone: volunteer.phone,
     skill: volunteer.skill,
+    skillsJson: volunteer.skillsJson,
+    highestEducation: volunteer.highestEducation,
+    major: volunteer.major,
+    attachments: volunteer.attachments,
     email: volunteer.email,
-    dobLabel: formatDate(volunteer.dob),
+    dobLabel: volunteer.dob ? dateOnlyLabel(volunteer.dob, locale) : null,
+    status: volunteer.status,
+    hasSafeguardingCert: volunteer.hasSafeguardingCert,
+    redFlagNotes: volunteer.redFlagNotes,
     address: volunteer.address,
     occupation: volunteer.occupation,
     availability: volunteer.availability,
     motivation: volunteer.motivation,
-    ktpUrl: volunteer.ktpUrl,
-    skckUrl: volunteer.skckUrl,
-    needTitle: volunteer.need?.title ?? null,
-    createdAtLabel: formatDate(volunteer.createdAt) ?? "-",
+    ktpUrl: volunteer.attachments.some(a => a.kind === "KTP") ? attachmentUrl(volunteer.attachments.find(a => a.kind === "KTP")!.id) : volunteer.ktpUrl,
+    skckUrl: volunteer.attachments.some(a => a.kind === "SKCK") ? attachmentUrl(volunteer.attachments.find(a => a.kind === "SKCK")!.id) : volunteer.skckUrl,
+    needTitle: volunteer.need ? volunteer.need.field && volunteer.need.field !== "OTHER" ? createTranslator(locale)(needFieldLabel(volunteer.need.field, volunteer.need.otherField, volunteer.need.title)) : volunteer.need.title : null,
+    createdAtLabel: formatDate(volunteer.createdAt, locale) ?? "-",
   };
 }
 
@@ -77,6 +100,10 @@ function toEditable(volunteer: {
   address: string | null;
   occupation: string | null;
   skill: string | null;
+  skillsJson: string | null;
+  highestEducation: string | null;
+  major: string | null;
+  attachments: AttachmentSummary[];
   availability: string | null;
   motivation: string | null;
   hasSafeguardingCert: boolean;
@@ -91,6 +118,10 @@ function toEditable(volunteer: {
     address: volunteer.address,
     occupation: volunteer.occupation,
     skill: volunteer.skill,
+    skillsJson: volunteer.skillsJson,
+    highestEducation: volunteer.highestEducation,
+    major: volunteer.major,
+    attachments: volunteer.attachments,
     availability: volunteer.availability,
     motivation: volunteer.motivation,
     hasSafeguardingCert: volunteer.hasSafeguardingCert,
@@ -113,65 +144,71 @@ const statusClass: Record<VolunteerStatus, string> = {
   SUSPENDED: "border-transparent bg-red-100 text-red-800 hover:bg-red-100",
 };
 
-function StatusBadge({ status }: { status: VolunteerStatus }) {
+async function StatusBadge({ status }: { status: VolunteerStatus }) {
+  const { tr, locale } = await getT();
+
   return (
     <Badge variant="outline" className={statusClass[status]}>
-      {statusLabel[status]}
+      {tr(statusLabel[status])}
     </Badge>
   );
 }
 
-function CertIndicator({ hasCert }: { hasCert: boolean }) {
+async function CertIndicator({ hasCert }: { hasCert: boolean }) {
+  const { tr, locale } = await getT();
+
   return hasCert ? (
     <span className="inline-flex items-center gap-1 text-xs text-green-700">
-      <ShieldCheck className="h-3.5 w-3.5" /> Bersertifikat
-    </span>
+      <ShieldCheck className="h-3.5 w-3.5" /> {tr(" Bersertifikat")}</span>
   ) : (
     <span className="inline-flex items-center gap-1 text-xs text-amber-600">
-      <ShieldAlert className="h-3.5 w-3.5" /> Belum
-    </span>
+      <ShieldAlert className="h-3.5 w-3.5" /> {tr(" Belum")}</span>
   );
 }
 
 export default async function VolunteersPage() {
+  const { tr, locale } = await getT();
+
   // Proteksi role lapis kedua (lapis pertama di middleware)
   const session = await requireStaffSession();
   if (!session) {
     redirect("/dashboard");
   }
 
-  const [volunteers, needs] = await Promise.all([
+  const [volunteers, rawNeeds] = await Promise.all([
     prisma.volunteer.findMany({
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
       include: {
-        need: { select: { title: true } },
+        need: { select: { title: true, field: true, otherField: true } },
+        attachments: { select: { id: true, kind: true, filename: true }, orderBy: { createdAt: "asc" } },
         user: { select: { email: true, isActive: true } },
       },
     }),
     prisma.volunteerNeed.findMany({
       orderBy: [{ status: "desc" }, { createdAt: "desc" }],
-      select: { id: true, title: true, status: true },
+      select: { id: true, title: true, status: true, field: true, otherField: true, startDate: true, endDate: true },
     }),
   ]);
 
   // Akun login hanya dibuatkan oleh Super Admin (sama seperti pegawai)
   const isSuperAdmin = session.user.role === "SUPER_ADMIN";
+  const needs = rawNeeds.map(need => ({ ...need, startDate: need.startDate?.toISOString().slice(0, 10) ?? null, endDate: need.endDate?.toISOString().slice(0, 10) ?? null }));
+  const skillsLabel = (v: { skillsJson: string | null; skill: string | null }) => readVolunteerSkills(v.skillsJson).map(code => tr(VOLUNTEER_FIELDS[code])).join(", ") || (v.skill ? `${tr("Data lama")}: ${v.skill}` : "—");
+  const needLabel = (need: typeof volunteers[number]["need"]) => need ? need.field && need.field !== "OTHER" ? tr(needFieldLabel(need.field, need.otherField, need.title)) : need.title : "—";
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Relawan</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{tr("Relawan")}</h2>
           <p className="text-sm text-muted-foreground">
-            Screening & pengawasan relawan untuk child safeguarding.
-          </p>
+            {tr("Screening & pengawasan relawan untuk child safeguarding.")}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link href="/dashboard/volunteers/needs">
               <Megaphone className="h-4 w-4" />
-              Kebutuhan Relawan
-            </Link>
+              {tr("Kebutuhan Relawan")}</Link>
           </Button>
           <AddVolunteerDialog needs={needs} />
         </div>
@@ -180,8 +217,7 @@ export default async function VolunteersPage() {
       {volunteers.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Belum ada relawan terdaftar.
-          </CardContent>
+            {tr("Belum ada relawan terdaftar.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -194,17 +230,17 @@ export default async function VolunteersPage() {
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{volunteer.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {volunteer.skill ?? "-"}
+                        {skillsLabel(volunteer)}
                         {volunteer.phone ? ` · ${volunteer.phone}` : ""}
                       </p>
                       {volunteer.need && (
                         <p className="text-xs text-primary">
-                          Kebutuhan: {volunteer.need.title}
+                          {tr("Kebutuhan: ")}{needLabel(volunteer.need)}
                         </p>
                       )}
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
-                      <VolunteerDetailDialog volunteer={toDetail(volunteer)} />
+                      <VolunteerDetailDialog volunteer={toDetail(volunteer, locale)} />
                       <StatusBadge status={volunteer.status} />
                     </div>
                   </div>
@@ -252,14 +288,14 @@ export default async function VolunteersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Kontak</TableHead>
-                  <TableHead>Keahlian</TableHead>
-                  <TableHead>Kebutuhan</TableHead>
-                  <TableHead>Akun</TableHead>
-                  <TableHead>Safeguarding</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{tr("Nama")}</TableHead>
+                  <TableHead>{tr("Kontak")}</TableHead>
+                  <TableHead>{tr("Keahlian")}</TableHead>
+                  <TableHead>{tr("Kebutuhan")}</TableHead>
+                  <TableHead>{tr("Akun")}</TableHead>
+                  <TableHead>{tr("Safeguarding")}</TableHead>
+                  <TableHead>{tr("Status")}</TableHead>
+                  <TableHead className="text-right">{tr("Aksi")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -274,8 +310,8 @@ export default async function VolunteersPage() {
                       )}
                     </TableCell>
                     <TableCell>{volunteer.phone ?? "-"}</TableCell>
-                    <TableCell>{volunteer.skill ?? "-"}</TableCell>
-                    <TableCell>{volunteer.need?.title ?? "-"}</TableCell>
+                    <TableCell>{skillsLabel(volunteer)}</TableCell>
+                    <TableCell>{needLabel(volunteer.need)}</TableCell>
                     <TableCell>
                       {volunteer.user ? (
                         <VolunteerAccountBadge
@@ -297,7 +333,7 @@ export default async function VolunteersPage() {
                     <TableCell>
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
                         <VolunteerDetailDialog
-                          volunteer={toDetail(volunteer)}
+                          volunteer={toDetail(volunteer, locale)}
                         />
                         <EditVolunteerDialog
                           volunteer={toEditable(volunteer)}

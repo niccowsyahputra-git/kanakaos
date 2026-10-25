@@ -38,6 +38,9 @@ import {
   siblingLivingWithOptions,
   siblingRelationOptions,
 } from "@/components/children/child-labels";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export type GuardianOption = {
   id: string;
@@ -155,10 +158,12 @@ function DocInput({
   inputRef: React.RefObject<HTMLInputElement>;
   existingUrl?: string | null;
 }) {
+  const { tr, locale } = useI18n();
+
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
-        <Label htmlFor={id}>{label}</Label>
+        <Label htmlFor={id}>{tr(label)}</Label>
         {existingUrl && (
           <a
             href={existingUrl}
@@ -167,8 +172,7 @@ function DocInput({
             className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
           >
             <FileText className="h-3 w-3" />
-            Lihat file saat ini
-          </a>
+            {tr("Lihat file saat ini")}</a>
         )}
       </div>
       <Input
@@ -191,6 +195,20 @@ export function ChildForm({
   mode: "create" | "edit";
   child?: ChildInitial;
 }) {
+  const { tr, locale } = useI18n();
+  const gradeOptionsByEducation = localizeLabels(__gradeOptionsByEducation, tr);
+  const bloodTypeOptions = localizeLabels(__bloodTypeOptions, tr);
+  const religionOptions = localizeLabels(__religionOptions, tr);
+  const orphanStatusOptions = localizeLabels(__orphanStatusOptions, tr);
+  const residencyStatusOptions = localizeLabels(__residencyStatusOptions, tr);
+  const fatherOccupationOptions = localizeLabels(__fatherOccupationOptions, tr);
+  const motherOccupationOptions = localizeLabels(__motherOccupationOptions, tr);
+  const parentStatusOptions = localizeLabels(__parentStatusOptions, tr);
+  const siblingRelationOptions = localizeLabels(__siblingRelationOptions, tr);
+  const siblingActivityOptions = localizeLabels(__siblingActivityOptions, tr);
+  const siblingLivingWithOptions = localizeLabels(__siblingLivingWithOptions, tr);
+  const educationOptions = localizeLabels(__educationOptions, tr);
+
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -288,34 +306,34 @@ export function ChildForm({
   function handleSubmit() {
     // Validasi cepat sisi client
     if (form.fullName.trim().length < 3) {
-      toast.error("Nama minimal 3 karakter");
+      toast.error(tr("Nama minimal 3 karakter"));
       return;
     }
     if (!form.dob || form.dob.trim() === "") {
-      toast.error("Tanggal lahir wajib diisi");
+      toast.error(tr("Tanggal lahir wajib diisi"));
       return;
     }
     // Validate date format
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(form.dob)) {
-      toast.error("Format tanggal lahir tidak valid. Gunakan format YYYY-MM-DD");
+      toast.error(tr("Format tanggal lahir tidak valid. Gunakan format YYYY-MM-DD"));
       return;
     }
     if (!form.gender || form.gender.trim() === "") {
-      toast.error("Pilih jenis kelamin");
+      toast.error(tr("Pilih jenis kelamin"));
       return;
     }
     if (form.nik && !/^\d{16}$/.test(form.nik)) {
-      toast.error("NIK harus 16 digit angka");
+      toast.error(tr("NIK harus 16 digit angka"));
       return;
     }
 
     if (form.fatherNik && !/^\d{16}$/.test(form.fatherNik)) {
-      toast.error("NIK Ayah harus 16 digit angka");
+      toast.error(tr("NIK Ayah harus 16 digit angka"));
       return;
     }
     if (form.motherNik && !/^\d{16}$/.test(form.motherNik)) {
-      toast.error("NIK Ibu harus 16 digit angka");
+      toast.error(tr("NIK Ibu harus 16 digit angka"));
       return;
     }
 
@@ -407,10 +425,10 @@ export function ChildForm({
 
       if (result.success) {
         if (result.warning) {
-          toast.warning("Data anak tersimpan", { description: result.warning });
+          toast.warning(tr("Data anak tersimpan"), { description: result.warning });
         } else {
           toast.success(
-            mode === "create" ? "Data anak berhasil disimpan" : "Perubahan tersimpan"
+            mode === "create" ? tr("Data anak berhasil disimpan") : tr("Perubahan tersimpan")
           );
         }
         router.push(
@@ -428,20 +446,20 @@ export function ChildForm({
   return (
     <div className="flex flex-col gap-5">
       {/* 1. Data Pribadi */}
-      <SectionCard title="Data Pribadi">
+      <SectionCard title={tr("Data Pribadi")}>
         <div className="space-y-2">
-          <Label htmlFor="fullName">Nama Lengkap *</Label>
+          <Label htmlFor="fullName">{tr("Nama Lengkap *")}</Label>
           <Input
             id="fullName"
             value={form.fullName}
             onChange={(e) => set("fullName", e.target.value)}
-            placeholder="Nama lengkap anak"
+            placeholder={tr("Nama lengkap anak")}
           />
         </div>
 
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="nik">NIK (16 digit)</Label>
+            <Label htmlFor="nik">{tr("NIK (16 digit)")}</Label>
             <Input
               id="nik"
               value={form.nik}
@@ -452,7 +470,7 @@ export function ChildForm({
             />
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="dob">Tanggal Lahir *</Label>
+            <Label htmlFor="dob">{tr("Tanggal Lahir *")}</Label>
             <Input
               id="dob"
               type="date"
@@ -475,7 +493,7 @@ export function ChildForm({
             />
             {form.dob && (
               <p className="text-xs text-muted-foreground">
-                Tanggal lahir: {new Date(form.dob).toLocaleDateString('id-ID', {
+                {tr("Tanggal lahir: ")}{new Date(form.dob).toLocaleDateString((locale === "en" ? "en-US" : "id-ID"), {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric'
@@ -487,19 +505,19 @@ export function ChildForm({
 
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Jenis Kelamin *</Label>
+            <Label>{tr("Jenis Kelamin *")}</Label>
             <Select value={form.gender} onValueChange={(v) => set("gender", v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih jenis kelamin" />
+                <SelectValue placeholder={tr("Pilih jenis kelamin")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="MALE">Laki-laki</SelectItem>
-                <SelectItem value="FEMALE">Perempuan</SelectItem>
+                <SelectItem value="MALE">{tr("Laki-laki")}</SelectItem>
+                <SelectItem value="FEMALE">{tr("Perempuan")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Golongan Darah</Label>
+            <Label>{tr("Golongan Darah")}</Label>
             <Select
               value={form.bloodType}
               onValueChange={(v) => set("bloodType", v)}
@@ -510,7 +528,7 @@ export function ChildForm({
               <SelectContent>
                 {bloodTypeOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -520,26 +538,26 @@ export function ChildForm({
 
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Agama</Label>
+            <Label>{tr("Agama")}</Label>
             <Select
               value={form.religion}
               onValueChange={(v) => set("religion", v)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Pilih agama" />
+                <SelectValue placeholder={tr("Pilih agama")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>Belum ditentukan</SelectItem>
+                <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
                 {religionOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="heightCm">Tinggi Badan (cm)</Label>
+            <Label htmlFor="heightCm">{tr("Tinggi Badan (cm)")}</Label>
             <Input
               id="heightCm"
               type="number"
@@ -549,14 +567,14 @@ export function ChildForm({
               inputMode="decimal"
               value={form.heightCm}
               onChange={(e) => set("heightCm", e.target.value)}
-              placeholder="mis. 120"
+              placeholder={tr("mis. 120")}
             />
           </div>
         </div>
 
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="weightKg">Berat Badan (kg)</Label>
+            <Label htmlFor="weightKg">{tr("Berat Badan (kg)")}</Label>
             <Input
               id="weightKg"
               type="number"
@@ -566,7 +584,7 @@ export function ChildForm({
               inputMode="decimal"
               value={form.weightKg}
               onChange={(e) => set("weightKg", e.target.value)}
-              placeholder="mis. 25"
+              placeholder={tr("mis. 25")}
             />
           </div>
         </div>
@@ -574,31 +592,31 @@ export function ChildForm({
 
       {/* 2. Status & Keluarga */}
       <SectionCard
-        title="Status & Keluarga"
-        description="Nama ayah/ibu bisa disalin dari data wali bila sesuai."
+        title={tr("Status & Keluarga")}
+        description={tr("Nama ayah/ibu bisa disalin dari data wali bila sesuai.")}
       >
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Status Anak</Label>
+            <Label>{tr("Status Anak")}</Label>
             <Select
               value={form.orphanStatus}
               onValueChange={(v) => set("orphanStatus", v)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Pilih status" />
+                <SelectValue placeholder={tr("Pilih status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>Belum ditentukan</SelectItem>
+                <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
                 {orphanStatusOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Status di Panti</Label>
+            <Label>{tr("Status di Panti")}</Label>
             <Select value={form.status} onValueChange={(v) => set("status", v)}>
               <SelectTrigger>
                 <SelectValue />
@@ -606,7 +624,7 @@ export function ChildForm({
               <SelectContent>
                 {residencyStatusOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -615,20 +633,20 @@ export function ChildForm({
         </div>
 
         <div className="space-y-2">
-          <Label>Wali</Label>
+          <Label>{tr("Wali")}</Label>
           <Select
             value={form.guardianId}
             onValueChange={(v) => set("guardianId", v)}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Pilih wali (opsional)" />
+              <SelectValue placeholder={tr("Pilih wali (opsional)")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NONE}>Tanpa wali</SelectItem>
+              <SelectItem value={NONE}>{tr("Tanpa wali")}</SelectItem>
               {guardians.map((g) => (
                 <SelectItem key={g.id} value={g.id}>
                   {g.name}
-                  {g.relationship ? ` (${g.relationship})` : ""}
+                  {g.relationship ? ` (${tr(g.relationship)})` : ""}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -643,8 +661,7 @@ export function ChildForm({
                 onClick={() => set("fatherName", selectedGuardian.name)}
               >
                 <Copy className="h-3 w-3" />
-                Salin ke Nama Ayah
-              </Button>
+                {tr("Salin ke Nama Ayah")}</Button>
               <Button
                 type="button"
                 variant="outline"
@@ -653,29 +670,28 @@ export function ChildForm({
                 onClick={() => set("motherName", selectedGuardian.name)}
               >
                 <Copy className="h-3 w-3" />
-                Salin ke Nama Ibu
-              </Button>
+                {tr("Salin ke Nama Ibu")}</Button>
             </div>
           )}
         </div>
 
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="fatherName">Nama Ayah</Label>
+            <Label htmlFor="fatherName">{tr("Nama Ayah")}</Label>
             <Input
               id="fatherName"
               value={form.fatherName}
               onChange={(e) => set("fatherName", e.target.value)}
-              placeholder="Nama ayah kandung"
+              placeholder={tr("Nama ayah kandung")}
             />
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="fatherNik">No. KTP (NIK) Ayah</Label>
+            <Label htmlFor="fatherNik">{tr("No. KTP (NIK) Ayah")}</Label>
             <Input
               id="fatherNik"
               value={form.fatherNik}
               onChange={(e) => set("fatherNik", e.target.value.replace(/\D/g, ""))}
-              placeholder="16 digit"
+              placeholder={tr("16 digit")}
               inputMode="numeric"
               maxLength={16}
             />
@@ -684,21 +700,21 @@ export function ChildForm({
 
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="motherName">Nama Ibu</Label>
+            <Label htmlFor="motherName">{tr("Nama Ibu")}</Label>
             <Input
               id="motherName"
               value={form.motherName}
               onChange={(e) => set("motherName", e.target.value)}
-              placeholder="Nama ibu kandung"
+              placeholder={tr("Nama ibu kandung")}
             />
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="motherNik">No. KTP (NIK) Ibu</Label>
+            <Label htmlFor="motherNik">{tr("No. KTP (NIK) Ibu")}</Label>
             <Input
               id="motherNik"
               value={form.motherNik}
               onChange={(e) => set("motherNik", e.target.value.replace(/\D/g, ""))}
-              placeholder="16 digit"
+              placeholder={tr("16 digit")}
               inputMode="numeric"
               maxLength={16}
             />
@@ -707,38 +723,38 @@ export function ChildForm({
 
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Agama Ayah</Label>
+            <Label>{tr("Agama Ayah")}</Label>
             <Select
               value={form.fatherReligion}
               onValueChange={(v) => set("fatherReligion", v)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Pilih agama" />
+                <SelectValue placeholder={tr("Pilih agama")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>Belum ditentukan</SelectItem>
+                <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
                 {religionOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Agama Ibu</Label>
+            <Label>{tr("Agama Ibu")}</Label>
             <Select
               value={form.motherReligion}
               onValueChange={(v) => set("motherReligion", v)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Pilih agama" />
+                <SelectValue placeholder={tr("Pilih agama")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>Belum ditentukan</SelectItem>
+                <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
                 {religionOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -748,38 +764,38 @@ export function ChildForm({
 
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Pekerjaan Ayah</Label>
+            <Label>{tr("Pekerjaan Ayah")}</Label>
             <Select
               value={form.fatherOccupation}
               onValueChange={(v) => set("fatherOccupation", v)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Pilih pekerjaan" />
+                <SelectValue placeholder={tr("Pilih pekerjaan")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>Belum ditentukan</SelectItem>
+                <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
                 {fatherOccupationOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Pekerjaan Ibu</Label>
+            <Label>{tr("Pekerjaan Ibu")}</Label>
             <Select
               value={form.motherOccupation}
               onValueChange={(v) => set("motherOccupation", v)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Pilih pekerjaan" />
+                <SelectValue placeholder={tr("Pilih pekerjaan")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>Belum ditentukan</SelectItem>
+                <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
                 {motherOccupationOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -789,38 +805,38 @@ export function ChildForm({
 
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Status Ayah</Label>
+            <Label>{tr("Status Ayah")}</Label>
             <Select
               value={form.fatherStatus}
               onValueChange={(v) => set("fatherStatus", v)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Pilih status" />
+                <SelectValue placeholder={tr("Pilih status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>Belum ditentukan</SelectItem>
+                <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
                 {parentStatusOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Status Ibu</Label>
+            <Label>{tr("Status Ibu")}</Label>
             <Select
               value={form.motherStatus}
               onValueChange={(v) => set("motherStatus", v)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Pilih status" />
+                <SelectValue placeholder={tr("Pilih status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>Belum ditentukan</SelectItem>
+                <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
                 {parentStatusOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -829,12 +845,12 @@ export function ChildForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="homeAddress">Alamat Rumah Tempat Tinggal</Label>
+          <Label htmlFor="homeAddress">{tr("Alamat Rumah Tempat Tinggal")}</Label>
           <Textarea
             id="homeAddress"
             value={form.homeAddress}
             onChange={(e) => set("homeAddress", e.target.value)}
-            placeholder="Alamat asal / keluarga anak"
+            placeholder={tr("Alamat asal / keluarga anak")}
             rows={2}
           />
         </div>
@@ -842,12 +858,12 @@ export function ChildForm({
 
       {/* 2b. Saudara Kandung */}
       <SectionCard
-        title="Saudara Kandung"
-        description="Isi jumlah saudara, lalu lengkapi data tiap saudara yang muncul."
+        title={tr("Saudara Kandung")}
+        description={tr("Isi jumlah saudara, lalu lengkapi data tiap saudara yang muncul.")}
       >
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="birthOrder">Anak Ke-berapa</Label>
+            <Label htmlFor="birthOrder">{tr("Anak Ke-berapa")}</Label>
             <Input
               id="birthOrder"
               type="number"
@@ -856,17 +872,17 @@ export function ChildForm({
               inputMode="numeric"
               value={form.birthOrder}
               onChange={(e) => set("birthOrder", e.target.value)}
-              placeholder="mis. 2"
+              placeholder={tr("mis. 2")}
             />
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="siblingsCount">Jumlah Saudara</Label>
+            <Label htmlFor="siblingsCount">{tr("Jumlah Saudara")}</Label>
             <Input
               id="siblingsCount"
               inputMode="numeric"
               value={siblingsCount}
               onChange={(e) => handleSiblingsCount(e.target.value)}
-              placeholder="mis. 3 (maks 15)"
+              placeholder={tr("mis. 3 (maks 15)")}
             />
           </div>
         </div>
@@ -876,31 +892,31 @@ export function ChildForm({
             key={index}
             className="space-y-3 rounded-lg border bg-muted/30 p-3"
           >
-            <p className="text-sm font-semibold">Saudara {index + 1}</p>
+            <p className="text-sm font-semibold">{tr("Saudara ")}{index + 1}</p>
             <div className="flex flex-col gap-3 md:flex-row">
               <div className="w-full space-y-1.5 md:w-1/2">
-                <Label htmlFor={`sib-name-${index}`}>Nama Saudara</Label>
+                <Label htmlFor={`sib-name-${index}`}>{tr("Nama Saudara")}</Label>
                 <Input
                   id={`sib-name-${index}`}
                   value={sibling.name}
                   onChange={(e) => setSibling(index, "name", e.target.value)}
-                  placeholder="Nama lengkap"
+                  placeholder={tr("Nama lengkap")}
                 />
               </div>
               <div className="w-full space-y-1.5 md:w-1/2">
-                <Label>Status dengan Anak</Label>
+                <Label>{tr("Status dengan Anak")}</Label>
                 <Select
                   value={sibling.relation}
                   onValueChange={(v) => setSibling(index, "relation", v)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Kakak / Adik" />
+                    <SelectValue placeholder={tr("Kakak / Adik")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>Belum ditentukan</SelectItem>
+                    <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
                     {siblingRelationOptions.map((o) => (
                       <SelectItem key={o.value} value={o.value}>
-                        {o.label}
+                        {tr(o.label)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -909,23 +925,23 @@ export function ChildForm({
             </div>
             <div className="flex flex-col gap-3 md:flex-row">
               <div className="w-full space-y-1.5 md:w-1/2">
-                <Label>Jenis Kelamin</Label>
+                <Label>{tr("Jenis Kelamin")}</Label>
                 <Select
                   value={sibling.gender}
                   onValueChange={(v) => setSibling(index, "gender", v)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Pilih" />
+                    <SelectValue placeholder={tr("Pilih")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>Belum ditentukan</SelectItem>
-                    <SelectItem value="MALE">Laki-laki</SelectItem>
-                    <SelectItem value="FEMALE">Perempuan</SelectItem>
+                    <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
+                    <SelectItem value="MALE">{tr("Laki-laki")}</SelectItem>
+                    <SelectItem value="FEMALE">{tr("Perempuan")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="w-full space-y-1.5 md:w-1/2">
-                <Label htmlFor={`sib-dob-${index}`}>Tanggal Lahir</Label>
+                <Label htmlFor={`sib-dob-${index}`}>{tr("Tanggal Lahir")}</Label>
                 <Input
                   id={`sib-dob-${index}`}
                   type="date"
@@ -937,38 +953,38 @@ export function ChildForm({
             </div>
             <div className="flex flex-col gap-3 md:flex-row">
               <div className="w-full space-y-1.5 md:w-1/2">
-                <Label>Pekerjaan</Label>
+                <Label>{tr("Pekerjaan")}</Label>
                 <Select
                   value={sibling.activity}
                   onValueChange={(v) => setSibling(index, "activity", v)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Pilih" />
+                    <SelectValue placeholder={tr("Pilih")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>Belum ditentukan</SelectItem>
+                    <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
                     {siblingActivityOptions.map((o) => (
                       <SelectItem key={o.value} value={o.value}>
-                        {o.label}
+                        {tr(o.label)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="w-full space-y-1.5 md:w-1/2">
-                <Label>Tinggal Dengan</Label>
+                <Label>{tr("Tinggal Dengan")}</Label>
                 <Select
                   value={sibling.livingWith}
                   onValueChange={(v) => setSibling(index, "livingWith", v)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Pilih" />
+                    <SelectValue placeholder={tr("Pilih")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>Belum ditentukan</SelectItem>
+                    <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
                     {siblingLivingWithOptions.map((o) => (
                       <SelectItem key={o.value} value={o.value}>
-                        {o.label}
+                        {tr(o.label)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -977,14 +993,14 @@ export function ChildForm({
             </div>
             {sibling.livingWith === "PANTI_ASUHAN" && (
               <div className="space-y-1.5">
-                <Label htmlFor={`sib-panti-${index}`}>Nama Panti Asuhan</Label>
+                <Label htmlFor={`sib-panti-${index}`}>{tr("Nama Panti Asuhan")}</Label>
                 <Input
                   id={`sib-panti-${index}`}
                   value={sibling.pantiName}
                   onChange={(e) =>
                     setSibling(index, "pantiName", e.target.value)
                   }
-                  placeholder="Nama panti tempat saudara tinggal"
+                  placeholder={tr("Nama panti tempat saudara tinggal")}
                 />
               </div>
             )}
@@ -993,9 +1009,9 @@ export function ChildForm({
       </SectionCard>
 
       {/* 3. Riwayat Penerimaan */}
-      <SectionCard title="Riwayat Penerimaan">
+      <SectionCard title={tr("Riwayat Penerimaan")}>
         <div className="space-y-2">
-          <Label htmlFor="admissionDate">Tanggal Masuk / Diterima</Label>
+          <Label htmlFor="admissionDate">{tr("Tanggal Masuk / Diterima")}</Label>
           <Input
             id="admissionDate"
             type="date"
@@ -1006,22 +1022,22 @@ export function ChildForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="admissionReason">Alasan Masuk Panti Asuhan</Label>
+          <Label htmlFor="admissionReason">{tr("Alasan Masuk Panti Asuhan")}</Label>
           <Textarea
             id="admissionReason"
             value={form.admissionReason}
             onChange={(e) => set("admissionReason", e.target.value)}
-            placeholder="Latar belakang / alasan anak diterima di panti"
+            placeholder={tr("Latar belakang / alasan anak diterima di panti")}
             rows={3}
           />
         </div>
       </SectionCard>
 
       {/* 4. Pendidikan */}
-      <SectionCard title="Pendidikan">
+      <SectionCard title={tr("Pendidikan")}>
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Pendidikan Terakhir</Label>
+            <Label>{tr("Pendidikan Terakhir")}</Label>
             <Select
               value={form.lastEducation}
               onValueChange={(v) =>
@@ -1030,20 +1046,20 @@ export function ChildForm({
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Pilih jenjang" />
+                <SelectValue placeholder={tr("Pilih jenjang")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>Belum ditentukan</SelectItem>
+                <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
                 {educationOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Tingkat / Kelas Terakhir</Label>
+            <Label>{tr("Tingkat / Kelas Terakhir")}</Label>
             <Select
               value={form.lastGrade}
               onValueChange={(v) => set("lastGrade", v)}
@@ -1053,16 +1069,16 @@ export function ChildForm({
                 <SelectValue
                   placeholder={
                     gradeOptions.length === 0
-                      ? "Pilih jenjang dulu"
-                      : "Pilih tingkat/kelas"
+                      ? tr("Pilih jenjang dulu")
+                      : tr("Pilih tingkat/kelas")
                   }
                 />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>Belum ditentukan</SelectItem>
+                <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
                 {gradeOptions.map((grade) => (
                   <SelectItem key={grade} value={grade}>
-                    {grade}
+                    {tr(grade)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1070,22 +1086,22 @@ export function ChildForm({
           </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="previousSchool">Nama Sekolah Sebelumnya</Label>
+          <Label htmlFor="previousSchool">{tr("Nama Sekolah Sebelumnya")}</Label>
           <Input
             id="previousSchool"
             value={form.previousSchool}
             onChange={(e) => set("previousSchool", e.target.value)}
-            placeholder="mis. SDN 1 Denpasar"
+            placeholder={tr("mis. SDN 1 Denpasar")}
             className="md:w-1/2"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="achievements">Prestasi</Label>
+          <Label htmlFor="achievements">{tr("Prestasi")}</Label>
           <Textarea
             id="achievements"
             value={form.achievements}
             onChange={(e) => set("achievements", e.target.value)}
-            placeholder="Prestasi akademik / non-akademik"
+            placeholder={tr("Prestasi akademik / non-akademik")}
             rows={2}
             maxLength={1000}
           />
@@ -1093,21 +1109,21 @@ export function ChildForm({
       </SectionCard>
 
       {/* 5. Kesehatan & Catatan */}
-      <SectionCard title="Kesehatan & Catatan">
+      <SectionCard title={tr("Kesehatan & Catatan")}>
         <div className="space-y-2">
-          <Label htmlFor="medicalHistory">Riwayat Penyakit</Label>
+          <Label htmlFor="medicalHistory">{tr("Riwayat Penyakit")}</Label>
           <Textarea
             id="medicalHistory"
             value={form.medicalHistory}
             onChange={(e) => set("medicalHistory", e.target.value)}
-            placeholder="Alergi, penyakit bawaan, riwayat medis penting"
+            placeholder={tr("Alergi, penyakit bawaan, riwayat medis penting")}
             rows={2}
             maxLength={1000}
           />
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label htmlFor="notes">Catatan Lain</Label>
+            <Label htmlFor="notes">{tr("Catatan Lain")}</Label>
             <span className="text-xs text-muted-foreground">
               {form.notes.length}/1000
             </span>
@@ -1116,7 +1132,7 @@ export function ChildForm({
             id="notes"
             value={form.notes}
             onChange={(e) => set("notes", e.target.value)}
-            placeholder="Catatan tambahan tentang anak"
+            placeholder={tr("Catatan tambahan tentang anak")}
             rows={3}
             maxLength={1000}
           />
@@ -1125,12 +1141,12 @@ export function ChildForm({
 
       {/* 6. Dokumen */}
       <SectionCard
-        title="Dokumen"
-        description="Foto: JPG/PNG/WebP maks 5MB. Dokumen: PDF/PNG/JPG maks 2MB."
+        title={tr("Dokumen")}
+        description={tr("Foto: JPG/PNG/WebP maks 5MB. Dokumen: PDF/PNG/JPG maks 2MB.")}
       >
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="photo">Foto Anak</Label>
+            <Label htmlFor="photo">{tr("Foto Anak")}</Label>
             {child?.photoUrl && (
               <a
                 href={child.photoUrl}
@@ -1139,8 +1155,7 @@ export function ChildForm({
                 className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
               >
                 <FileText className="h-3 w-3" />
-                Lihat foto saat ini
-              </a>
+                {tr("Lihat foto saat ini")}</a>
             )}
           </div>
           <Input
@@ -1156,7 +1171,7 @@ export function ChildForm({
           <div className="w-full md:w-1/2">
             <DocInput
               id="ijazah"
-              label="Ijazah Terakhir"
+              label={tr("Ijazah Terakhir")}
               inputRef={ijazahRef}
               existingUrl={child?.ijazahUrl}
             />
@@ -1164,7 +1179,7 @@ export function ChildForm({
           <div className="w-full md:w-1/2">
             <DocInput
               id="aktaLahir"
-              label="Akta Kelahiran"
+              label={tr("Akta Kelahiran")}
               inputRef={aktaRef}
               existingUrl={child?.aktaLahirUrl}
             />
@@ -1175,7 +1190,7 @@ export function ChildForm({
           <div className="w-full md:w-1/2">
             <DocInput
               id="consent"
-              label="Dokumen Consent"
+              label={tr("Dokumen Consent")}
               inputRef={consentRef}
               existingUrl={child?.consentUrl}
             />
@@ -1183,7 +1198,7 @@ export function ChildForm({
           <div className="w-full md:w-1/2">
             <DocInput
               id="supportingDoc"
-              label="Dokumen Pendukung Lainnya"
+              label={tr("Dokumen Pendukung Lainnya")}
               inputRef={supportingRef}
               existingUrl={child?.supportingDocUrl}
             />
@@ -1192,7 +1207,7 @@ export function ChildForm({
 
         <DocInput
           id="otherDoc"
-          label="Dokumen KK (Kartu Keluarga)"
+          label={tr("Dokumen KK (Kartu Keluarga)")}
           inputRef={otherRef}
           existingUrl={child?.otherDocUrl}
         />
@@ -1207,8 +1222,7 @@ export function ChildForm({
           disabled={isPending}
           className="w-full md:w-auto"
         >
-          Batal
-        </Button>
+          {tr("Batal")}</Button>
         <Button
           type="button"
           onClick={handleSubmit}
@@ -1218,12 +1232,11 @@ export function ChildForm({
           {isPending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Menyimpan...
-            </>
+              {tr("Menyimpan...")}</>
           ) : (
             <>
               <Save className="h-4 w-4" />
-              {mode === "create" ? "Simpan Data Anak" : "Simpan Perubahan"}
+              {mode === "create" ? tr("Simpan Data Anak") : tr("Simpan Perubahan")}
             </>
           )}
         </Button>
@@ -1231,3 +1244,16 @@ export function ChildForm({
     </div>
   );
 }
+
+const __gradeOptionsByEducation = gradeOptionsByEducation;
+const __bloodTypeOptions = bloodTypeOptions;
+const __religionOptions = religionOptions;
+const __orphanStatusOptions = orphanStatusOptions;
+const __residencyStatusOptions = residencyStatusOptions;
+const __fatherOccupationOptions = fatherOccupationOptions;
+const __motherOccupationOptions = motherOccupationOptions;
+const __parentStatusOptions = parentStatusOptions;
+const __siblingRelationOptions = siblingRelationOptions;
+const __siblingActivityOptions = siblingActivityOptions;
+const __siblingLivingWithOptions = siblingLivingWithOptions;
+const __educationOptions = educationOptions;

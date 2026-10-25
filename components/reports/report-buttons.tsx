@@ -10,8 +10,12 @@ import {
 } from "@/lib/actions/report";
 import { downloadBase64 } from "@/lib/download";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/client";
+
 
 export function ReportButtons() {
+  const { tr, locale } = useI18n();
+
   const [isMonthly, startMonthly] = useTransition();
   const [isAnnual, startAnnual] = useTransition();
 
@@ -25,7 +29,7 @@ export function ReportButtons() {
       );
       if (result.success) {
         downloadBase64(result.contentBase64, result.fileName, "application/pdf");
-        toast.success("Laporan bulanan ter-download");
+        toast.success(tr("Laporan bulanan ter-download"));
       } else {
         toast.error(result.error);
       }
@@ -37,7 +41,7 @@ export function ReportButtons() {
       const result = await generateAnnualReport(now.getFullYear());
       if (result.success) {
         downloadBase64(result.contentBase64, result.fileName, "application/pdf");
-        toast.success("Laporan tahunan ter-download");
+        toast.success(tr("Laporan tahunan ter-download"));
       } else {
         toast.error(result.error);
       }
@@ -52,9 +56,9 @@ export function ReportButtons() {
         className="w-full md:w-auto"
       >
         {isMonthly ? (
-          <><Loader2 className="h-4 w-4 animate-spin" /> Menyiapkan...</>
+          <><Loader2 className="h-4 w-4 animate-spin" /> {tr(" Menyiapkan...")}</>
         ) : (
-          <><FileDown className="h-4 w-4" /> Generate Laporan Bulanan</>
+          <><FileDown className="h-4 w-4" /> {tr(" Generate Laporan Bulanan")}</>
         )}
       </Button>
       <Button
@@ -64,9 +68,9 @@ export function ReportButtons() {
         className="w-full md:w-auto"
       >
         {isAnnual ? (
-          <><Loader2 className="h-4 w-4 animate-spin" /> Menyiapkan...</>
+          <><Loader2 className="h-4 w-4 animate-spin" /> {tr(" Menyiapkan...")}</>
         ) : (
-          <><FileDown className="h-4 w-4" /> Generate Laporan Tahunan</>
+          <><FileDown className="h-4 w-4" /> {tr(" Generate Laporan Tahunan")}</>
         )}
       </Button>
     </div>

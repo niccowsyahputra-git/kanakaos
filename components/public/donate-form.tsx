@@ -19,6 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 const PRESET_AMOUNTS = [
   { value: 50000, label: "Rp 50rb" },
@@ -42,6 +45,10 @@ const METHOD_OPTIONS = [
 ];
 
 export function PublicDonateForm() {
+  const { tr, locale } = useI18n();
+  const PURPOSE_OPTIONS = localizeLabels(__PURPOSE_OPTIONS, tr);
+  const METHOD_OPTIONS = localizeLabels(__METHOD_OPTIONS, tr);
+
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -78,40 +85,39 @@ export function PublicDonateForm() {
     <Card>
       <CardContent className="flex flex-col gap-5 p-4 md:p-6">
         <div className="space-y-2">
-          <Label htmlFor="donor-name">Nama Donatur</Label>
+          <Label htmlFor="donor-name">{tr("Nama Donatur")}</Label>
           <Input
             id="donor-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Nama lengkap Anda"
+            placeholder={tr("Nama lengkap Anda")}
             autoComplete="name"
           />
         </div>
 
         <div className="flex flex-col gap-5 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="donor-email">Email</Label>
+            <Label htmlFor="donor-email">{tr("Email")}</Label>
             <Input
               id="donor-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="email@anda.com"
+              placeholder={tr("email@anda.com")}
               autoComplete="email"
             />
           </div>
           <div className="w-full space-y-2 md:w-1/2">
             <Label htmlFor="donor-phone">
-              No. HP{" "}
+              {tr("No. HP")}{" "}
               <span className="font-normal text-muted-foreground">
-                (opsional)
-              </span>
+                {tr("(opsional)")}</span>
             </Label>
             <Input
               id="donor-phone"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="08xxxxxxxxxx"
+              placeholder={tr("08xxxxxxxxxx")}
               inputMode="tel"
               autoComplete="tel"
             />
@@ -120,7 +126,7 @@ export function PublicDonateForm() {
 
         {/* Nominal: preset buttons besar + custom */}
         <div className="space-y-2">
-          <Label className="text-base">Jumlah Donasi</Label>
+          <Label className="text-base">{tr("Jumlah Donasi")}</Label>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {PRESET_AMOUNTS.map((preset) => (
               <button
@@ -137,7 +143,7 @@ export function PublicDonateForm() {
                     : "border-muted hover:bg-accent"
                 )}
               >
-                {preset.label}
+                {tr(preset.label)}
               </button>
             ))}
           </div>
@@ -148,20 +154,20 @@ export function PublicDonateForm() {
             inputMode="numeric"
             value={customAmount}
             onChange={(e) => setCustomAmount(e.target.value)}
-            placeholder="Atau masukkan nominal lain (min Rp 10.000)"
+            placeholder={tr("Atau masukkan nominal lain (min Rp 10.000)")}
             className="h-11"
           />
           {effectiveAmount >= 10000 && (
             <p className="text-xs text-muted-foreground">
-              {formatRupiah(effectiveAmount)} —{" "}
-              <span className="italic">{numberToWords(effectiveAmount)}</span>
+              {formatRupiah(effectiveAmount, locale)} —{" "}
+              <span className="italic">{numberToWords(effectiveAmount, locale)}</span>
             </p>
           )}
         </div>
 
         <div className="flex flex-col gap-5 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Tujuan Donasi</Label>
+            <Label>{tr("Tujuan Donasi")}</Label>
             <Select value={purpose} onValueChange={setPurpose}>
               <SelectTrigger>
                 <SelectValue />
@@ -169,22 +175,22 @@ export function PublicDonateForm() {
               <SelectContent>
                 {PURPOSE_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                    {tr(option.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label>Metode Pembayaran</Label>
+            <Label>{tr("Metode Pembayaran")}</Label>
             <Select value={method} onValueChange={setMethod}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih metode" />
+                <SelectValue placeholder={tr("Pilih metode")} />
               </SelectTrigger>
               <SelectContent>
                 {METHOD_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                    {tr(option.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -194,16 +200,15 @@ export function PublicDonateForm() {
 
         <div className="space-y-2">
           <Label htmlFor="donor-message">
-            Pesan / Doa{" "}
+            {tr("Pesan / Doa")}{" "}
             <span className="font-normal text-muted-foreground">
-              (opsional)
-            </span>
+              {tr("(opsional)")}</span>
           </Label>
           <Textarea
             id="donor-message"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Tulis pesan atau doa untuk anak-anak..."
+            placeholder={tr("Tulis pesan atau doa untuk anak-anak...")}
             rows={3}
           />
         </div>
@@ -222,20 +227,19 @@ export function PublicDonateForm() {
           {isPending ? (
             <>
               <Loader2 className="h-5 w-5 animate-spin" />
-              Memproses...
-            </>
+              {tr("Memproses...")}</>
           ) : (
             <>
               <Heart className="h-5 w-5" />
-              Lanjutkan Donasi
-            </>
+              {tr("Lanjutkan Donasi")}</>
           )}
         </Button>
         <p className="text-center text-xs text-muted-foreground">
-          Setelah submit, Anda akan menerima instruksi pembayaran. Kwitansi
-          resmi diterbitkan setelah dana kami terima.
-        </p>
+          {tr("Setelah submit, Anda akan menerima instruksi pembayaran. Kwitansi resmi diterbitkan setelah dana kami terima.")}</p>
       </CardContent>
     </Card>
   );
 }
+
+const __PURPOSE_OPTIONS = PURPOSE_OPTIONS;
+const __METHOD_OPTIONS = METHOD_OPTIONS;

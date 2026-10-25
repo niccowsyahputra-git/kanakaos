@@ -23,16 +23,26 @@ import {
   verificationClass,
   formatRupiah,
 } from "@/components/finance/finance-labels";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export const dynamic = "force-dynamic";
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(
     date
   );
 }
 
 export default async function IncomeListPage() {
+  const { tr, locale } = await getT();
+  const verificationClass = localizeLabels(__verificationClass, tr);
+
   const session = await requireFinanceSession();
   if (!session) redirect("/dashboard");
 
@@ -54,32 +64,27 @@ export default async function IncomeListPage() {
       <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
         <Link href="/dashboard/finance">
           <ArrowLeft className="h-4 w-4" />
-          Keuangan
-        </Link>
+          {tr("Keuangan")}</Link>
       </Button>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Kas Masuk (Debit)
-          </h2>
+            {tr("Kas Masuk (Debit)")}</h2>
           <p className="text-sm text-muted-foreground">
-            {incomes.length} pemasukan · {pendingCount} menunggu verifikasi.
-          </p>
+            {incomes.length} {tr(" pemasukan · ")}{pendingCount} {tr(" menunggu verifikasi.")}</p>
         </div>
         <Button asChild className="w-full sm:w-auto">
           <Link href="/dashboard/finance/income/new">
             <Plus className="h-4 w-4" />
-            Catat Kas Masuk
-          </Link>
+            {tr("Catat Kas Masuk")}</Link>
         </Button>
       </div>
 
       {incomes.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Belum ada pemasukan tercatat.
-          </CardContent>
+            {tr("Belum ada pemasukan tercatat.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -97,12 +102,12 @@ export default async function IncomeListPage() {
                         {income.sourceName}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {formatDate(income.date)} ·{" "}
-                        {incomeFundCategoryLabel[income.fundCategory]}
+                        {formatDate(income.date, locale)} ·{" "}
+                        {tr(incomeFundCategoryLabel[income.fundCategory])}
                       </p>
                     </div>
                     <p className="shrink-0 font-semibold text-green-600">
-                      {formatRupiah(income.amount)}
+                      {formatRupiah(income.amount, locale)}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -110,10 +115,10 @@ export default async function IncomeListPage() {
                       variant="outline"
                       className={verificationClass[income.verification]}
                     >
-                      {verificationShortLabel[income.verification]}
+                      {tr(verificationShortLabel[income.verification])}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      {fundRestrictionLabel[income.restriction]}
+                      {tr(fundRestrictionLabel[income.restriction])}
                       {income.program ? ` → ${income.program.name}` : ""}
                     </span>
                   </div>
@@ -130,15 +135,15 @@ export default async function IncomeListPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>No. Ref</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Donatur/Sumber</TableHead>
-                  <TableHead>Kategori Dana</TableHead>
-                  <TableHead>Keterikatan</TableHead>
-                  <TableHead>Metode</TableHead>
-                  <TableHead className="text-right">Jumlah</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{tr("No. Ref")}</TableHead>
+                  <TableHead>{tr("Tanggal")}</TableHead>
+                  <TableHead>{tr("Donatur/Sumber")}</TableHead>
+                  <TableHead>{tr("Kategori Dana")}</TableHead>
+                  <TableHead>{tr("Keterikatan")}</TableHead>
+                  <TableHead>{tr("Metode")}</TableHead>
+                  <TableHead className="text-right">{tr("Jumlah")}</TableHead>
+                  <TableHead>{tr("Status")}</TableHead>
+                  <TableHead className="text-right">{tr("Aksi")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -148,21 +153,20 @@ export default async function IncomeListPage() {
                       {income.refNumber}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm">
-                      {formatDate(income.date)}
+                      {formatDate(income.date, locale)}
                     </TableCell>
                     <TableCell>
                       <span className="font-medium">{income.sourceName}</span>
                       {income.donor && (
                         <span className="block text-xs text-muted-foreground">
-                          profil terdaftar
-                        </span>
+                          {tr("profil terdaftar")}</span>
                       )}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {incomeFundCategoryLabel[income.fundCategory]}
+                      {tr(incomeFundCategoryLabel[income.fundCategory])}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {fundRestrictionLabel[income.restriction]}
+                      {tr(fundRestrictionLabel[income.restriction])}
                       {income.program && (
                         <span className="block text-xs text-muted-foreground">
                           → {income.program.code} {income.program.name}
@@ -170,17 +174,17 @@ export default async function IncomeListPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {incomeMethodLabel[income.method]}
+                      {tr(incomeMethodLabel[income.method])}
                     </TableCell>
                     <TableCell className="text-right font-medium text-green-600">
-                      {formatRupiah(income.amount)}
+                      {formatRupiah(income.amount, locale)}
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
                         className={verificationClass[income.verification]}
                       >
-                        {verificationShortLabel[income.verification]}
+                        {tr(verificationShortLabel[income.verification])}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -202,3 +206,5 @@ export default async function IncomeListPage() {
     </div>
   );
 }
+
+const __verificationClass = verificationClass;

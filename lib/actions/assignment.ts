@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireStaffSession } from "@/lib/auth-guard";
 import { logAudit } from "@/lib/audit";
+import { getT } from "@/lib/i18n/server";
+
 
 type ActionResult =
   | { success: true }
@@ -18,17 +20,19 @@ export async function assignCaregiver(
   childId: string,
   caregiverId: string | null
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+
   const session = await requireStaffSession();
   if (!session) {
     return {
       success: false,
-      error: "Hanya Super Admin dan Pekerja Sosial yang boleh mengatur penugasan",
+      error: tr("Hanya Super Admin dan Pekerja Sosial yang boleh mengatur penugasan"),
     };
   }
 
   const childParsed = z.string().cuid().safeParse(childId);
   if (!childParsed.success) {
-    return { success: false, error: "ID anak tidak valid" };
+    return { success: false, error: tr("ID anak tidak valid") };
   }
 
   const normalizedCaregiverId =
@@ -39,7 +43,7 @@ export async function assignCaregiver(
       where: { id: childParsed.data },
       select: { id: true, fullName: true },
     });
-    if (!child) return { success: false, error: "Data anak tidak ditemukan" };
+    if (!child) return { success: false, error: tr("Data anak tidak ditemukan") };
 
     let caregiverName = "-";
     if (normalizedCaregiverId) {
@@ -48,13 +52,13 @@ export async function assignCaregiver(
         select: { id: true, name: true, role: true, isActive: true },
       });
       if (!caregiver) {
-        return { success: false, error: "Pengasuh tidak ditemukan" };
+        return { success: false, error: tr("Pengasuh tidak ditemukan") };
       }
       if (caregiver.role !== "CAREGIVER") {
-        return { success: false, error: "User tersebut bukan pengasuh" };
+        return { success: false, error: tr("User tersebut bukan pengasuh") };
       }
       if (!caregiver.isActive) {
-        return { success: false, error: "Pengasuh tersebut sudah nonaktif" };
+        return { success: false, error: tr("Pengasuh tersebut sudah nonaktif") };
       }
       caregiverName = caregiver.name;
     }
@@ -80,6 +84,6 @@ export async function assignCaregiver(
     return { success: true };
   } catch (error) {
     console.error("assignCaregiver error:", error);
-    return { success: false, error: "Gagal mengatur penugasan" };
+    return { success: false, error: tr("Gagal mengatur penugasan") };
   }
 }

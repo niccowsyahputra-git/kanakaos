@@ -16,6 +16,11 @@ import {
 } from "@/components/ui/table";
 import { ArrowLeft } from "lucide-react";
 import { PledgeFollowUpButton } from "@/components/finance/pledge-followup-button";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export const dynamic = "force-dynamic";
 
@@ -33,14 +38,20 @@ const methodLabel: Record<string, string> = {
   E_WALLET: "E-Wallet",
 };
 
-function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
+function formatDateTime(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
 }
 
 export default async function PledgesPage() {
+  const { tr, locale } = await getT();
+  const purposeLabel = localizeLabels(__purposeLabel, tr);
+  const methodLabel = localizeLabels(__methodLabel, tr);
+
   const session = await requireFinanceSession();
   if (!session) redirect("/dashboard");
 
@@ -56,25 +67,20 @@ export default async function PledgesPage() {
       <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
         <Link href="/dashboard/finance/donations">
           <ArrowLeft className="h-4 w-4" />
-          Riwayat Donasi
-        </Link>
+          {tr("Riwayat Donasi")}</Link>
       </Button>
 
       <div>
         <h2 className="text-2xl font-bold tracking-tight">
-          Niat Donasi (Form Publik)
-        </h2>
+          {tr("Niat Donasi (Form Publik)")}</h2>
         <p className="text-sm text-muted-foreground">
-          {pendingCount} niat donasi belum ditindaklanjuti. Hubungi donatur,
-          konfirmasi pembayaran, lalu catat sebagai donasi resmi.
-        </p>
+          {pendingCount} {tr(" niat donasi belum ditindaklanjuti. Hubungi donatur, konfirmasi pembayaran, lalu catat sebagai donasi resmi.")}</p>
       </div>
 
       {pledges.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Belum ada niat donasi dari form publik.
-          </CardContent>
+            {tr("Belum ada niat donasi dari form publik.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -95,13 +101,13 @@ export default async function PledgesPage() {
                       </p>
                     </div>
                     <span className="shrink-0 font-bold text-green-600">
-                      {formatRupiah(Number(pledge.amount))}
+                      {formatRupiah(Number(pledge.amount), locale)}
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {purposeLabel[pledge.purpose] ?? pledge.purpose} ·{" "}
                     {methodLabel[pledge.method] ?? pledge.method} ·{" "}
-                    {formatDateTime(pledge.createdAt)}
+                    {formatDateTime(pledge.createdAt, locale)}
                   </p>
                   {pledge.message && (
                     <p className="rounded-md bg-muted/60 p-2 text-xs italic">
@@ -114,15 +120,13 @@ export default async function PledgesPage() {
                         variant="outline"
                         className="border-transparent bg-green-100 text-green-800"
                       >
-                        Sudah ditindaklanjuti
-                      </Badge>
+                        {tr("Sudah ditindaklanjuti")}</Badge>
                     ) : (
                       <Badge
                         variant="outline"
                         className="border-transparent bg-yellow-100 text-yellow-800"
                       >
-                        Menunggu
-                      </Badge>
+                        {tr("Menunggu")}</Badge>
                     )}
                     {!pledge.followedUp && (
                       <PledgeFollowUpButton
@@ -141,13 +145,13 @@ export default async function PledgesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Waktu</TableHead>
-                  <TableHead>Donatur</TableHead>
-                  <TableHead>Tujuan</TableHead>
-                  <TableHead>Metode</TableHead>
-                  <TableHead className="text-right">Jumlah</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{tr("Waktu")}</TableHead>
+                  <TableHead>{tr("Donatur")}</TableHead>
+                  <TableHead>{tr("Tujuan")}</TableHead>
+                  <TableHead>{tr("Metode")}</TableHead>
+                  <TableHead className="text-right">{tr("Jumlah")}</TableHead>
+                  <TableHead>{tr("Status")}</TableHead>
+                  <TableHead className="text-right">{tr("Aksi")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -157,7 +161,7 @@ export default async function PledgesPage() {
                     className={pledge.followedUp ? "opacity-60" : ""}
                   >
                     <TableCell className="whitespace-nowrap text-sm">
-                      {formatDateTime(pledge.createdAt)}
+                      {formatDateTime(pledge.createdAt, locale)}
                     </TableCell>
                     <TableCell>
                       <span className="font-medium">{pledge.name}</span>
@@ -173,7 +177,7 @@ export default async function PledgesPage() {
                       {methodLabel[pledge.method] ?? pledge.method}
                     </TableCell>
                     <TableCell className="text-right font-medium text-green-600">
-                      {formatRupiah(Number(pledge.amount))}
+                      {formatRupiah(Number(pledge.amount), locale)}
                     </TableCell>
                     <TableCell>
                       {pledge.followedUp ? (
@@ -181,15 +185,13 @@ export default async function PledgesPage() {
                           variant="outline"
                           className="border-transparent bg-green-100 text-green-800"
                         >
-                          Ditindaklanjuti
-                        </Badge>
+                          {tr("Ditindaklanjuti")}</Badge>
                       ) : (
                         <Badge
                           variant="outline"
                           className="border-transparent bg-yellow-100 text-yellow-800"
                         >
-                          Menunggu
-                        </Badge>
+                          {tr("Menunggu")}</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -210,3 +212,6 @@ export default async function PledgesPage() {
     </div>
   );
 }
+
+const __purposeLabel = purposeLabel;
+const __methodLabel = methodLabel;

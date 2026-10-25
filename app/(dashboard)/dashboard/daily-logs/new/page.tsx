@@ -2,6 +2,9 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { DailyLogForm } from "@/components/daily-logs/daily-log-form";
+import { getT } from "@/lib/i18n/server";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +22,9 @@ export default async function NewDailyLogPage({
 }: {
   searchParams: { childId?: string };
 }) {
+  const { tr, locale } = await getT();
+  const roleLabel = localizeLabels(__roleLabel, tr);
+
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -36,17 +42,18 @@ export default async function NewDailyLogPage({
   return (
     <div className="mx-auto w-full max-w-lg space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Log Harian</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{tr("Log Harian")}</h2>
         <p className="text-sm text-muted-foreground">
-          Catat kondisi anak hari ini. Cukup beberapa ketukan saja.
-        </p>
+          {tr("Catat kondisi anak hari ini. Cukup beberapa ketukan saja.")}</p>
       </div>
       <DailyLogForm
         childOptions={children}
         defaultChildId={defaultChildId}
-        reporterName={session.user.name ?? "Tanpa Nama"}
+        reporterName={session.user.name ?? tr("Tanpa Nama")}
         reporterRole={roleLabel[session.user.role ?? ""] ?? "Staff"}
       />
     </div>
   );
 }
+
+const __roleLabel = roleLabel;

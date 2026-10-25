@@ -1,5 +1,7 @@
 "use server";
 
+import { notificationMessage } from "@/lib/i18n/notification";
+
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { notifyRoles } from "@/lib/notify";
@@ -8,10 +10,14 @@ import {
   volunteerApplySchema,
   type DonationPledgeInput,
 } from "@/lib/validations";
-import {
-  uploadFileToCloudinary,
-  isCloudinaryConfigured,
-} from "@/lib/cloudinary";
+import { revalidatePath } from "next/cache";
+import type { z } from "zod";
+import type { UploadBundle } from "@/lib/volunteer-upload-contract";
+import { persistVolunteerProfile } from "@/lib/volunteer-profile.server";
+import { volunteerStorage, VolunteerSaveError } from "@/lib/volunteer-uploads.server";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type ActionResult =
   | { success: true; id?: string; warning?: string }
@@ -24,9 +30,12 @@ type ActionResult =
 export async function createDonationPledge(
   values: DonationPledgeInput
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { donationPledgeSchema } = getSchemas(locale);
+
   const parsed = donationPledgeSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -38,7 +47,7 @@ export async function createDonationPledge(
     if (recentCount >= 5) {
       return {
         success: false,
-        error: "Terlalu banyak percobaan. Silakan coba lagi besok",
+        error: tr("Terlalu banyak percobaan. Silakan coba lagi besok"),
       };
     }
 
@@ -64,160 +73,41 @@ export async function createDonationPledge(
 
     await notifyRoles(["SUPER_ADMIN", "FINANCE"], {
       title: "💝 Niat donasi baru",
-      description: `${parsed.data.name} — Rp${parsed.data.amount.toLocaleString("id-ID")} (${parsed.data.method})`,
+      description: notificationMessage("{0} — Rp{1} ({2})", { 0: parsed.data.name, 1: parsed.data.amount.toLocaleString("id-ID"), 2: parsed.data.method }),
       link: "/dashboard/finance/donations",
     });
 
     return { success: true, id: pledge.id };
   } catch (error) {
     console.error("createDonationPledge error:", error);
-    return { success: false, error: "Gagal mengirim formulir donasi" };
+    return { success: false, error: tr("Gagal mengirim formulir donasi") };
   }
 }
 
-const MAX_DOC_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_DOC_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/pdf",
-];
-
-/** Upload dokumen pendaftaran relawan (KTP/SKCK). */
-async function uploadApplicationDoc(
-  file: File,
-  label: string
-): Promise<{ url: string | null; error?: string }> {
-  if (!ALLOWED_DOC_TYPES.includes(file.type)) {
-    return { url: null, error: `${label} harus JPG, PNG, WebP, atau PDF` };
-  }
-  if (file.size > MAX_DOC_SIZE) {
-    return { url: null, error: `Ukuran ${label} maksimal 5MB` };
-  }
-  if (!isCloudinaryConfigured()) {
-    // Storage belum siap: pendaftaran tetap diterima tanpa dokumen
-    return { url: null };
-  }
+export async function applyVolunteer(values: z.input<typeof volunteerApplySchema>, uploads: UploadBundle): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const parsed = getSchemas(locale).volunteerApplySchema.safeParse(values);
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message };
   try {
-    const isPdf = file.type === "application/pdf";
-    const url = await uploadFileToCloudinary(
-      Buffer.from(await file.arrayBuffer()),
-      "yayasan/volunteer-docs",
-      isPdf ? `${Date.now()}-${label}.pdf` : undefined,
-      isPdf ? "raw" : "image"
-    );
-    return { url };
-  } catch (error) {
-    console.error(`uploadApplicationDoc ${label} error:`, error);
-    return { url: null, error: `Gagal meng-upload ${label}` };
-  }
-}
-
-export async function applyVolunteer(
-  formData: FormData
-): Promise<ActionResult> {
-  const parsed = volunteerApplySchema.safeParse({
-    name: formData.get("name"),
-    email: formData.get("email"),
-    phone: formData.get("phone"),
-    dob: formData.get("dob"),
-    address: formData.get("address"),
-    occupation: formData.get("occupation"),
-    skills: formData.getAll("skills"),
-    availability: formData.getAll("availability"),
-    motivation: formData.get("motivation"),
-    agreePolicy: formData.get("agreePolicy") === "true",
-    needId: formData.get("needId") ?? undefined,
-  });
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
-  }
-
-  try {
-    // Kebutuhan yang dipilih harus masih dibuka (OPEN)
-    if (parsed.data.needId) {
-      const need = await prisma.volunteerNeed.findUnique({
-        where: { id: parsed.data.needId },
-        select: { status: true },
+    const saved = await persistVolunteerProfile(prisma, volunteerStorage(), {
+      ...parsed.data, availability: parsed.data.availability.join(", "), hasSafeguardingCert: false,
+    }, uploads, { id: "public", name: "PUBLIK", public: true });
+    // Side-effect failures must not turn a committed registration into a failed submission.
+    try {
+      if (saved.created) await notifyRoles(["SUPER_ADMIN", "SOCIAL_WORKER"], {
+        title: "🙋 Pendaftar relawan baru",
+        description: notificationMessage("{0} ({1}) menunggu screening", { 0: parsed.data.name, 1: parsed.data.occupation }),
+        link: "/dashboard/volunteers",
       });
-      if (!need || need.status !== "OPEN") {
-        return {
-          success: false,
-          error: "Kebutuhan relawan yang dipilih sudah ditutup. Silakan pilih yang lain",
-        };
-      }
-    }
-
-    // Cegah pendaftaran ganda dengan email yang sama & masih pending
-    const existing = await prisma.volunteer.findFirst({
-      where: { email: parsed.data.email, status: "PENDING" },
-      select: { id: true },
-    });
-    if (existing) {
-      return {
-        success: false,
-        error:
-          "Pendaftaran dengan email ini sedang kami review. Mohon tunggu 3 hari kerja",
-      };
-    }
-
-    // Upload dokumen (opsional gagal-gracefully jika storage belum siap)
-    let warning: string | undefined;
-    let ktpUrl: string | null = null;
-    let skckUrl: string | null = null;
-
-    const ktp = formData.get("ktp");
-    if (ktp instanceof File && ktp.size > 0) {
-      const uploaded = await uploadApplicationDoc(ktp, "KTP");
-      if (uploaded.error) return { success: false, error: uploaded.error };
-      ktpUrl = uploaded.url;
-    }
-    const skck = formData.get("skck");
-    if (skck instanceof File && skck.size > 0) {
-      const uploaded = await uploadApplicationDoc(skck, "SKCK");
-      if (uploaded.error) return { success: false, error: uploaded.error };
-      skckUrl = uploaded.url;
-    }
-    if ((ktp instanceof File && ktp.size > 0 && !ktpUrl) ||
-        (skck instanceof File && skck.size > 0 && !skckUrl)) {
-      warning = "Dokumen belum tersimpan (storage belum aktif) — tim kami akan menghubungi Anda";
-    }
-
-    const volunteer = await prisma.volunteer.create({
-      data: {
-        name: parsed.data.name,
-        email: parsed.data.email,
-        phone: parsed.data.phone,
-        dob: new Date(parsed.data.dob),
-        address: parsed.data.address,
-        occupation: parsed.data.occupation,
-        skill: parsed.data.skills.join(", "),
-        availability: parsed.data.availability.join(", "),
-        motivation: parsed.data.motivation,
-        ktpUrl,
-        skckUrl,
-        needId: parsed.data.needId ?? null,
-        // status default PENDING -> masuk antrean screening staff
-      },
-    });
-
-    await logAudit({
-      userName: "PUBLIK",
-      action: "CREATE",
-      entity: "Volunteer",
-      entityId: volunteer.id,
-      detail: `Pendaftaran relawan publik: ${parsed.data.name} (${parsed.data.email})`,
-    });
-
-    await notifyRoles(["SUPER_ADMIN", "SOCIAL_WORKER"], {
-      title: "🙋 Pendaftar relawan baru",
-      description: `${parsed.data.name} (${parsed.data.occupation}) menunggu screening`,
-      link: "/dashboard/volunteers",
-    });
-
-    return { success: true, id: volunteer.id, warning };
+    } catch (error) { console.error("Registration saved; notification failed", error); }
+    try {
+      revalidatePath("/dashboard/volunteers");
+      revalidatePath("/dashboard/volunteers/needs");
+      revalidatePath("/volunteer/apply");
+    } catch (error) { console.error("Registration saved; refresh failed", error); }
+    return { success: true, id: saved.id };
   } catch (error) {
     console.error("applyVolunteer error:", error);
-    return { success: false, error: "Gagal mengirim pendaftaran" };
+    return { success: false, error: tr(error instanceof VolunteerSaveError ? error.message : "Gagal mengirim pendaftaran") };
   }
 }

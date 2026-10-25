@@ -12,10 +12,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { BudgetEditDialog } from "@/components/finance/budget-edit-dialog";
+import { getT } from "@/lib/i18n/server";
+
 
 export const dynamic = "force-dynamic";
 
-function UsageBar({ percentage }: { percentage: number }) {
+async function UsageBar({ percentage }: { percentage: number }) {
+  const { tr, locale } = await getT();
+
   const clamped = Math.min(100, Math.max(0, percentage));
   return (
     <div className="space-y-1">
@@ -42,27 +46,28 @@ function UsageBar({ percentage }: { percentage: number }) {
               : "text-green-700"
         )}
       >
-        {percentage.toFixed(0)}% terpakai
-        {percentage > 100 && " — melebihi budget!"}
+        {percentage.toFixed(0)}{tr("% terpakai")}{percentage > 100 && tr(" — melebihi budget!")}
       </p>
     </div>
   );
 }
 
 export default async function BudgetPage() {
+  const { tr, locale } = await getT();
+
   const session = await requireFinanceSession();
   if (!session) redirect("/dashboard");
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthName = new Intl.DateTimeFormat("id-ID", {
+  const monthName = new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), {
     month: "long",
     year: "numeric",
   }).format(now);
 
   // Kategori pengeluaran (Donasi = kategori pemasukan, tidak punya budget)
   const categories = await prisma.financeCategory.findMany({
-    where: { NOT: { name: "Donasi" } },
+    where: { NOT: { name: tr("Donasi") } },
     include: {
       transactions: {
         where: { type: "CREDIT", date: { gte: monthStart } },
@@ -101,13 +106,13 @@ export default async function BudgetPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Budget Bulanan</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{tr("Budget Bulanan")}</h2>
         <p className="text-sm text-muted-foreground">
-          Realisasi pengeluaran {monthName}:{" "}
+          {tr("Realisasi pengeluaran ")}{monthName}:{" "}
           <span className="font-semibold text-foreground">
-            {formatRupiah(totals.realized)}
+            {formatRupiah(totals.realized, locale)}
           </span>{" "}
-          dari budget {formatRupiah(totals.budget)}.
+          {tr("dari budget ")}{formatRupiah(totals.budget, locale)}.
         </p>
       </div>
 
@@ -126,22 +131,22 @@ export default async function BudgetPage() {
               </div>
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
-                  <p className="text-muted-foreground">Budget</p>
-                  <p className="font-medium">{formatRupiah(row.budget)}</p>
+                  <p className="text-muted-foreground">{tr("Budget")}</p>
+                  <p className="font-medium">{formatRupiah(row.budget, locale)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Realisasi</p>
-                  <p className="font-medium">{formatRupiah(row.realized)}</p>
+                  <p className="text-muted-foreground">{tr("Realisasi")}</p>
+                  <p className="font-medium">{formatRupiah(row.realized, locale)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Sisa</p>
+                  <p className="text-muted-foreground">{tr("Sisa")}</p>
                   <p
                     className={cn(
                       "font-medium",
                       row.remaining < 0 && "text-destructive"
                     )}
                   >
-                    {formatRupiah(row.remaining)}
+                    {formatRupiah(row.remaining, locale)}
                   </p>
                 </div>
               </div>
@@ -156,14 +161,13 @@ export default async function BudgetPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Kategori</TableHead>
-              <TableHead className="text-right">Budget Bulanan</TableHead>
+              <TableHead>{tr("Kategori")}</TableHead>
+              <TableHead className="text-right">{tr("Budget Bulanan")}</TableHead>
               <TableHead className="text-right">
-                Realisasi Bulan Ini
-              </TableHead>
-              <TableHead className="text-right">Sisa</TableHead>
-              <TableHead className="w-56">Persentase Terpakai</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+                {tr("Realisasi Bulan Ini")}</TableHead>
+              <TableHead className="text-right">{tr("Sisa")}</TableHead>
+              <TableHead className="w-56">{tr("Persentase Terpakai")}</TableHead>
+              <TableHead className="text-right">{tr("Aksi")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -171,10 +175,10 @@ export default async function BudgetPage() {
               <TableRow key={row.id}>
                 <TableCell className="font-medium">{row.name}</TableCell>
                 <TableCell className="text-right">
-                  {formatRupiah(row.budget)}
+                  {formatRupiah(row.budget, locale)}
                 </TableCell>
                 <TableCell className="text-right">
-                  {formatRupiah(row.realized)}
+                  {formatRupiah(row.realized, locale)}
                 </TableCell>
                 <TableCell
                   className={cn(
@@ -182,7 +186,7 @@ export default async function BudgetPage() {
                     row.remaining < 0 && "text-destructive"
                   )}
                 >
-                  {formatRupiah(row.remaining)}
+                  {formatRupiah(row.remaining, locale)}
                 </TableCell>
                 <TableCell>
                   <UsageBar percentage={row.percentage} />

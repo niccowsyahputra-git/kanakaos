@@ -12,6 +12,9 @@ import {
   AuditSection,
   type AuditSearchParams,
 } from "@/components/admin/audit-section";
+import { getT } from "@/lib/i18n/server";
+import { EmployeeLocationSettings } from "@/components/admin/employee-location-settings";
+
 
 export const dynamic = "force-dynamic";
 
@@ -43,10 +46,12 @@ export default async function SettingsPage({
     role?: string;
   } & AuditSearchParams;
 }) {
+  const { tr, locale } = await getT();
+
   const session = await requireSuperAdminSession();
   if (!session) redirect("/dashboard");
 
-  const validTabs = ["general", "landing", "notification", "users", "audit", "ai", "backup"];
+  const validTabs = ["general", "locations", "landing", "notification", "users", "audit", "ai", "backup"];
   const defaultTab = validTabs.includes(searchParams.tab ?? "")
     ? searchParams.tab
     : "general";
@@ -56,9 +61,10 @@ export default async function SettingsPage({
   });
   const map = new Map(rows.map((row) => [row.configKey, row.configValue]));
 
-  const [aiConfig, siteSettings] = await Promise.all([
+  const [aiConfig, siteSettings, locations] = await Promise.all([
     getAIConfig(),
     getSiteSettings(),
+    prisma.employeeLocation.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, isActive: true } }),
   ]);
 
   const initial: SettingsValues = {
@@ -84,17 +90,15 @@ export default async function SettingsPage({
     <div className="mx-auto w-full max-w-5xl space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">
-          Pengaturan Sistem
-        </h2>
+          {tr("Pengaturan Sistem")}</h2>
         <p className="text-sm text-muted-foreground">
-          Identitas yayasan, halaman publik, notifikasi, manajemen user, audit log, AI, dan
-          backup data.
-        </p>
+          {tr("Identitas yayasan, halaman publik, notifikasi, manajemen user, audit log, AI, dan backup data.")}</p>
       </div>
       <SettingsTabs
         initial={initial}
         landing={siteSettings.landing}
         defaultTab={defaultTab}
+        locationsSection={<EmployeeLocationSettings locations={locations} />}
         usersSection={
           <UsersSection
             sessionUserId={session.user.id}

@@ -14,6 +14,10 @@ import {
 } from "@/components/ui/table";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AuditFilters } from "@/components/admin/audit-filters";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+
 
 const PAGE_SIZE = 50;
 
@@ -24,8 +28,10 @@ const actionClass: Record<AuditAction, string> = {
   LOGIN: "border-transparent bg-gray-100 text-gray-600",
 };
 
-function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
+function formatDateTime(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), {
     dateStyle: "medium",
     timeStyle: "medium",
   }).format(date);
@@ -55,6 +61,8 @@ export async function AuditSection({
 }: {
   searchParams: AuditSearchParams;
 }) {
+  const { tr, locale } = await getT();
+
   const page = Math.max(1, Number(searchParams.page) || 1);
 
   const actionFilter = Object.values(AuditAction).includes(
@@ -103,7 +111,7 @@ export async function AuditSection({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        {totalCount} aktivitas tercatat. Halaman {page} dari {totalPages}.
+        {totalCount} {tr(" aktivitas tercatat. Halaman ")}{page} {tr(" dari ")}{totalPages}.
       </p>
 
       <AuditFilters users={users} />
@@ -111,8 +119,7 @@ export async function AuditSection({
       {logs.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Tidak ada log aktivitas untuk filter ini.
-          </CardContent>
+            {tr("Tidak ada log aktivitas untuk filter ini.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -126,7 +133,7 @@ export async function AuditSection({
                       {log.action}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      {formatDateTime(log.createdAt)}
+                      {formatDateTime(log.createdAt, locale)}
                     </span>
                   </div>
                   <p className="text-sm">
@@ -156,11 +163,11 @@ export async function AuditSection({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Waktu</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Aksi</TableHead>
-                  <TableHead>Entity</TableHead>
-                  <TableHead>Detail</TableHead>
+                  <TableHead>{tr("Waktu")}</TableHead>
+                  <TableHead>{tr("User")}</TableHead>
+                  <TableHead>{tr("Aksi")}</TableHead>
+                  <TableHead>{tr("Entity")}</TableHead>
+                  <TableHead>{tr("Detail")}</TableHead>
                   <TableHead>IP</TableHead>
                 </TableRow>
               </TableHeader>
@@ -168,7 +175,7 @@ export async function AuditSection({
                 {logs.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell className="whitespace-nowrap text-sm">
-                      {formatDateTime(log.createdAt)}
+                      {formatDateTime(log.createdAt, locale)}
                     </TableCell>
                     <TableCell className="font-medium">
                       {log.userName}
@@ -209,11 +216,10 @@ export async function AuditSection({
           <Button asChild variant="outline" size="sm" disabled={page <= 1}>
             <Link href={buildPageUrl(searchParams, page - 1)}>
               <ChevronLeft className="h-4 w-4" />
-              Sebelumnya
-            </Link>
+              {tr("Sebelumnya")}</Link>
           </Button>
           <span className="text-sm text-muted-foreground">
-            Halaman {page} / {totalPages}
+            {tr("Halaman ")}{page} / {totalPages}
           </span>
           <Button
             asChild
@@ -222,8 +228,7 @@ export async function AuditSection({
             disabled={page >= totalPages}
           >
             <Link href={buildPageUrl(searchParams, page + 1)}>
-              Berikutnya
-              <ChevronRight className="h-4 w-4" />
+              {tr("Berikutnya")}<ChevronRight className="h-4 w-4" />
             </Link>
           </Button>
         </div>

@@ -21,16 +21,27 @@ import {
   incidentUrgencyLabel,
   incidentUrgencyClass,
 } from "@/components/incidents/incident-labels";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export const dynamic = "force-dynamic";
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(
     date
   );
 }
 
 export default async function IncidentsPage() {
+  const { tr, locale } = await getT();
+  const incidentStatusClass = localizeLabels(__incidentStatusClass, tr);
+  const incidentUrgencyClass = localizeLabels(__incidentUrgencyClass, tr);
+
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -56,10 +67,9 @@ export default async function IncidentsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Laporan Insiden
-          </h2>
+            {tr("Laporan Insiden")}</h2>
           <p className="text-sm text-muted-foreground">
-            {openCount} insiden belum selesai dari total {incidents.length}.
+            {openCount} {tr(" insiden belum selesai dari total ")}{incidents.length}.
           </p>
         </div>
         <ReportIncidentDialog children={children} />
@@ -68,8 +78,7 @@ export default async function IncidentsPage() {
       {incidents.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Belum ada laporan insiden. Semoga selalu begitu. 🙏
-          </CardContent>
+            {tr("Belum ada laporan insiden. Semoga selalu begitu. 🙏")}</CardContent>
         </Card>
       ) : (
         <>
@@ -87,21 +96,21 @@ export default async function IncidentsPage() {
                         {incident.child.fullName}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {incidentTypeLabel[incident.incidentType]} ·{" "}
-                        {formatDate(incident.createdAt)}
+                        {tr(incidentTypeLabel[incident.incidentType])} ·{" "}
+                        {formatDate(incident.createdAt, locale)}
                       </p>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Badge
                           variant="outline"
                           className={incidentStatusClass[incident.status]}
                         >
-                          {incidentStatusLabel[incident.status]}
+                          {tr(incidentStatusLabel[incident.status])}
                         </Badge>
                         <Badge
                           variant="outline"
                           className={incidentUrgencyClass[incident.urgency]}
                         >
-                          {incidentUrgencyLabel[incident.urgency]}
+                          {tr(incidentUrgencyLabel[incident.urgency])}
                         </Badge>
                       </div>
                     </div>
@@ -117,19 +126,19 @@ export default async function IncidentsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Anak</TableHead>
-                  <TableHead>Jenis</TableHead>
-                  <TableHead>Urgensi</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Pelapor</TableHead>
+                  <TableHead>{tr("Tanggal")}</TableHead>
+                  <TableHead>{tr("Anak")}</TableHead>
+                  <TableHead>{tr("Jenis")}</TableHead>
+                  <TableHead>{tr("Urgensi")}</TableHead>
+                  <TableHead>{tr("Status")}</TableHead>
+                  <TableHead>{tr("Pelapor")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {incidents.map((incident) => (
                   <TableRow key={incident.id}>
                     <TableCell className="whitespace-nowrap">
-                      {formatDate(incident.createdAt)}
+                      {formatDate(incident.createdAt, locale)}
                     </TableCell>
                     <TableCell className="font-medium">
                       <Link
@@ -140,14 +149,14 @@ export default async function IncidentsPage() {
                       </Link>
                     </TableCell>
                     <TableCell>
-                      {incidentTypeLabel[incident.incidentType]}
+                      {tr(incidentTypeLabel[incident.incidentType])}
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
                         className={incidentUrgencyClass[incident.urgency]}
                       >
-                        {incidentUrgencyLabel[incident.urgency]}
+                        {tr(incidentUrgencyLabel[incident.urgency])}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -155,7 +164,7 @@ export default async function IncidentsPage() {
                         variant="outline"
                         className={incidentStatusClass[incident.status]}
                       >
-                        {incidentStatusLabel[incident.status]}
+                        {tr(incidentStatusLabel[incident.status])}
                       </Badge>
                     </TableCell>
                     <TableCell>{incident.reportedBy.name}</TableCell>
@@ -169,3 +178,6 @@ export default async function IncidentsPage() {
     </div>
   );
 }
+
+const __incidentStatusClass = incidentStatusClass;
+const __incidentUrgencyClass = incidentUrgencyClass;

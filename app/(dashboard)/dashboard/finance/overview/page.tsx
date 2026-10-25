@@ -25,6 +25,8 @@ import {
   CashflowChart,
   type CashflowPoint,
 } from "@/components/finance/cashflow-chart";
+import { getT } from "@/lib/i18n/server";
+
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +36,8 @@ const MONTH_SHORT = [
 ];
 
 export default async function FinanceOverviewPage() {
+  const { tr, locale } = await getT();
+
   const session = await requireFinanceSession();
   if (!session) redirect("/dashboard");
 
@@ -89,30 +93,30 @@ export default async function FinanceOverviewPage() {
 
   const stats = [
     {
-      title: "Saldo Kas (Semua Rekening)",
-      value: formatRupiah(saldoKas),
-      description: `${accountBalances.length} rekening aktif`,
+      title: tr("Saldo Kas (Semua Rekening)"),
+      value: formatRupiah(saldoKas, locale),
+      description: tr("{0} rekening aktif", { "0": accountBalances.length }),
       icon: Wallet,
       accent: saldoKas >= 0 ? "text-green-600" : "text-destructive",
     },
     {
-      title: "Kas Masuk Bulan Ini",
-      value: formatRupiah(kasMasukBulanIni),
-      description: "Pemasukan terverifikasi",
+      title: tr("Kas Masuk Bulan Ini"),
+      value: formatRupiah(kasMasukBulanIni, locale),
+      description: tr("Pemasukan terverifikasi"),
       icon: TrendingUp,
       accent: "text-green-600",
     },
     {
-      title: "Kas Keluar Bulan Ini",
-      value: formatRupiah(kasKeluarBulanIni),
-      description: "Semua voucher pengeluaran",
+      title: tr("Kas Keluar Bulan Ini"),
+      value: formatRupiah(kasKeluarBulanIni, locale),
+      description: tr("Semua voucher pengeluaran"),
       icon: TrendingDown,
       accent: "text-destructive",
     },
     {
-      title: "Dana Tidak Terikat",
-      value: formatRupiah(unrestrictedBalance),
-      description: "Kas operasional umum",
+      title: tr("Dana Tidak Terikat"),
+      value: formatRupiah(unrestrictedBalance, locale),
+      description: tr("Kas operasional umum"),
       icon: PiggyBank,
       accent: unrestrictedBalance >= 0 ? "text-green-600" : "text-destructive",
     },
@@ -123,26 +127,24 @@ export default async function FinanceOverviewPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Ringkasan Keuangan
-          </h2>
+            {tr("Ringkasan Keuangan")}</h2>
           <p className="text-sm text-muted-foreground">
-            Posisi kas dan arus keuangan tahun {now.getFullYear()}.
+            {tr("Posisi kas dan arus keuangan tahun ")}{now.getFullYear()}.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button asChild className="w-full sm:w-auto">
-            <Link href="/dashboard/finance/income">Kas Masuk (Debit)</Link>
+            <Link href="/dashboard/finance/income">{tr("Kas Masuk (Debit)")}</Link>
           </Button>
           <Button asChild className="w-full sm:w-auto" variant="secondary">
-            <Link href="/dashboard/finance/expense">Kas Keluar (Kredit)</Link>
+            <Link href="/dashboard/finance/expense">{tr("Kas Keluar (Kredit)")}</Link>
           </Button>
           <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href="/dashboard/finance/programs">Program</Link>
+            <Link href="/dashboard/finance/programs">{tr("Program")}</Link>
           </Button>
           <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link href="/dashboard/finance/transactions">
-              Detail Transaksi
-              <ArrowRight className="h-4 w-4" />
+              {tr("Detail Transaksi")}<ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
         </div>
@@ -150,15 +152,13 @@ export default async function FinanceOverviewPage() {
 
       {pendingAgg._count > 0 && (
         <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-          Ada <b>{pendingAgg._count}</b> pemasukan menunggu verifikasi senilai{" "}
-          <b>{formatRupiah(pendingSum)}</b> — belum dihitung sebagai kas masuk
-          riil.{" "}
+          {tr("Ada ")}<b>{pendingAgg._count}</b> {tr(" pemasukan menunggu verifikasi senilai")}{" "}
+          <b>{formatRupiah(pendingSum, locale)}</b> {tr(" — belum dihitung sebagai kas masuk riil.")}{" "}
           <Link
             href="/dashboard/finance/income"
             className="font-medium underline"
           >
-            Verifikasi sekarang
-          </Link>
+            {tr("Verifikasi sekarang")}</Link>
         </div>
       )}
 
@@ -189,7 +189,7 @@ export default async function FinanceOverviewPage() {
       {/* Rincian saldo per rekening */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Saldo per Rekening</CardTitle>
+          <CardTitle className="text-lg">{tr("Saldo per Rekening")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="flex flex-col divide-y">
@@ -202,7 +202,7 @@ export default async function FinanceOverviewPage() {
                 <span
                   className={`font-semibold ${a.balance >= 0 ? "" : "text-destructive"}`}
                 >
-                  {formatRupiah(a.balance)}
+                  {formatRupiah(a.balance, locale)}
                 </span>
               </li>
             ))}
@@ -213,7 +213,7 @@ export default async function FinanceOverviewPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
-            Arus Kas Bulanan {now.getFullYear()}
+            {tr("Arus Kas Bulanan ")}{now.getFullYear()}
           </CardTitle>
         </CardHeader>
         <CardContent>

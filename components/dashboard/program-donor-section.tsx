@@ -9,9 +9,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { DonorAcquisitionChart } from "@/components/dashboard/dashboard-charts";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+
 
 /** Bangun link WhatsApp dari nomor telepon Indonesia */
-function waLink(phone: string, name: string): string {
+function waLink(phone: string, name: string, locale: Locale = "id"): string {
+  const tr = createTranslator(locale);
+
   const digits = phone.replace(/\D/g, "");
   const normalized = digits.startsWith("0")
     ? `62${digits.slice(1)}`
@@ -19,12 +25,14 @@ function waLink(phone: string, name: string): string {
       ? digits
       : `62${digits}`;
   const text = encodeURIComponent(
-    `Assalamu'alaikum ${name}, semoga sehat selalu. Kami dari yayasan ingin menyapa dan menyampaikan terima kasih atas kebaikan Bapak/Ibu selama ini. 🙏`
+    tr("Assalamu'alaikum {0}, semoga sehat selalu. Kami dari yayasan ingin menyapa dan menyampaikan terima kasih atas kebaikan Bapak/Ibu selama ini. 🙏", { "0": name })
   );
   return `https://wa.me/${normalized}?text=${text}`;
 }
 
 export async function ProgramDonorSection() {
+  const { tr, locale } = await getT();
+
   const data = await getProgramDonorData();
 
   return (
@@ -35,11 +43,9 @@ export async function ProgramDonorSection() {
         </div>
         <div>
           <h3 className="text-lg font-bold tracking-tight">
-            Manajemen Program &amp; Donatur
-          </h3>
+            {tr("Manajemen Program & Donatur")}</h3>
           <p className="text-xs text-muted-foreground">
-            Efektivitas fundraising &amp; retensi donatur.
-          </p>
+            {tr("Efektivitas fundraising & retensi donatur.")}</p>
         </div>
       </div>
 
@@ -47,20 +53,17 @@ export async function ProgramDonorSection() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-base">
-            Progress Penggalangan Dana Program
-          </CardTitle>
+            {tr("Progress Penggalangan Dana Program")}</CardTitle>
           <Link
             href="/dashboard/finance/programs"
             className="text-xs text-primary hover:underline"
           >
-            Kelola program →
-          </Link>
+            {tr("Kelola program →")}</Link>
         </CardHeader>
         <CardContent>
           {data.programs.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">
-              Belum ada program aktif.
-            </p>
+              {tr("Belum ada program aktif.")}</p>
           ) : (
             <div className="flex flex-col gap-4">
               {data.programs.map((p) => (
@@ -68,8 +71,8 @@ export async function ProgramDonorSection() {
                   <div className="flex items-center justify-between gap-2 text-sm">
                     <span className="truncate font-medium">{p.name}</span>
                     <span className="shrink-0 text-xs text-muted-foreground">
-                      {formatRupiah(p.raised)}
-                      {p.target > 0 ? ` / ${formatRupiah(p.target)}` : ""}
+                      {formatRupiah(p.raised, locale)}
+                      {p.target > 0 ? ` / ${formatRupiah(p.target, locale)}` : ""}
                     </span>
                   </div>
                   <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
@@ -80,8 +83,8 @@ export async function ProgramDonorSection() {
                   </div>
                   <p className="text-right text-xs text-muted-foreground">
                     {p.target > 0
-                      ? `${p.percent}% tercapai`
-                      : "Target belum ditetapkan"}
+                      ? tr("{0}% tercapai", { "0": p.percent })
+                      : tr("Target belum ditetapkan")}
                   </p>
                 </div>
               ))}
@@ -96,8 +99,7 @@ export async function ProgramDonorSection() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <Users2 className="h-4 w-4 text-muted-foreground" />
-              Kesehatan Basis Donatur
-            </CardTitle>
+              {tr("Kesehatan Basis Donatur")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex gap-3">
@@ -106,24 +108,21 @@ export async function ProgramDonorSection() {
                   {data.activeDonors}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Aktif bulan ini
-                </p>
+                  {tr("Aktif bulan ini")}</p>
               </div>
               <div className="flex-1 rounded-md bg-amber-50 p-3 text-center">
                 <p className="text-2xl font-bold text-amber-700">
                   {data.passiveDonors.length}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Belum transfer
-                </p>
+                  {tr("Belum transfer")}</p>
               </div>
             </div>
 
             {data.passiveDonors.length > 0 && (
               <div>
                 <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                  Kirim pengingat sapaan:
-                </p>
+                  {tr("Kirim pengingat sapaan:")}</p>
                 <ul className="flex flex-col divide-y">
                   {data.passiveDonors.map((d) => (
                     <li
@@ -133,18 +132,16 @@ export async function ProgramDonorSection() {
                       <span className="truncate">{d.name}</span>
                       {d.phone ? (
                         <a
-                          href={waLink(d.phone, d.name)}
+                          href={waLink(d.phone, d.name, locale)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex shrink-0 items-center gap-1 rounded-md bg-green-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-green-700"
                         >
                           <MessageCircle className="h-3.5 w-3.5" />
-                          Sapa via WA
-                        </a>
+                          {tr("Sapa via WA")}</a>
                       ) : (
                         <span className="shrink-0 text-xs text-muted-foreground">
-                          No. telp kosong
-                        </span>
+                          {tr("No. telp kosong")}</span>
                       )}
                     </li>
                   ))}
@@ -159,11 +156,9 @@ export async function ProgramDonorSection() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <UserPlus className="h-4 w-4 text-muted-foreground" />
-              Akuisisi Donatur Baru
-            </CardTitle>
+              {tr("Akuisisi Donatur Baru")}</CardTitle>
             <span className="text-xs text-muted-foreground">
-              Total {data.totalDonors} donatur
-            </span>
+              {tr("Total ")}{data.totalDonors} {tr(" donatur")}</span>
           </CardHeader>
           <CardContent>
             <DonorAcquisitionChart data={data.acquisition} />

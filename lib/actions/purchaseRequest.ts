@@ -1,5 +1,7 @@
 "use server";
 
+import { notificationMessage } from "@/lib/i18n/notification";
+
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
@@ -10,6 +12,9 @@ import {
 import { logAudit } from "@/lib/audit";
 import { notifyRoles } from "@/lib/notify";
 import { purchaseRequestSchema, prDecisionSchema } from "@/lib/validations";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type ActionResult =
   | { success: true; id?: string }
@@ -21,12 +26,15 @@ const FORBIDDEN_ERROR =
 export async function createPurchaseRequest(
   values: z.input<typeof purchaseRequestSchema>
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { purchaseRequestSchema } = getSchemas(locale);
+
   const session = await requireLogisticsSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const parsed = purchaseRequestSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -34,7 +42,7 @@ export async function createPurchaseRequest(
       where: { id: parsed.data.inventoryId },
       select: { id: true, itemName: true },
     });
-    if (!item) return { success: false, error: "Barang tidak ditemukan" };
+    if (!item) return { success: false, error: tr("Barang tidak ditemukan") };
 
     const pr = await prisma.purchaseRequest.create({
       data: {
@@ -59,7 +67,7 @@ export async function createPurchaseRequest(
       ["SUPER_ADMIN"],
       {
         title: "🛒 PR baru menunggu persetujuan",
-        description: `${item.itemName} ×${parsed.data.quantity} diajukan oleh ${session.user.name}`,
+        description: notificationMessage("{0} ×{1} diajukan oleh {2}", { 0: item.itemName, 1: parsed.data.quantity, 2: session.user.name }),
         link: `/dashboard/inventory/purchase-requests/${pr.id}`,
       },
       session.user.id
@@ -69,7 +77,7 @@ export async function createPurchaseRequest(
     return { success: true, id: pr.id };
   } catch (error) {
     console.error("createPurchaseRequest error:", error);
-    return { success: false, error: "Gagal membuat purchase request" };
+    return { success: false, error: tr("Gagal membuat purchase request") };
   }
 }
 
@@ -77,17 +85,20 @@ export async function createPurchaseRequest(
 export async function decidePurchaseRequest(
   values: z.input<typeof prDecisionSchema>
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { prDecisionSchema } = getSchemas(locale);
+
   const session = await requireSuperAdminSession();
   if (!session) {
     return {
       success: false,
-      error: "Hanya Super Admin yang boleh approve/reject PR",
+      error: tr("Hanya Super Admin yang boleh approve/reject PR"),
     };
   }
 
   const parsed = prDecisionSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -95,9 +106,9 @@ export async function decidePurchaseRequest(
       where: { id: parsed.data.prId },
       include: { inventory: { select: { itemName: true } } },
     });
-    if (!pr) return { success: false, error: "PR tidak ditemukan" };
+    if (!pr) return { success: false, error: tr("PR tidak ditemukan") };
     if (pr.status !== "PENDING") {
-      return { success: false, error: "PR sudah diputuskan sebelumnya" };
+      return { success: false, error: tr("PR sudah diputuskan sebelumnya") };
     }
 
     await prisma.purchaseRequest.update({
@@ -123,27 +134,29 @@ export async function decidePurchaseRequest(
     return { success: true };
   } catch (error) {
     console.error("decidePurchaseRequest error:", error);
-    return { success: false, error: "Gagal memproses keputusan PR" };
+    return { success: false, error: tr("Gagal memproses keputusan PR") };
   }
 }
 
 export async function markPurchaseRequestOrdered(
   prId: string
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+
   const session = await requireLogisticsSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const idParsed = z.string().cuid().safeParse(prId);
-  if (!idParsed.success) return { success: false, error: "ID PR tidak valid" };
+  if (!idParsed.success) return { success: false, error: tr("ID PR tidak valid") };
 
   try {
     const pr = await prisma.purchaseRequest.findUnique({
       where: { id: idParsed.data },
       select: { id: true, status: true },
     });
-    if (!pr) return { success: false, error: "PR tidak ditemukan" };
+    if (!pr) return { success: false, error: tr("PR tidak ditemukan") };
     if (pr.status !== "APPROVED") {
-      return { success: false, error: "Hanya PR yang disetujui bisa dipesan" };
+      return { success: false, error: tr("Hanya PR yang disetujui bisa dipesan") };
     }
 
     await prisma.purchaseRequest.update({
@@ -156,7 +169,7 @@ export async function markPurchaseRequestOrdered(
     return { success: true };
   } catch (error) {
     console.error("markPurchaseRequestOrdered error:", error);
-    return { success: false, error: "Gagal menandai PR dipesan" };
+    return { success: false, error: tr("Gagal menandai PR dipesan") };
   }
 }
 
@@ -167,22 +180,24 @@ export async function markPurchaseRequestOrdered(
 export async function markPurchaseRequestReceived(
   prId: string
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+
   const session = await requireLogisticsSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const idParsed = z.string().cuid().safeParse(prId);
-  if (!idParsed.success) return { success: false, error: "ID PR tidak valid" };
+  if (!idParsed.success) return { success: false, error: tr("ID PR tidak valid") };
 
   try {
     const pr = await prisma.purchaseRequest.findUnique({
       where: { id: idParsed.data },
       include: { inventory: { select: { id: true, itemName: true } } },
     });
-    if (!pr) return { success: false, error: "PR tidak ditemukan" };
+    if (!pr) return { success: false, error: tr("PR tidak ditemukan") };
     if (pr.status !== "ORDERED") {
       return {
         success: false,
-        error: "Hanya PR berstatus dipesan yang bisa diterima",
+        error: tr("Hanya PR berstatus dipesan yang bisa diterima"),
       };
     }
 
@@ -220,6 +235,6 @@ export async function markPurchaseRequestReceived(
     return { success: true };
   } catch (error) {
     console.error("markPurchaseRequestReceived error:", error);
-    return { success: false, error: "Gagal menandai PR diterima" };
+    return { success: false, error: tr("Gagal menandai PR diterima") };
   }
 }

@@ -6,10 +6,14 @@ import { PROGRAM_ICONS } from "@/components/public/program-icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Heart, Users, MapPin, Phone, Mail } from "lucide-react";
+import { getT } from "@/lib/i18n/server";
+
 
 export const dynamic = "force-dynamic";
 
 export default async function LandingPage() {
+  const { tr, locale } = await getT();
+
   const [{ identity, landing }, childrenCount, volunteersCount] =
     await Promise.all([
       getSiteSettings(),
@@ -47,8 +51,7 @@ export default async function LandingPage() {
               <Button asChild size="lg" className="h-12 px-8 text-base">
                 <Link href="/donate">
                   <Heart className="h-5 w-5" />
-                  Donasi Sekarang
-                </Link>
+                  {tr("Donasi Sekarang")}</Link>
               </Button>
               <Button
                 asChild
@@ -58,8 +61,7 @@ export default async function LandingPage() {
               >
                 <Link href="/volunteer/apply">
                   <Users className="h-5 w-5" />
-                  Jadi Relawan
-                </Link>
+                  {tr("Jadi Relawan")}</Link>
               </Button>
             </div>
           </div>
@@ -70,21 +72,20 @@ export default async function LandingPage() {
               <p className="text-2xl font-bold text-primary md:text-3xl">
                 {childrenCount}
               </p>
-              <p className="text-sm text-muted-foreground">Anak Asuh Aktif</p>
+              <p className="text-sm text-muted-foreground">{tr("Anak Asuh Aktif")}</p>
             </div>
             <div className="rounded-lg border bg-background p-4 text-center">
               <p className="text-2xl font-bold text-primary md:text-3xl">
                 {volunteersCount}
               </p>
-              <p className="text-sm text-muted-foreground">Relawan Aktif</p>
+              <p className="text-sm text-muted-foreground">{tr("Relawan Aktif")}</p>
             </div>
             <div className="col-span-2 rounded-lg border bg-background p-4 text-center md:col-span-1">
               <p className="text-2xl font-bold text-primary md:text-3xl">
                 100%
               </p>
               <p className="text-sm text-muted-foreground">
-                Donasi Transparan
-              </p>
+                {tr("Donasi Transparan")}</p>
             </div>
           </div>
         </div>
@@ -106,13 +107,13 @@ export default async function LandingPage() {
             )}
             {landing.vision && (
               <p className="mt-4 whitespace-pre-line text-muted-foreground">
-                <span className="font-semibold text-foreground">Visi:</span>{" "}
+                <span className="font-semibold text-foreground">{tr("Visi:")}</span>{" "}
                 {fill(landing.vision)}
               </p>
             )}
             {landing.mission && (
               <p className="mt-3 whitespace-pre-line text-muted-foreground">
-                <span className="font-semibold text-foreground">Misi:</span>{" "}
+                <span className="font-semibold text-foreground">{tr("Misi:")}</span>{" "}
                 {fill(landing.mission)}
               </p>
             )}
@@ -174,8 +175,7 @@ export default async function LandingPage() {
           >
             <Link href="/donate">
               <Heart className="h-5 w-5" />
-              Donasi Sekarang
-            </Link>
+              {tr("Donasi Sekarang")}</Link>
           </Button>
         </div>
       </section>
@@ -185,8 +185,7 @@ export default async function LandingPage() {
         <section id="kontak" className="bg-muted/40">
           <div className="mx-auto w-full max-w-6xl px-4 py-16 md:px-6">
             <h2 className="text-center text-2xl font-bold tracking-tight md:text-3xl">
-              Hubungi Kami
-            </h2>
+              {tr("Hubungi Kami")}</h2>
             <div className="mx-auto mt-8 flex max-w-3xl flex-col gap-6 sm:flex-row sm:justify-center sm:gap-12">
               {identity.address && (
                 <div className="flex flex-col items-center gap-2 text-center">

@@ -1,5 +1,7 @@
 import type {
   ProgramField,
+  ProgramFundingSource,
+  ProgramExpenseSource,
   ProgramStatus,
   LeftoverRule,
   DonorCategory,
@@ -11,6 +13,9 @@ import type {
   ExpenseCoa,
   ApprovalStatus,
 } from "@prisma/client";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+
 
 function toOptions<T extends string>(labels: Record<T, string>) {
   return (Object.entries(labels) as [T, string][]).map(([value, label]) => ({
@@ -28,6 +33,21 @@ export const programFieldLabel: Record<ProgramField, string> = {
   KEAGAMAAN: "Keagamaan",
 };
 export const programFieldOptions = toOptions(programFieldLabel);
+
+export const programFundingSourceLabel: Record<ProgramFundingSource, string> = {
+  PENGGALANGAN: "Penggalangan Dana",
+  INTERNAL: "Dana Internal",
+  CAMPURAN: "Campuran",
+};
+export const programFundingSourceOptions = toOptions(programFundingSourceLabel);
+
+export function expenseFundingSourceLabel(expense: {
+  programId: string | null;
+  sumberDana: ProgramExpenseSource | null;
+}): string {
+  if (expense.sumberDana) return programFundingSourceLabel[expense.sumberDana];
+  return expense.programId ? "Belum tercatat (data lama)" : "Dana Tidak Terikat";
+}
 
 export const programStatusLabel: Record<ProgramStatus, string> = {
   DRAFT: "Draft",
@@ -159,8 +179,10 @@ export const approvalClass: Record<ApprovalStatus, string> = {
 };
 
 // ---------- Util ----------
-export function formatRupiah(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
+export function formatRupiah(value: number, locale: Locale = "id"): string {
+  const tr = createTranslator(locale);
+
+  return new Intl.NumberFormat((locale === "en" ? "en-US" : "id-ID"), {
     style: "currency",
     currency: "IDR",
     maximumFractionDigits: 0,

@@ -9,6 +9,8 @@ import {
 } from "@react-pdf/renderer";
 import { numberToWords, formatRupiah } from "@/lib/utils";
 import type { ReceiptYayasan } from "@/lib/site-settings";
+import { createTranslator } from "@/lib/i18n/translate";
+import { intlTags, type Locale } from "@/lib/i18n/config";
 
 export type ReceiptItem = {
   itemName: string;
@@ -200,20 +202,21 @@ const styles = StyleSheet.create({
   },
 });
 
-function formatDateId(date: Date): string {
-  return new Intl.DateTimeFormat("id-ID", {
+function formatDateId(date: Date, locale: Locale): string {
+  return new Intl.DateTimeFormat(intlTags[locale], {
     day: "numeric",
     month: "long",
     year: "numeric",
   }).format(date);
 }
 
-export function ReceiptPdf({ data }: { data: ReceiptData }) {
+export function ReceiptPdf({ data, locale = "id" }: { data: ReceiptData; locale?: Locale }) {
+  const tr = createTranslator(locale);
   const isInKind = data.type === "IN_KIND";
   const { yayasan } = data;
   const contactLine = [
     yayasan.address,
-    yayasan.phone && `Telp. ${yayasan.phone}`,
+    yayasan.phone && `${tr("Telp.")} ${yayasan.phone}`,
     yayasan.email,
   ]
     .filter(Boolean)
@@ -221,7 +224,7 @@ export function ReceiptPdf({ data }: { data: ReceiptData }) {
 
   return (
     <Document
-      title={`Kwitansi ${data.receiptNumber}`}
+      title={`${tr("Kwitansi")} ${data.receiptNumber}`}
       author={yayasan.name}
     >
       {/* A5 landscape: ukuran kwitansi umum, hemat kertas */}
@@ -241,20 +244,20 @@ export function ReceiptPdf({ data }: { data: ReceiptData }) {
             )}
             <View>
               <Text style={styles.yayasanName}>{yayasan.name}</Text>
-              {contactLine && (
+              {contactLine.length > 0 && (
                 <Text style={styles.yayasanAddress}>{contactLine}</Text>
               )}
             </View>
           </View>
           <View style={styles.receiptTitleBox}>
-            <Text style={styles.receiptTitle}>KWITANSI</Text>
+            <Text style={styles.receiptTitle}>{tr("KWITANSI")}</Text>
             <Text style={styles.receiptNumber}>No: {data.receiptNumber}</Text>
           </View>
         </View>
 
         {/* Body */}
         <View style={styles.row}>
-          <Text style={styles.label}>Telah terima dari</Text>
+          <Text style={styles.label}>{tr("Telah terima dari")}</Text>
           <Text style={styles.colon}>:</Text>
           <Text style={styles.value}>
             {data.donaturName}
@@ -266,7 +269,7 @@ export function ReceiptPdf({ data }: { data: ReceiptData }) {
           {isInKind && data.items && data.items.length > 0 ? (
             <>
               <Text style={{ color: "#6b7280", fontSize: 8, marginBottom: 3 }}>
-                Rincian donasi barang
+                {tr("Rincian donasi barang")}
               </Text>
               {data.items.map((item, index) => (
                 <Text
@@ -280,36 +283,36 @@ export function ReceiptPdf({ data }: { data: ReceiptData }) {
           ) : (
             <>
               <Text style={{ color: "#6b7280", fontSize: 8, marginBottom: 2 }}>
-                {isInKind ? "Nilai taksiran donasi barang" : "Uang sejumlah"}
+                {tr(isInKind ? "Nilai taksiran donasi barang" : "Uang sejumlah")}
               </Text>
-              <Text style={styles.amountValue}>{formatRupiah(data.amount)}</Text>
+              <Text style={styles.amountValue}>{formatRupiah(data.amount, locale)}</Text>
               <Text style={styles.amountWords}>
-                Terbilang: {numberToWords(data.amount)}
+                {tr("Terbilang:")} {numberToWords(data.amount, locale)}
               </Text>
             </>
           )}
         </View>
 
         <View style={styles.row}>
-          <Text style={styles.label}>Untuk</Text>
+          <Text style={styles.label}>{tr("Untuk")}</Text>
           <Text style={styles.colon}>:</Text>
           <Text style={styles.value}>
-            {data.purpose || "Donasi operasional panti asuhan"}
+            {data.purpose || tr("Donasi operasional panti asuhan")}
           </Text>
         </View>
 
         {data.categoryLabel && (
           <View style={styles.row}>
-            <Text style={styles.label}>Kategori Dana</Text>
+            <Text style={styles.label}>{tr("Kategori Dana")}</Text>
             <Text style={styles.colon}>:</Text>
-            <Text style={styles.value}>{data.categoryLabel}</Text>
+            <Text style={styles.value}>{tr(data.categoryLabel)}</Text>
           </View>
         )}
 
         <View style={styles.row}>
-          <Text style={styles.label}>Metode</Text>
+          <Text style={styles.label}>{tr("Metode")}</Text>
           <Text style={styles.colon}>:</Text>
-          <Text style={styles.value}>{typeLabel[data.type]}</Text>
+          <Text style={styles.value}>{tr(typeLabel[data.type])}</Text>
         </View>
 
         {/* Footer: QR verifikasi + tanda tangan donatur & yayasan */}
@@ -317,7 +320,7 @@ export function ReceiptPdf({ data }: { data: ReceiptData }) {
           <View style={styles.qrBox}>
             {/* eslint-disable-next-line jsx-a11y/alt-text */}
             <Image style={styles.qrImage} src={data.qrCodeDataUrl} />
-            <Text style={styles.qrCaption}>Scan untuk verifikasi kwitansi</Text>
+            <Text style={styles.qrCaption}>{tr("Scan untuk verifikasi kwitansi")}</Text>
           </View>
 
           {/* Tanda tangan donatur */}
@@ -325,31 +328,30 @@ export function ReceiptPdf({ data }: { data: ReceiptData }) {
             <Text style={styles.signatureDate}> </Text>
             <View style={styles.signaturePlaceholder}>
               <Text style={styles.signaturePlaceholderText}>
-                Tanda Tangan Donatur
+                {tr("Tanda Tangan Donatur")}
               </Text>
             </View>
             <Text style={styles.signatureName}>{data.donaturName}</Text>
-            <Text style={styles.signatureRole}>Donatur</Text>
+            <Text style={styles.signatureRole}>{tr("Donatur")}</Text>
           </View>
 
           <View style={styles.signatureBox}>
             <Text style={styles.signatureDate}>
-              {formatDateId(data.date)}
+              {formatDateId(data.date, locale)}
             </Text>
             {/* Placeholder tanda tangan (gambar asli di Phase 6) */}
             <View style={styles.signaturePlaceholder}>
               <Text style={styles.signaturePlaceholderText}>
-                Tanda Tangan & Stempel
+                {tr("Tanda Tangan & Stempel")}
               </Text>
             </View>
-            <Text style={styles.signatureName}>Bendahara Yayasan</Text>
+            <Text style={styles.signatureName}>{tr("Bendahara Yayasan")}</Text>
             <Text style={styles.signatureRole}>{yayasan.name}</Text>
           </View>
         </View>
 
         <Text style={styles.thanksNote}>
-          Terima kasih atas kepercayaan dan kebaikan Anda. Kwitansi ini sah
-          dibuat secara elektronik oleh sistem KanakaOS.
+          {tr("Terima kasih atas kepercayaan dan kebaikan Anda. Kwitansi ini sah dibuat secara elektronik oleh sistem KanakaOS.")}
         </Text>
       </Page>
     </Document>

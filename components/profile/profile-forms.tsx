@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useI18n } from "@/lib/i18n/client";
+
 
 export function ProfileForm({
   user,
@@ -29,6 +31,8 @@ export function ProfileForm({
     roleLabel: string;
   };
 }) {
+  const { tr, locale } = useI18n();
+
   const router = useRouter();
   const photoRef = useRef<HTMLInputElement>(null);
   const [phone, setPhone] = useState(user.phone ?? "");
@@ -44,9 +48,9 @@ export function ProfileForm({
       const result = await updateProfile(formData);
       if (result.success) {
         if (result.warning) {
-          toast.warning("Profil tersimpan", { description: result.warning });
+          toast.warning(tr("Profil tersimpan"), { description: result.warning });
         } else {
-          toast.success("Profil berhasil diperbarui");
+          toast.success(tr("Profil berhasil diperbarui"));
         }
         if (photoRef.current) photoRef.current.value = "";
         router.refresh();
@@ -59,11 +63,9 @@ export function ProfileForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Data Profil</CardTitle>
+        <CardTitle className="text-lg">{tr("Data Profil")}</CardTitle>
         <CardDescription>
-          Nama & email dikelola oleh Super Admin. Anda bisa mengubah nomor HP
-          dan foto profil.
-        </CardDescription>
+          {tr("Nama & email dikelola oleh Super Admin. Anda bisa mengubah nomor HP dan foto profil.")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="flex items-center gap-4">
@@ -88,28 +90,28 @@ export function ProfileForm({
 
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="profile-name">Nama</Label>
+            <Label htmlFor="profile-name">{tr("Nama")}</Label>
             <Input id="profile-name" value={user.name} disabled readOnly />
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="profile-email">Email</Label>
+            <Label htmlFor="profile-email">{tr("Email")}</Label>
             <Input id="profile-email" value={user.email} disabled readOnly />
           </div>
         </div>
 
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="profile-phone">Nomor HP</Label>
+            <Label htmlFor="profile-phone">{tr("Nomor HP")}</Label>
             <Input
               id="profile-phone"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="08xxxxxxxxxx"
+              placeholder={tr("08xxxxxxxxxx")}
               inputMode="tel"
             />
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="profile-photo">Foto Profil (maks 3MB)</Label>
+            <Label htmlFor="profile-photo">{tr("Foto Profil (maks 3MB)")}</Label>
             <Input
               id="profile-photo"
               ref={photoRef}
@@ -129,13 +131,11 @@ export function ProfileForm({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menyimpan...
-              </>
+                {tr("Menyimpan...")}</>
             ) : (
               <>
                 <Save className="h-4 w-4" />
-                Simpan Perubahan
-              </>
+                {tr("Simpan Perubahan")}</>
             )}
           </Button>
         </div>
@@ -145,6 +145,8 @@ export function ProfileForm({
 }
 
 export function ChangePasswordForm() {
+  const { tr, locale } = useI18n();
+
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -158,7 +160,7 @@ export function ChangePasswordForm() {
         confirmPassword,
       });
       if (result.success) {
-        toast.success("Password berhasil diganti");
+        toast.success(tr("Password berhasil diganti"));
         setOldPassword("");
         setNewPassword("");
         setConfirmPassword("");
@@ -173,12 +175,11 @@ export function ChangePasswordForm() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
           <KeyRound className="h-5 w-5 text-muted-foreground" />
-          Ubah Password
-        </CardTitle>
+          {tr("Ubah Password")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="space-y-2">
-          <Label htmlFor="old-password">Password Lama</Label>
+          <Label htmlFor="old-password">{tr("Password Lama")}</Label>
           <Input
             id="old-password"
             type="password"
@@ -189,18 +190,18 @@ export function ChangePasswordForm() {
         </div>
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="new-password">Password Baru</Label>
+            <Label htmlFor="new-password">{tr("Password Baru")}</Label>
             <Input
               id="new-password"
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Minimal 8 karakter"
+              placeholder={tr("Minimal 8 karakter")}
               autoComplete="new-password"
             />
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="confirm-password">Konfirmasi Password Baru</Label>
+            <Label htmlFor="confirm-password">{tr("Konfirmasi Password Baru")}</Label>
             <Input
               id="confirm-password"
               type="password"
@@ -212,8 +213,7 @@ export function ChangePasswordForm() {
         </div>
         {confirmPassword.length > 0 && newPassword !== confirmPassword && (
           <p className="text-xs text-destructive">
-            Konfirmasi password tidak sama.
-          </p>
+            {tr("Konfirmasi password tidak sama.")}</p>
         )}
         <div className="flex justify-end">
           <Button
@@ -230,10 +230,9 @@ export function ChangePasswordForm() {
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Mengganti...
-              </>
+                {tr("Mengganti...")}</>
             ) : (
-              "Ganti Password"
+              tr("Ganti Password")
             )}
           </Button>
         </div>

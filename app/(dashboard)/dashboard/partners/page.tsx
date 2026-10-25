@@ -15,15 +15,13 @@ import { AlertTriangle } from "lucide-react";
 import { PartnerType } from "@prisma/client";
 import { PartnerForm } from "@/components/partners/partner-form";
 import { DeletePartnerButton } from "@/components/partners/delete-partner-button";
+import { getT } from "@/lib/i18n/server";
+import { PARTNER_LABELS } from "@/lib/option-catalogs";
+
 
 export const dynamic = "force-dynamic";
 
-const typeLabel: Record<PartnerType, string> = {
-  RS: "Rumah Sakit",
-  SEKOLAH: "Sekolah",
-  POLISI: "Kepolisian",
-  CSR: "CSR Perusahaan",
-};
+const typeLabel: Record<PartnerType, string> = PARTNER_LABELS;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MOU_WARNING_DAYS = 30;
@@ -39,14 +37,16 @@ function getMouStatus(mouExpiryDate: Date | null): MouStatus {
   return "OK";
 }
 
-function MouBadge({ mouExpiryDate }: { mouExpiryDate: Date | null }) {
+async function MouBadge({ mouExpiryDate }: { mouExpiryDate: Date | null }) {
+  const { tr, locale } = await getT();
+
   const status = getMouStatus(mouExpiryDate);
 
   if (status === "NONE") {
     return <span className="text-sm text-muted-foreground">-</span>;
   }
 
-  const formatted = new Intl.DateTimeFormat("id-ID", {
+  const formatted = new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), {
     dateStyle: "medium",
   }).format(mouExpiryDate!);
 
@@ -56,8 +56,7 @@ function MouBadge({ mouExpiryDate }: { mouExpiryDate: Date | null }) {
         <span className="text-sm">{formatted}</span>
         <Badge variant="destructive" className="w-fit gap-1">
           <AlertTriangle className="h-3 w-3" />
-          MoU Kedaluwarsa
-        </Badge>
+          {tr("MoU Kedaluwarsa")}</Badge>
       </div>
     );
   }
@@ -68,8 +67,7 @@ function MouBadge({ mouExpiryDate }: { mouExpiryDate: Date | null }) {
         <span className="text-sm">{formatted}</span>
         <Badge variant="destructive" className="w-fit gap-1">
           <AlertTriangle className="h-3 w-3" />
-          MoU Segera Habis
-        </Badge>
+          {tr("MoU Segera Habis")}</Badge>
       </div>
     );
   }
@@ -78,6 +76,8 @@ function MouBadge({ mouExpiryDate }: { mouExpiryDate: Date | null }) {
 }
 
 export default async function PartnersPage() {
+  const { tr, locale } = await getT();
+
   // Proteksi role lapis kedua (lapis pertama di middleware)
   const session = await requireStaffSession();
   if (!session) {
@@ -91,10 +91,9 @@ export default async function PartnersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Mitra Eksternal</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{tr("Mitra Eksternal")}</h2>
         <p className="text-sm text-muted-foreground">
-          Rumah sakit, sekolah, kepolisian, dan mitra CSR beserta status MoU.
-        </p>
+          {tr("Rumah sakit, sekolah, kepolisian, dan mitra CSR beserta status MoU.")}</p>
       </div>
 
       <PartnerForm />
@@ -102,8 +101,7 @@ export default async function PartnersPage() {
       {partners.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Belum ada mitra terdaftar.
-          </CardContent>
+            {tr("Belum ada mitra terdaftar.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -116,7 +114,7 @@ export default async function PartnersPage() {
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{partner.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {typeLabel[partner.type]}
+                        {tr(typeLabel[partner.type])}
                       </p>
                     </div>
                     <DeletePartnerButton
@@ -144,12 +142,12 @@ export default async function PartnersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nama Mitra</TableHead>
-                  <TableHead>Jenis</TableHead>
+                  <TableHead>{tr("Nama Mitra")}</TableHead>
+                  <TableHead>{tr("Jenis")}</TableHead>
                   <TableHead>PIC</TableHead>
-                  <TableHead>Kontak PIC</TableHead>
-                  <TableHead>MoU Berlaku Sampai</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{tr("Kontak PIC")}</TableHead>
+                  <TableHead>{tr("MoU Berlaku Sampai")}</TableHead>
+                  <TableHead className="text-right">{tr("Aksi")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -158,7 +156,7 @@ export default async function PartnersPage() {
                     <TableCell className="font-medium">
                       {partner.name}
                     </TableCell>
-                    <TableCell>{typeLabel[partner.type]}</TableCell>
+                    <TableCell>{tr(typeLabel[partner.type])}</TableCell>
                     <TableCell>{partner.picName ?? "-"}</TableCell>
                     <TableCell>{partner.picPhone ?? "-"}</TableCell>
                     <TableCell>

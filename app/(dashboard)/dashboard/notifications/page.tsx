@@ -8,11 +8,17 @@ import {
   NotificationItem,
 } from "@/components/notifications/notification-items";
 import { NotificationDateFilter } from "@/components/notifications/notification-filter";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+
 
 export const dynamic = "force-dynamic";
 
-function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
+function formatDateTime(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
@@ -23,6 +29,8 @@ export default async function NotificationsPage({
 }: {
   searchParams: { from?: string; to?: string };
 }) {
+  const { tr, locale } = await getT();
+
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
@@ -60,10 +68,9 @@ export default async function NotificationsPage({
     <div className="mx-auto w-full max-w-2xl space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Notifikasi</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{tr("Notifikasi")}</h2>
           <p className="text-sm text-muted-foreground">
-            {unreadCount} belum dibaca.
-          </p>
+            {unreadCount} {tr(" belum dibaca.")}</p>
         </div>
         <MarkAllReadButton unreadCount={unreadCount} />
       </div>
@@ -73,8 +80,7 @@ export default async function NotificationsPage({
       {notifications.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Tidak ada notifikasi.
-          </CardContent>
+            {tr("Tidak ada notifikasi.")}</CardContent>
         </Card>
       ) : (
         <div className="flex flex-col gap-2">
@@ -87,7 +93,7 @@ export default async function NotificationsPage({
                 description: notification.description,
                 link: notification.link,
                 isRead: notification.isRead,
-                createdAtLabel: formatDateTime(notification.createdAt),
+                createdAtLabel: formatDateTime(notification.createdAt, locale),
               }}
             />
           ))}

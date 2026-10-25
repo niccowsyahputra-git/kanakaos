@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Eye, FileText, ExternalLink } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -12,11 +13,22 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useI18n } from "@/lib/i18n/client";
+import { VOLUNTEER_FIELDS, VOLUNTEER_AVAILABILITY, catalogLabel, readVolunteerSkills } from "@/lib/option-catalogs";
+import { attachmentUrl, type AttachmentSummary } from "@/lib/volunteer-upload-contract";
+
 
 type VolunteerDetail = {
   name: string;
   phone: string | null;
   skill: string | null;
+  skillsJson: string | null;
+  highestEducation: string | null;
+  major: string | null;
+  attachments: AttachmentSummary[];
+  status: string;
+  hasSafeguardingCert: boolean;
+  redFlagNotes: string | null;
   email: string | null;
   dobLabel: string | null;
   address: string | null;
@@ -36,9 +48,11 @@ function DetailRow({
   label: string;
   value: string | null;
 }) {
+  const { tr, locale } = useI18n();
+
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
-      <dt className="shrink-0 text-muted-foreground">{label}</dt>
+      <dt className="shrink-0 text-muted-foreground">{tr(label)}</dt>
       <dd className="font-medium sm:text-right">{value ?? "-"}</dd>
     </div>
   );
@@ -49,6 +63,8 @@ export function VolunteerDetailDialog({
 }: {
   volunteer: VolunteerDetail;
 }) {
+  const { tr, locale } = useI18n();
+
   const [open, setOpen] = useState(false);
 
   return (
@@ -58,36 +74,43 @@ export function VolunteerDetailDialog({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
-          title="Lihat detail pendaftaran"
+          title={tr("Lihat detail pendaftaran")}
         >
           <Eye className="h-4 w-4" />
-          <span className="sr-only">Detail {volunteer.name}</span>
+          <span className="sr-only">{tr("Detail ")}{volunteer.name}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{volunteer.name}</DialogTitle>
           <DialogDescription>
-            Mendaftar {volunteer.createdAtLabel}
+            {tr("Mendaftar ")}{volunteer.createdAtLabel}
           </DialogDescription>
         </DialogHeader>
 
+        {volunteer.attachments.filter(a => a.kind === "PHOTO").map(photo => <Image key={photo.id} src={attachmentUrl(photo.id)} alt={tr("Foto relawan")} width={160} height={160} unoptimized className="h-40 w-40 rounded-lg object-cover" />)}
         <dl className="space-y-2 text-sm">
-          <DetailRow label="Email" value={volunteer.email} />
-          <DetailRow label="No. HP" value={volunteer.phone} />
-          <DetailRow label="Tanggal Lahir" value={volunteer.dobLabel} />
-          <DetailRow label="Pekerjaan" value={volunteer.occupation} />
-          <DetailRow label="Alamat" value={volunteer.address} />
-          <DetailRow label="Keahlian" value={volunteer.skill} />
-          <DetailRow label="Ketersediaan" value={volunteer.availability} />
-          <DetailRow label="Kebutuhan Relawan" value={volunteer.needTitle} />
+          <DetailRow label={tr("Email")} value={volunteer.email} />
+          <DetailRow label={tr("No. HP")} value={volunteer.phone} />
+          <DetailRow label={tr("Tanggal Lahir")} value={volunteer.dobLabel} />
+          <DetailRow label={tr("Pekerjaan")} value={volunteer.occupation} />
+          <DetailRow label={tr("Alamat")} value={volunteer.address} />
+          <DetailRow label={tr("Keahlian")} value={readVolunteerSkills(volunteer.skillsJson).map(code => tr(VOLUNTEER_FIELDS[code])).join(", ") || null} />
+          {volunteer.skill && <DetailRow label={tr("Keahlian data lama")} value={volunteer.skill} />}
+          <DetailRow label={tr("Pendidikan Terakhir")} value={volunteer.highestEducation ? tr(volunteer.highestEducation) : null} />
+          <DetailRow label={tr("Jurusan")} value={volunteer.major} />
+          <DetailRow label={tr("Status")} value={tr(({ PENDING: "Pending", APPROVED: "Approved", REJECTED: "Rejected", SUSPENDED: "Suspended" } as Record<string, string>)[volunteer.status] ?? volunteer.status)} />
+          <DetailRow label={tr("Safeguarding")} value={tr(volunteer.hasSafeguardingCert ? "Sudah diverifikasi" : "Belum diverifikasi")} />
+          <DetailRow label={tr("Ketersediaan")} value={volunteer.availability?.split(", ").map(value => catalogLabel(value, VOLUNTEER_AVAILABILITY, tr)).join(", ") ?? null} />
+          <DetailRow label={tr("Kebutuhan Relawan")} value={volunteer.needTitle} />
         </dl>
 
+        {volunteer.redFlagNotes && <p className="whitespace-pre-line rounded border border-destructive p-3 text-sm text-destructive">{volunteer.redFlagNotes}</p>}
+        {volunteer.attachments.some(a => a.kind === "CERTIFICATE") && <section className="space-y-2"><h3 className="text-sm font-semibold">{tr("Sertifikat")}</h3>{volunteer.attachments.filter(a => a.kind === "CERTIFICATE").map(a => <a key={a.id} href={attachmentUrl(a.id)} target="_blank" rel="noreferrer" className="block break-all text-sm underline">{a.filename}</a>)}</section>}
         {volunteer.motivation && (
           <div className="rounded-lg border bg-muted/40 p-3">
             <p className="mb-1 text-xs font-semibold text-muted-foreground">
-              Motivasi
-            </p>
+              {tr("Motivasi")}</p>
             <p className="whitespace-pre-line text-sm">
               {volunteer.motivation}
             </p>
@@ -96,8 +119,7 @@ export function VolunteerDetailDialog({
 
         <div className="flex flex-col gap-2">
           <p className="text-xs font-semibold text-muted-foreground">
-            Dokumen Screening
-          </p>
+            {tr("Dokumen Screening")}</p>
           <div className="flex flex-col gap-2 sm:flex-row">
             {volunteer.ktpUrl ? (
               <Button asChild variant="outline" size="sm" className="gap-1">
@@ -113,8 +135,7 @@ export function VolunteerDetailDialog({
               </Button>
             ) : (
               <span className="text-sm text-muted-foreground">
-                KTP: belum di-upload
-              </span>
+                {tr("KTP: belum di-upload")}</span>
             )}
             {volunteer.skckUrl ? (
               <Button asChild variant="outline" size="sm" className="gap-1">
@@ -130,8 +151,7 @@ export function VolunteerDetailDialog({
               </Button>
             ) : (
               <span className="text-sm text-muted-foreground">
-                SKCK: belum di-upload
-              </span>
+                {tr("SKCK: belum di-upload")}</span>
             )}
           </div>
         </div>

@@ -9,6 +9,9 @@ import {
   uploadFileToCloudinary,
   isCloudinaryConfigured,
 } from "@/lib/cloudinary";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type ActionResult =
   | { success: true; id?: string; warning?: string }
@@ -157,11 +160,13 @@ async function uploadDocument(
   file: File,
   label: string
 ): Promise<{ url?: string; error?: string; needsStorage?: boolean }> {
+  const { tr, locale } = await getT();
+
   if (!ALLOWED_DOC_TYPES.includes(file.type)) {
-    return { error: `${label} harus berformat PDF, PNG, atau JPG` };
+    return { error: tr(`${label} harus berformat PDF, PNG, atau JPG`) };
   }
   if (file.size > MAX_DOC_SIZE) {
-    return { error: `Ukuran ${label} maksimal 2MB` };
+    return { error: tr(`Ukuran ${label} maksimal 2MB`) };
   }
   if (!isCloudinaryConfigured()) {
     return { needsStorage: true };
@@ -177,7 +182,7 @@ async function uploadDocument(
     return { url };
   } catch (error) {
     console.error(`uploadDocument ${label} error:`, error);
-    return { error: `Gagal meng-upload ${label}` };
+    return { error: tr(`Gagal meng-upload ${label}`) };
   }
 }
 
@@ -188,6 +193,8 @@ async function processDocuments(
   | { ok: true; urls: Record<string, string>; needsStorage: boolean }
   | { ok: false; error: string }
 > {
+  const { tr, locale } = await getT();
+
   const urls: Record<string, string> = {};
   let needsStorage = false;
 
@@ -195,7 +202,7 @@ async function processDocuments(
     const file = formData.get(doc.field);
     if (!(file instanceof File) || file.size === 0) continue;
     const result = await uploadDocument(file, doc.label);
-    if (result.error) return { ok: false, error: result.error };
+    if (result.error) return { ok: false, error: tr(result.error) };
     if (result.needsStorage) needsStorage = true;
     if (result.url) urls[doc.column] = result.url;
   }
@@ -204,14 +211,16 @@ async function processDocuments(
 }
 
 export async function createChild(formData: FormData): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+
   const session = await auth();
   if (!session?.user) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const parsed = parseChildForm(formData);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   const warnings: string[] = [];
@@ -221,13 +230,13 @@ export async function createChild(formData: FormData): Promise<ActionResult> {
   let photoUrl: string | null = null;
   if (photo instanceof File && photo.size > 0) {
     if (!ALLOWED_PHOTO_TYPES.includes(photo.type)) {
-      return { success: false, error: "Format foto harus JPG, PNG, atau WebP" };
+      return { success: false, error: tr("Format foto harus JPG, PNG, atau WebP") };
     }
     if (photo.size > MAX_PHOTO_SIZE) {
-      return { success: false, error: "Ukuran foto maksimal 5MB" };
+      return { success: false, error: tr("Ukuran foto maksimal 5MB") };
     }
     if (!isCloudinaryConfigured()) {
-      warnings.push("Foto belum tersimpan (storage belum aktif)");
+      warnings.push(tr("Foto belum tersimpan (storage belum aktif)"));
     } else {
       try {
         photoUrl = await uploadFileToCloudinary(
@@ -238,7 +247,7 @@ export async function createChild(formData: FormData): Promise<ActionResult> {
         console.error("createChild upload photo error:", error);
         return {
           success: false,
-          error: "Gagal meng-upload foto. Coba lagi atau simpan tanpa foto",
+          error: tr("Gagal meng-upload foto. Coba lagi atau simpan tanpa foto"),
         };
       }
     }
@@ -246,14 +255,14 @@ export async function createChild(formData: FormData): Promise<ActionResult> {
 
   // --- Dokumen pendukung (opsional) ---
   const docs = await processDocuments(formData);
-  if (!docs.ok) return { success: false, error: docs.error };
+  if (!docs.ok) return { success: false, error: tr(docs.error) };
   if (docs.needsStorage) {
-    warnings.push("Sebagian dokumen belum tersimpan (storage belum aktif)");
+    warnings.push(tr("Sebagian dokumen belum tersimpan (storage belum aktif)"));
   }
 
   // --- Saudara kandung ---
   const sib = parseSiblings(formData);
-  if (!sib.ok) return { success: false, error: sib.error };
+  if (!sib.ok) return { success: false, error: tr(sib.error) };
 
   try {
     if (parsed.data.guardianId) {
@@ -261,7 +270,7 @@ export async function createChild(formData: FormData): Promise<ActionResult> {
         where: { id: parsed.data.guardianId },
         select: { id: true },
       });
-      if (!guardian) return { success: false, error: "Wali tidak ditemukan" };
+      if (!guardian) return { success: false, error: tr("Wali tidak ditemukan") };
     }
 
     const child = await prisma.child.create({
@@ -284,11 +293,11 @@ export async function createChild(formData: FormData): Promise<ActionResult> {
     return {
       success: true,
       id: child.id,
-      warning: warnings.length ? warnings.join(". ") : undefined,
+      warning: warnings.length ? warnings.map(message => tr(message)).join(". ") : undefined
     };
   } catch (error) {
     console.error("createChild error:", error);
-    return { success: false, error: "Gagal menyimpan data anak" };
+    return { success: false, error: tr("Gagal menyimpan data anak") };
   }
 }
 
@@ -296,19 +305,21 @@ export async function updateChild(
   id: string,
   formData: FormData
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+
   const session = await auth();
   if (!session?.user) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const idParsed = z.string().cuid().safeParse(id);
   if (!idParsed.success) {
-    return { success: false, error: "ID anak tidak valid" };
+    return { success: false, error: tr("ID anak tidak valid") };
   }
 
   const parsed = parseChildForm(formData);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   const warnings: string[] = [];
@@ -318,13 +329,13 @@ export async function updateChild(
   const photo = formData.get("photo");
   if (photo instanceof File && photo.size > 0) {
     if (!ALLOWED_PHOTO_TYPES.includes(photo.type)) {
-      return { success: false, error: "Format foto harus JPG, PNG, atau WebP" };
+      return { success: false, error: tr("Format foto harus JPG, PNG, atau WebP") };
     }
     if (photo.size > MAX_PHOTO_SIZE) {
-      return { success: false, error: "Ukuran foto maksimal 5MB" };
+      return { success: false, error: tr("Ukuran foto maksimal 5MB") };
     }
     if (!isCloudinaryConfigured()) {
-      warnings.push("Foto baru belum tersimpan (storage belum aktif)");
+      warnings.push(tr("Foto baru belum tersimpan (storage belum aktif)"));
     } else {
       try {
         newPhotoUrl = await uploadFileToCloudinary(
@@ -333,21 +344,21 @@ export async function updateChild(
         );
       } catch (error) {
         console.error("updateChild upload photo error:", error);
-        return { success: false, error: "Gagal meng-upload foto baru" };
+        return { success: false, error: tr("Gagal meng-upload foto baru") };
       }
     }
   }
 
   // --- Dokumen: hanya slot yang diunggah ulang yang diperbarui ---
   const docs = await processDocuments(formData);
-  if (!docs.ok) return { success: false, error: docs.error };
+  if (!docs.ok) return { success: false, error: tr(docs.error) };
   if (docs.needsStorage) {
-    warnings.push("Sebagian dokumen baru belum tersimpan (storage belum aktif)");
+    warnings.push(tr("Sebagian dokumen baru belum tersimpan (storage belum aktif)"));
   }
 
   // --- Saudara kandung (strategi ganti-total agar konsisten dgn form) ---
   const sib = parseSiblings(formData);
-  if (!sib.ok) return { success: false, error: sib.error };
+  if (!sib.ok) return { success: false, error: tr(sib.error) };
 
   try {
     const existing = await prisma.child.findUnique({
@@ -355,7 +366,7 @@ export async function updateChild(
       select: { id: true },
     });
     if (!existing) {
-      return { success: false, error: "Data anak tidak ditemukan" };
+      return { success: false, error: tr("Data anak tidak ditemukan") };
     }
 
     if (parsed.data.guardianId) {
@@ -363,7 +374,7 @@ export async function updateChild(
         where: { id: parsed.data.guardianId },
         select: { id: true },
       });
-      if (!guardian) return { success: false, error: "Wali tidak ditemukan" };
+      if (!guardian) return { success: false, error: tr("Wali tidak ditemukan") };
     }
 
     await prisma.child.update({
@@ -388,18 +399,20 @@ export async function updateChild(
     return {
       success: true,
       id: idParsed.data,
-      warning: warnings.length ? warnings.join(". ") : undefined,
+      warning: warnings.length ? warnings.map(message => tr(message)).join(". ") : undefined
     };
   } catch (error) {
     console.error("updateChild error:", error);
-    return { success: false, error: "Gagal memperbarui data anak" };
+    return { success: false, error: tr("Gagal memperbarui data anak") };
   }
 }
 
 export async function deleteChild(id: string): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+
   const session = await auth();
   if (!session?.user) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   // Hanya role tertentu yang boleh menghapus
@@ -407,12 +420,12 @@ export async function deleteChild(id: string): Promise<ActionResult> {
     session.user.role !== "SUPER_ADMIN" &&
     session.user.role !== "SOCIAL_WORKER"
   ) {
-    return { success: false, error: "Anda tidak punya izin menghapus data" };
+    return { success: false, error: tr("Anda tidak punya izin menghapus data") };
   }
 
   const idParsed = z.string().cuid().safeParse(id);
   if (!idParsed.success) {
-    return { success: false, error: "ID anak tidak valid" };
+    return { success: false, error: tr("ID anak tidak valid") };
   }
 
   try {
@@ -423,6 +436,6 @@ export async function deleteChild(id: string): Promise<ActionResult> {
     return { success: true };
   } catch (error) {
     console.error("deleteChild error:", error);
-    return { success: false, error: "Gagal menghapus data anak" };
+    return { success: false, error: tr("Gagal menghapus data anak") };
   }
 }

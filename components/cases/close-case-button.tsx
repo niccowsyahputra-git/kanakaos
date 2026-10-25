@@ -17,8 +17,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useI18n } from "@/lib/i18n/client";
+
 
 export function CloseCaseButton({ caseId }: { caseId: string }) {
+  const { tr, locale } = useI18n();
+
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -27,7 +31,7 @@ export function CloseCaseButton({ caseId }: { caseId: string }) {
     startTransition(async () => {
       const result = await closeCase({ caseId, closeReason: reason });
       if (result.success) {
-        toast.success("Kasus ditutup");
+        toast.success(tr("Kasus ditutup"));
         setOpen(false);
       } else {
         toast.error(result.error);
@@ -40,24 +44,21 @@ export function CloseCaseButton({ caseId }: { caseId: string }) {
       <DialogTrigger asChild>
         <Button variant="outline" className="w-full text-destructive hover:text-destructive sm:w-auto">
           <Lock className="h-4 w-4" />
-          Tutup Kasus
-        </Button>
+          {tr("Tutup Kasus")}</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Tutup kasus ini?</DialogTitle>
+          <DialogTitle>{tr("Tutup kasus ini?")}</DialogTitle>
           <DialogDescription>
-            Kasus yang ditutup tidak bisa lagi ditambah intervensi/dokumen.
-            Pastikan seluruh tindak lanjut sudah selesai.
-          </DialogDescription>
+            {tr("Kasus yang ditutup tidak bisa lagi ditambah intervensi/dokumen. Pastikan seluruh tindak lanjut sudah selesai.")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <Label htmlFor="close-reason">Alasan / Resolusi Penutupan</Label>
+          <Label htmlFor="close-reason">{tr("Alasan / Resolusi Penutupan")}</Label>
           <Textarea
             id="close-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Contoh: Anak sudah mendapat penanganan medis lengkap dan kondisi stabil (min. 10 karakter)..."
+            placeholder={tr("Contoh: Anak sudah mendapat penanganan medis lengkap dan kondisi stabil (min. 10 karakter)...")}
             rows={4}
           />
         </div>
@@ -67,8 +68,7 @@ export function CloseCaseButton({ caseId }: { caseId: string }) {
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             variant="destructive"
             onClick={handleClose}
@@ -77,10 +77,9 @@ export function CloseCaseButton({ caseId }: { caseId: string }) {
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menutup...
-              </>
+                {tr("Menutup...")}</>
             ) : (
-              "Ya, Tutup Kasus"
+              tr("Ya, Tutup Kasus")
             )}
           </Button>
         </DialogFooter>

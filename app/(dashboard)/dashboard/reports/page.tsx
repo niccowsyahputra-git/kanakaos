@@ -14,6 +14,8 @@ import {
   type MonthlyDonationPoint,
 } from "@/components/reports/donation-chart";
 import { ReportButtons } from "@/components/reports/report-buttons";
+import { getT } from "@/lib/i18n/server";
+
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,8 @@ const MONTH_SHORT = [
 ];
 
 export default async function ReportsPage() {
+  const { tr, locale } = await getT();
+
   const session = await requireSuperAdminSession();
   if (!session) redirect("/dashboard");
 
@@ -49,33 +53,33 @@ export default async function ReportsPage() {
     monthlyTotals[donation.createdAt.getMonth()] += Number(donation.amount);
   }
   const chartData: MonthlyDonationPoint[] = MONTH_SHORT.map((month, i) => ({
-    month,
+    month: new Date(now.getFullYear(), i, 1).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", { month: "short" }),
     total: monthlyTotals[i],
   }));
 
   const stats = [
     {
-      title: "Total Anak Asuh",
+      title: tr("Total Anak Asuh"),
       value: String(totalChildren),
-      description: "Anak berstatus aktif",
+      description: tr("Anak berstatus aktif"),
       icon: Users,
     },
     {
-      title: "Total Donasi YTD",
-      value: formatRupiah(totalDonationYtd),
-      description: `${donationsYtd.length} transaksi tahun ${now.getFullYear()}`,
+      title: tr("Total Donasi YTD"),
+      value: formatRupiah(totalDonationYtd, locale),
+      description: tr("{0} transaksi tahun {1}", { "0": donationsYtd.length, "1": now.getFullYear() }),
       icon: HandCoins,
     },
     {
-      title: "Total Pengeluaran YTD",
-      value: formatRupiah(0),
-      description: "Modul keuangan menyusul di fase berikutnya",
+      title: tr("Total Pengeluaran YTD"),
+      value: formatRupiah(0, locale),
+      description: tr("Modul keuangan menyusul di fase berikutnya"),
       icon: Wallet,
     },
     {
-      title: "Relawan Aktif",
+      title: tr("Relawan Aktif"),
       value: String(activeVolunteers),
-      description: "Relawan berstatus approved",
+      description: tr("Relawan berstatus approved"),
       icon: UserCheck,
     },
   ];
@@ -83,9 +87,9 @@ export default async function ReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Laporan</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{tr("Laporan")}</h2>
         <p className="text-sm text-muted-foreground">
-          Ringkasan kinerja yayasan tahun {now.getFullYear()}.
+          {tr("Ringkasan kinerja yayasan tahun ")}{now.getFullYear()}.
         </p>
       </div>
 
@@ -118,7 +122,7 @@ export default async function ReportsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
-            Donasi Bulanan {now.getFullYear()}
+            {tr("Donasi Bulanan ")}{now.getFullYear()}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -129,7 +133,7 @@ export default async function ReportsPage() {
       {/* Generate laporan PDF */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Unduh Laporan PDF</CardTitle>
+          <CardTitle className="text-lg">{tr("Unduh Laporan PDF")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ReportButtons />

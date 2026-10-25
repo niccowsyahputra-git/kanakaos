@@ -11,6 +11,8 @@ import {
   YAxis,
 } from "recharts";
 import { formatRupiah } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/client";
+
 
 export type CashflowPoint = {
   month: string;
@@ -19,6 +21,8 @@ export type CashflowPoint = {
 };
 
 export function CashflowChart({ data }: { data: CashflowPoint[] }) {
+  const { tr, locale } = useI18n();
+
   return (
     <div className="h-64 w-full md:h-80">
       <ResponsiveContainer width="100%" height="100%">
@@ -32,20 +36,20 @@ export function CashflowChart({ data }: { data: CashflowPoint[] }) {
             width={70}
             tickFormatter={(value: number) =>
               value >= 1_000_000
-                ? `${(value / 1_000_000).toLocaleString("id-ID")}jt`
+                ? tr("{0}jt", { "0": (value / 1_000_000).toLocaleString((locale === "en" ? "en-US" : "id-ID")) })
                 : value >= 1000
-                  ? `${(value / 1000).toLocaleString("id-ID")}rb`
+                  ? tr("{0}rb", { "0": (value / 1000).toLocaleString((locale === "en" ? "en-US" : "id-ID")) })
                   : String(value)
             }
           />
           <Tooltip
             formatter={(value, name) => [
-              formatRupiah(Number(value)),
-              name === "masuk" ? "Kas Masuk" : "Kas Keluar",
+              formatRupiah(Number(value), locale),
+              name === "masuk" ? tr("Kas Masuk") : tr("Kas Keluar"),
             ]}
           />
           <Legend
-            formatter={(value) => (value === "masuk" ? "Kas Masuk" : "Kas Keluar")}
+            formatter={(value) => (value === "masuk" ? tr("Kas Masuk") : tr("Kas Keluar"))}
           />
           <Bar dataKey="masuk" fill="#16a34a" radius={[4, 4, 0, 0]} />
           <Bar dataKey="keluar" fill="#dc2626" radius={[4, 4, 0, 0]} />

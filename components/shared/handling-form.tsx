@@ -17,6 +17,9 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 const STATUS_OPTIONS = [
   { value: "BERJALAN", label: "🔄 Masih Berjalan" },
@@ -38,6 +41,9 @@ export function HandlingForm({
   initialHandling: string | null;
   initialDone: boolean;
 }) {
+  const { tr, locale } = useI18n();
+  const STATUS_OPTIONS = localizeLabels(__STATUS_OPTIONS, tr);
+
   const router = useRouter();
   const [handling, setHandling] = useState(initialHandling ?? "");
   const [status, setStatus] = useState<"BERJALAN" | "SELESAI">(
@@ -47,8 +53,8 @@ export function HandlingForm({
 
   const labels =
     entity === "incident"
-      ? { title: "Penanganan Insiden", status: "Status Insiden" }
-      : { title: "Penanganan Kasus", status: "Status Kasus" };
+      ? { title: tr("Penanganan Insiden"), status: tr("Status Insiden") }
+      : { title: tr("Penanganan Kasus"), status: tr("Status Kasus") };
 
   function handleSubmit() {
     startTransition(async () => {
@@ -62,7 +68,7 @@ export function HandlingForm({
           : await updateCaseHandling({ caseId: entityId, handling, status });
 
       if (result.success) {
-        toast.success(`${labels.title} tersimpan`);
+        toast.success(tr("{0} tersimpan", { "0": labels.title }));
         router.refresh();
       } else {
         toast.error(result.error);
@@ -85,7 +91,7 @@ export function HandlingForm({
             id={`handling-${entityId}`}
             value={handling}
             onChange={(e) => setHandling(e.target.value)}
-            placeholder="Tuliskan tindakan penanganan yang dilakukan..."
+            placeholder={tr("Tuliskan tindakan penanganan yang dilakukan...")}
             rows={3}
             maxLength={2000}
           />
@@ -107,7 +113,7 @@ export function HandlingForm({
                       : "border-primary bg-primary/10")
                 )}
               >
-                {option.label}
+                {tr(option.label)}
               </button>
             ))}
           </div>
@@ -122,13 +128,11 @@ export function HandlingForm({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menyimpan...
-              </>
+                {tr("Menyimpan...")}</>
             ) : (
               <>
                 <Save className="h-4 w-4" />
-                Simpan Penanganan
-              </>
+                {tr("Simpan Penanganan")}</>
             )}
           </Button>
         </div>
@@ -136,3 +140,5 @@ export function HandlingForm({
     </Card>
   );
 }
+
+const __STATUS_OPTIONS = STATUS_OPTIONS;

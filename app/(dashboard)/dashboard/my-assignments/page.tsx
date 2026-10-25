@@ -13,6 +13,10 @@ import {
 } from "@/components/ui/card";
 import { ClipboardPlus, History } from "lucide-react";
 import { AssignCaregiverSelect } from "@/components/assignments/assign-caregiver-select";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+
 
 export const dynamic = "force-dynamic";
 
@@ -24,20 +28,26 @@ const moodEmoji: Record<number, string> = {
   5: "😄",
 };
 
-function formatAge(dob: Date) {
+function formatAge(dob: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
   const years = Math.floor(
     (Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
   );
-  return `${years} tahun`;
+  return tr("{0} tahun", { "0": years });
 }
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(
     date
   );
 }
 
 export default async function MyAssignmentsPage() {
+  const { tr, locale } = await getT();
+
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -80,12 +90,12 @@ export default async function MyAssignmentsPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">
-          {isStaff ? "Penugasan Pengasuh" : "Anak Asuhan Saya"}
+          {isStaff ? tr("Penugasan Pengasuh") : tr("Anak Asuhan Saya")}
         </h2>
         <p className="text-sm text-muted-foreground">
           {isStaff
-            ? `Atur pengasuh penanggung jawab untuk ${children.length} anak aktif.`
-            : `${children.length} anak menjadi tanggung jawab Anda.`}
+            ? tr("Atur pengasuh penanggung jawab untuk {0} anak aktif.", { "0": children.length })
+            : tr("{0} anak menjadi tanggung jawab Anda.", { "0": children.length })}
         </p>
       </div>
 
@@ -93,8 +103,8 @@ export default async function MyAssignmentsPage() {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             {isStaff
-              ? "Belum ada anak aktif."
-              : "Belum ada anak yang ditugaskan ke Anda. Hubungi pekerja sosial."}
+              ? tr("Belum ada anak aktif.")
+              : tr("Belum ada anak yang ditugaskan ke Anda. Hubungi pekerja sosial.")}
           </CardContent>
         </Card>
       ) : (
@@ -123,8 +133,8 @@ export default async function MyAssignmentsPage() {
                         {child.fullName}
                       </CardTitle>
                       <p className="text-sm text-muted-foreground">
-                        {child.gender === "MALE" ? "Laki-laki" : "Perempuan"} ·{" "}
-                        {formatAge(child.dob)}
+                        {child.gender === "MALE" ? tr("Laki-laki") : tr("Perempuan")} ·{" "}
+                        {formatAge(child.dob, locale)}
                       </p>
                     </div>
                   </div>
@@ -134,11 +144,11 @@ export default async function MyAssignmentsPage() {
                   {lastLog ? (
                     <div className="rounded-md bg-muted/60 p-3 text-sm">
                       <p className="text-xs text-muted-foreground">
-                        Log terakhir: {formatDate(lastLog.date)}
+                        {tr("Log terakhir: ")}{formatDate(lastLog.date, locale)}
                       </p>
                       <p className="mt-1">
-                        {moodEmoji[lastLog.moodScore] ?? "😐"} Mood{" "}
-                        {lastLog.moodScore}/5 · 🍽️ Makan{" "}
+                        {moodEmoji[lastLog.moodScore] ?? "😐"} {tr(" Mood")}{" "}
+                        {lastLog.moodScore}{tr("/5 · 🍽️ Makan")}{" "}
                         {lastLog.mealPercentage}%
                       </p>
                       {lastLog.evaluationNotes && (
@@ -152,16 +162,14 @@ export default async function MyAssignmentsPage() {
                       variant="outline"
                       className="border-transparent bg-yellow-100 text-yellow-800"
                     >
-                      Belum ada log harian
-                    </Badge>
+                      {tr("Belum ada log harian")}</Badge>
                   )}
 
                   {/* Staff: atur penugasan pengasuh */}
                   {isStaff && (
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">
-                        Pengasuh penanggung jawab:
-                      </p>
+                        {tr("Pengasuh penanggung jawab:")}</p>
                       <AssignCaregiverSelect
                         childId={child.id}
                         currentCaregiverId={child.assignedCaregiver?.id ?? null}
@@ -176,8 +184,7 @@ export default async function MyAssignmentsPage() {
                         href={`/dashboard/daily-logs/new?childId=${child.id}`}
                       >
                         <ClipboardPlus className="h-4 w-4" />
-                        Input Daily Log
-                      </Link>
+                        {tr("Input Daily Log")}</Link>
                     </Button>
                     <Button
                       asChild
@@ -187,8 +194,7 @@ export default async function MyAssignmentsPage() {
                     >
                       <Link href={`/dashboard/children/${child.id}`}>
                         <History className="h-4 w-4" />
-                        Lihat Riwayat
-                      </Link>
+                        {tr("Lihat Riwayat")}</Link>
                     </Button>
                   </div>
                 </CardContent>

@@ -24,6 +24,11 @@ import {
   ScheduleMaintenanceDialog,
 } from "@/components/assets/asset-tools";
 import { MaintenanceDoneButton } from "@/components/assets/maintenance-done-button";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+import { ASSET_LOCATIONS, catalogLabel } from "@/lib/option-catalogs";
+
 
 export const dynamic = "force-dynamic";
 
@@ -47,13 +52,17 @@ const conditionClass: Record<AssetCondition, string> = {
   RUSAK: "border-transparent bg-red-100 text-red-800",
 };
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(
     date
   );
 }
 
 export default async function AssetsPage() {
+  const { tr, locale } = await getT();
+
   const session = await requireLogisticsSession();
   if (!session) redirect("/dashboard");
 
@@ -78,11 +87,11 @@ export default async function AssetsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Aset Panti</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{tr("Aset Panti")}</h2>
           <p className="text-sm text-muted-foreground">
-            {assets.length} aset · total nilai{" "}
+            {assets.length} {tr(" aset · total nilai")}{" "}
             <span className="font-semibold text-foreground">
-              {formatRupiah(totalValue)}
+              {formatRupiah(totalValue, locale)}
             </span>
           </p>
         </div>
@@ -100,8 +109,7 @@ export default async function AssetsPage() {
       {assets.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Belum ada aset terdaftar.
-          </CardContent>
+            {tr("Belum ada aset terdaftar.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -114,23 +122,23 @@ export default async function AssetsPage() {
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{asset.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {categoryLabel[asset.category]}
-                        {asset.location ? ` · ${asset.location}` : ""}
+                        {tr(categoryLabel[asset.category])}
+                        {asset.location ? ` · ${catalogLabel(asset.location, ASSET_LOCATIONS, tr)}` : ""}
                       </p>
                     </div>
                     <Badge
                       variant="outline"
                       className={conditionClass[asset.condition]}
                     >
-                      {conditionLabel[asset.condition]}
+                      {tr(conditionLabel[asset.condition])}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">
-                      Perolehan {formatDate(asset.acquisitionDate)}
+                      {tr("Perolehan ")}{formatDate(asset.acquisitionDate, locale)}
                     </span>
                     <span className="font-medium">
-                      {formatRupiah(Number(asset.value))}
+                      {formatRupiah(Number(asset.value), locale)}
                     </span>
                   </div>
                 </CardContent>
@@ -143,30 +151,30 @@ export default async function AssetsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nama Aset</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead>Tgl Perolehan</TableHead>
-                  <TableHead className="text-right">Nilai</TableHead>
-                  <TableHead>Lokasi</TableHead>
-                  <TableHead>Kondisi</TableHead>
+                  <TableHead>{tr("Nama Aset")}</TableHead>
+                  <TableHead>{tr("Kategori")}</TableHead>
+                  <TableHead>{tr("Tgl Perolehan")}</TableHead>
+                  <TableHead className="text-right">{tr("Nilai")}</TableHead>
+                  <TableHead>{tr("Lokasi")}</TableHead>
+                  <TableHead>{tr("Kondisi")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {assets.map((asset) => (
                   <TableRow key={asset.id}>
                     <TableCell className="font-medium">{asset.name}</TableCell>
-                    <TableCell>{categoryLabel[asset.category]}</TableCell>
-                    <TableCell>{formatDate(asset.acquisitionDate)}</TableCell>
+                    <TableCell>{tr(categoryLabel[asset.category])}</TableCell>
+                    <TableCell>{formatDate(asset.acquisitionDate, locale)}</TableCell>
                     <TableCell className="text-right">
-                      {formatRupiah(Number(asset.value))}
+                      {formatRupiah(Number(asset.value), locale)}
                     </TableCell>
-                    <TableCell>{asset.location ?? "-"}</TableCell>
+                    <TableCell>{catalogLabel(asset.location, ASSET_LOCATIONS, tr) ?? "-"}</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
                         className={conditionClass[asset.condition]}
                       >
-                        {conditionLabel[asset.condition]}
+                        {tr(conditionLabel[asset.condition])}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -182,14 +190,12 @@ export default async function AssetsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Wrench className="h-5 w-5 text-muted-foreground" />
-            Jadwal Maintenance
-          </CardTitle>
+            {tr("Jadwal Maintenance")}</CardTitle>
         </CardHeader>
         <CardContent>
           {upcomingMaintenances.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">
-              Tidak ada maintenance terjadwal.
-            </p>
+              {tr("Tidak ada maintenance terjadwal.")}</p>
           ) : (
             <ul className="divide-y">
               {upcomingMaintenances.map((maintenance) => {
@@ -219,8 +225,8 @@ export default async function AssetsPage() {
                             : "w-fit border-transparent bg-blue-100 text-blue-800"
                         }
                       >
-                        {isOverdue ? "Terlewat: " : ""}
-                        {formatDate(maintenance.maintenanceDate)}
+                        {isOverdue ? tr("Terlewat: ") : ""}
+                        {formatDate(maintenance.maintenanceDate, locale)}
                       </Badge>
                       <MaintenanceDoneButton
                         maintenanceId={maintenance.id}

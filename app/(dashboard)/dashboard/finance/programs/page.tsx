@@ -27,6 +27,11 @@ import {
   formatRupiah,
 } from "@/components/finance/finance-labels";
 import type { ProgramField, ProgramStatus } from "@prisma/client";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export const dynamic = "force-dynamic";
 
@@ -34,13 +39,18 @@ function toDateInput(date: Date | null): string | null {
   return date ? date.toISOString().slice(0, 10) : null;
 }
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(
     date
   );
 }
 
 export default async function ProgramsPage() {
+  const { tr, locale } = await getT();
+  const programStatusClass = localizeLabels(__programStatusClass, tr);
+
   const session = await requireFinanceSession();
   if (!session) redirect("/dashboard");
 
@@ -64,17 +74,15 @@ export default async function ProgramsPage() {
       <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
         <Link href="/dashboard/finance">
           <ArrowLeft className="h-4 w-4" />
-          Keuangan
-        </Link>
+          {tr("Keuangan")}</Link>
       </Button>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Program</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{tr("Program")}</h2>
           <p className="text-sm text-muted-foreground">
-            {programs.length} program ·{" "}
-            {programs.filter((p) => p.status === "AKTIF").length} aktif.
-          </p>
+            {programs.length} {tr(" program ·")}{" "}
+            {programs.filter((p) => p.status === "AKTIF").length} {tr(" aktif.")}</p>
         </div>
         <AddProgramDialog staffOptions={staffOptions} />
       </div>
@@ -82,8 +90,7 @@ export default async function ProgramsPage() {
       {programs.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Belum ada program. Buat program untuk menampung dana terikat.
-          </CardContent>
+            {tr("Belum ada program. Buat program untuk menampung dana terikat.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -97,9 +104,9 @@ export default async function ProgramsPage() {
                       <p className="text-xs text-muted-foreground">
                         {program.code}
                       </p>
-                      <p className="truncate font-semibold">{program.name}</p>
+                      <Link href={`/dashboard/finance/programs/${program.id}`} className="block truncate font-semibold text-primary hover:underline">{program.name}</Link>
                       <p className="text-xs text-muted-foreground">
-                        {programFieldLabel[program.field as ProgramField]} · PJ:{" "}
+                        {tr(programFieldLabel[program.field as ProgramField])} {tr(" · PJ:")}{" "}
                         {program.pic?.name ?? "-"}
                       </p>
                     </div>
@@ -133,15 +140,14 @@ export default async function ProgramsPage() {
                         programStatusClass[program.status as ProgramStatus]
                       }
                     >
-                      {programStatusLabel[program.status as ProgramStatus]}
+                      {tr(programStatusLabel[program.status as ProgramStatus])}
                     </Badge>
                     <span className="text-xs font-medium">
-                      Saldo: {formatRupiah(balanceMap.get(program.id) ?? 0)}
+                      {tr("Saldo: ")}{formatRupiah(balanceMap.get(program.id) ?? 0, locale)}
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Target {formatRupiah(program.fundraisingTarget)} · Anggaran
-                    maks {formatRupiah(program.maxBudget)}
+                    {tr("Target ")}{formatRupiah(program.fundraisingTarget, locale)} {tr(" · Anggaran maks ")}{formatRupiah(program.maxBudget, locale)}
                   </p>
                 </CardContent>
               </Card>
@@ -153,15 +159,15 @@ export default async function ProgramsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Kode</TableHead>
-                  <TableHead>Nama Program</TableHead>
-                  <TableHead>Bidang</TableHead>
-                  <TableHead>Target Dana</TableHead>
-                  <TableHead>Sisa Saldo</TableHead>
-                  <TableHead>Mulai</TableHead>
-                  <TableHead>PJ</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{tr("Kode")}</TableHead>
+                  <TableHead>{tr("Nama Program")}</TableHead>
+                  <TableHead>{tr("Bidang")}</TableHead>
+                  <TableHead>{tr("Target Dana")}</TableHead>
+                  <TableHead>{tr("Sisa Saldo")}</TableHead>
+                  <TableHead>{tr("Mulai")}</TableHead>
+                  <TableHead>{tr("PJ")}</TableHead>
+                  <TableHead>{tr("Status")}</TableHead>
+                  <TableHead className="text-right">{tr("Aksi")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -171,7 +177,7 @@ export default async function ProgramsPage() {
                       {program.code}
                     </TableCell>
                     <TableCell>
-                      <span className="font-medium">{program.name}</span>
+                      <Link href={`/dashboard/finance/programs/${program.id}`} className="font-medium text-primary hover:underline">{program.name}</Link>
                       {program.proposalUrl && (
                         <a
                           href={program.proposalUrl}
@@ -180,21 +186,20 @@ export default async function ProgramsPage() {
                           className="mt-0.5 flex items-center gap-1 text-xs text-primary hover:underline"
                         >
                           <FileText className="h-3 w-3" />
-                          Proposal
-                        </a>
+                          {tr("Proposal")}</a>
                       )}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {programFieldLabel[program.field as ProgramField]}
+                      {tr(programFieldLabel[program.field as ProgramField])}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {formatRupiah(program.fundraisingTarget)}
+                      {formatRupiah(program.fundraisingTarget, locale)}
                     </TableCell>
                     <TableCell className="text-sm font-medium">
-                      {formatRupiah(balanceMap.get(program.id) ?? 0)}
+                      {formatRupiah(balanceMap.get(program.id) ?? 0, locale)}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {program.startDate ? formatDate(program.startDate) : "-"}
+                      {program.startDate ? formatDate(program.startDate, locale) : "-"}
                     </TableCell>
                     <TableCell className="text-sm">
                       {program.pic?.name ?? "-"}
@@ -206,7 +211,7 @@ export default async function ProgramsPage() {
                           programStatusClass[program.status as ProgramStatus]
                         }
                       >
-                        {programStatusLabel[program.status as ProgramStatus]}
+                        {tr(programStatusLabel[program.status as ProgramStatus])}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -243,3 +248,5 @@ export default async function ProgramsPage() {
     </div>
   );
 }
+
+const __programStatusClass = programStatusClass;

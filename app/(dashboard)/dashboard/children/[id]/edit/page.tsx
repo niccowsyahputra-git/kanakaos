@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { ChildForm } from "@/components/children/child-form";
 import { ArrowLeft } from "lucide-react";
+import { getT } from "@/lib/i18n/server";
+
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,8 @@ export default async function ChildEditPage({
 }: {
   params: { id: string };
 }) {
+  const { tr, locale } = await getT();
+
   const [child, guardians] = await Promise.all([
     prisma.child.findUnique({
       where: { id: params.id },
@@ -33,12 +37,11 @@ export default async function ChildEditPage({
       <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
         <Link href={`/dashboard/children/${child.id}`}>
           <ArrowLeft className="h-4 w-4" />
-          Kembali ke Profil Anak
-        </Link>
+          {tr("Kembali ke Profil Anak")}</Link>
       </Button>
 
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Edit Data Anak</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{tr("Edit Data Anak")}</h2>
         <p className="text-sm text-muted-foreground">{child.fullName}</p>
       </div>
 

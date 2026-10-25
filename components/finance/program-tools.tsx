@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import React, { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
@@ -32,9 +32,14 @@ import {
 } from "@/components/ui/select";
 import {
   programFieldOptions,
+  programFundingSourceOptions,
   programStatusOptions,
   leftoverRuleOptions,
 } from "@/components/finance/finance-labels";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+import { getSchemas } from "@/lib/validations";
+
 
 const NONE = "NONE";
 
@@ -54,6 +59,105 @@ export type ProgramData = {
   description: string | null;
 };
 
+type FundingFormValues = {
+  sumberDana: string;
+  fundraisingTarget: string;
+  alokasiDanaInternal: string;
+  porsiPenggalangan: string;
+};
+type FundingField = keyof FundingFormValues;
+type FundingErrors = Partial<Record<FundingField, string>>;
+const fundingFieldIds: Record<FundingField, string> = {
+  sumberDana: "prg-funding-source",
+  fundraisingTarget: "prg-target",
+  alokasiDanaInternal: "prg-internal-allocation",
+  porsiPenggalangan: "prg-fundraising-share",
+};
+
+export function ProgramFundingFields({
+  values, onChange, errors = {}, disabled = false,
+}: {
+  values: FundingFormValues;
+  onChange: (field: FundingField, value: string) => void;
+  errors?: FundingErrors;
+  disabled?: boolean;
+}) {
+  const { tr, locale } = useI18n();
+  const mixed = values.sumberDana === "CAMPURAN";
+  const showFundraising = mixed || values.sumberDana === "PENGGALANGAN";
+  const showInternal = mixed || values.sumberDana === "INTERNAL";
+  const share = Number(values.porsiPenggalangan);
+  const validShare = values.porsiPenggalangan.trim() !== "" && Number.isFinite(share) && share >= 0 && share <= 100;
+  const internalShare = new Intl.NumberFormat(locale === "en" ? "en-US" : "id-ID", {
+    maximumFractionDigits: 2,
+  }).format(100 - share);
+  const errorProps = (field: FundingField) => ({
+    "aria-invalid": Boolean(errors[field]),
+    "aria-describedby": errors[field] ? `${fundingFieldIds[field]}-error` : undefined,
+  });
+  const errorMessage = (field: FundingField) => errors[field] ? (
+    <p id={`${fundingFieldIds[field]}-error`} role="alert" className="text-sm text-destructive">
+      {errors[field]}
+    </p>
+  ) : null;
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor={fundingFieldIds.sumberDana}>{tr("Sumber Pendanaan *")}</Label>
+        <Select value={values.sumberDana} onValueChange={value => onChange("sumberDana", value)} disabled={disabled}>
+          <SelectTrigger id={fundingFieldIds.sumberDana} aria-required="true" {...errorProps("sumberDana")}>
+            <SelectValue placeholder={tr("Pilih sumber pendanaan")} />
+          </SelectTrigger>
+          <SelectContent>
+            {programFundingSourceOptions.map(option => (
+              <SelectItem key={option.value} value={option.value}>{tr(option.label)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {errorMessage("sumberDana")}
+      </div>
+      <div className="flex flex-col gap-4 md:flex-row">
+        {showFundraising && (
+          <div className="flex-1 space-y-2">
+            <Label htmlFor={fundingFieldIds.fundraisingTarget}>{tr("Target Penggalangan Dana (Rp)")}</Label>
+            <Input id={fundingFieldIds.fundraisingTarget} name="fundraisingTarget" type="number" min={0}
+              value={values.fundraisingTarget} onChange={event => onChange("fundraisingTarget", event.target.value)}
+              placeholder="0" disabled={disabled} {...errorProps("fundraisingTarget")} />
+            {errorMessage("fundraisingTarget")}
+          </div>
+        )}
+        {showInternal && (
+          <div className="flex-1 space-y-2">
+            <Label htmlFor={fundingFieldIds.alokasiDanaInternal}>{tr("Alokasi Dana Internal (Rp)")}</Label>
+            <Input id={fundingFieldIds.alokasiDanaInternal} name="alokasiDanaInternal" type="number" min={0}
+              value={values.alokasiDanaInternal} onChange={event => onChange("alokasiDanaInternal", event.target.value)}
+              placeholder="0" disabled={disabled} {...errorProps("alokasiDanaInternal")} />
+            {errorMessage("alokasiDanaInternal")}
+          </div>
+        )}
+      </div>
+      {mixed && (
+        <div className="space-y-2">
+          <Label htmlFor={fundingFieldIds.porsiPenggalangan}>{tr("Porsi Penggalangan (%)")}</Label>
+          <Input id={fundingFieldIds.porsiPenggalangan} name="porsiPenggalangan" type="number" min={0} max={100} step="0.01"
+            value={values.porsiPenggalangan} onChange={event => onChange("porsiPenggalangan", event.target.value)}
+            aria-required="true" disabled={disabled} {...errorProps("porsiPenggalangan")} />
+          {errorMessage("porsiPenggalangan")}
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            {validShare ? tr("Porsi dana internal: {0}%", { 0: internalShare }) : tr("Isi porsi penggalangan antara 0–100%.")}
+          </p>
+        </div>
+      )}
+      {showInternal && (
+        <p className="text-sm text-muted-foreground">
+          {tr("Alokasi internal dipindahkan dari saldo dana tidak terikat saat program disimpan.")}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function ProgramFormDialog({
   mode,
   program,
@@ -63,6 +167,11 @@ function ProgramFormDialog({
   program?: ProgramData;
   staffOptions: StaffOption[];
 }) {
+  const { tr, locale } = useI18n();
+  const programFieldOptions = localizeLabels(__programFieldOptions, tr);
+  const programStatusOptions = localizeLabels(__programStatusOptions, tr);
+  const leftoverRuleOptions = localizeLabels(__leftoverRuleOptions, tr);
+
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -83,18 +192,37 @@ function ProgramFormDialog({
     program?.leftoverRule ?? "KE_OPERASIONAL"
   );
   const [description, setDescription] = useState(program?.description ?? "");
+  const [fundingValues, setFundingValues] = useState<FundingFormValues>({
+    sumberDana: "", fundraisingTarget: "", alokasiDanaInternal: "", porsiPenggalangan: "",
+  });
+  const [fundingErrors, setFundingErrors] = useState<FundingErrors>({});
 
   function handleSubmit() {
+    const funding = mode === "create"
+      ? getSchemas(locale).programFundingSchema.safeParse(fundingValues)
+      : null;
+    if (funding && !funding.success) {
+      const errors: FundingErrors = {};
+      for (const issue of funding.error.issues) {
+        const field = issue.path[0] as FundingField;
+        errors[field] ??= issue.message;
+      }
+      setFundingErrors(errors);
+      const first = funding.error.issues[0].path[0] as FundingField;
+      document.getElementById(fundingFieldIds[first])?.focus();
+      return;
+    }
+    setFundingErrors({});
     if (name.trim().length < 3) {
-      toast.error("Nama program minimal 3 karakter");
+      toast.error(tr("Nama program minimal 3 karakter"));
       return;
     }
     if (field === NONE) {
-      toast.error("Pilih kategori bidang");
+      toast.error(tr("Pilih kategori bidang"));
       return;
     }
     if (picId === NONE) {
-      toast.error("Pilih penanggung jawab");
+      toast.error(tr("Pilih penanggung jawab"));
       return;
     }
 
@@ -103,6 +231,11 @@ function ProgramFormDialog({
       formData.set("name", name);
       formData.set("field", field);
       formData.set("fundraisingTarget", fundraisingTarget || "0");
+      if (funding?.success) {
+        for (const [key, value] of Object.entries(funding.data)) {
+          if (value !== null) formData.set(key, String(value));
+        }
+      }
       formData.set("maxBudget", maxBudget || "0");
       if (startDate) formData.set("startDate", startDate);
       formData.set("picId", picId);
@@ -119,7 +252,7 @@ function ProgramFormDialog({
 
       if (result.success) {
         toast.success(
-          mode === "create" ? "Program berhasil dibuat" : "Program diperbarui"
+          mode === "create" ? tr("Program berhasil dibuat") : tr("Program diperbarui")
         );
         if (result.warning) toast.warning(result.warning);
         setOpen(false);
@@ -136,59 +269,64 @@ function ProgramFormDialog({
         {mode === "create" ? (
           <Button className="w-full sm:w-auto">
             <Plus className="h-4 w-4" />
-            Buat Program
-          </Button>
+            {tr("Buat Program")}</Button>
         ) : (
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit">
+          <Button variant="ghost" size="icon" className="h-8 w-8" title={tr("Edit")}>
             <Pencil className="h-4 w-4" />
-            <span className="sr-only">Edit program {program?.name}</span>
+            <span className="sr-only">{tr("Edit program ")}{program?.name}</span>
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Buat Program Baru" : `Edit ${program?.code}`}
+            {mode === "create" ? tr("Buat Program Baru") : tr("Edit {0}", { "0": program?.code })}
           </DialogTitle>
           <DialogDescription>
             {mode === "create"
-              ? "Kode program akan dibuat otomatis (PRG/TAHUN/XXX)."
-              : "Perbarui detail program."}
+              ? tr("Kode program akan dibuat otomatis (PRG/TAHUN/XXX).")
+              : tr("Perbarui detail program.")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
+          {mode === "create" && (
+            <ProgramFundingFields values={fundingValues} errors={fundingErrors} disabled={isPending}
+              onChange={(field, value) => {
+                setFundingValues(current => ({ ...current, [field]: value }));
+                setFundingErrors({});
+              }} />
+          )}
           <div className="space-y-2">
-            <Label htmlFor="prg-name">Nama Program *</Label>
+            <Label htmlFor="prg-name">{tr("Nama Program *")}</Label>
             <Input
               id="prg-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="mis. Beasiswa Anak Berprestasi 2026"
+              placeholder={tr("mis. Beasiswa Anak Berprestasi 2026")}
             />
           </div>
 
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full space-y-2 md:w-1/2">
-              <Label>Kategori Bidang *</Label>
+              <Label>{tr("Kategori Bidang *")}</Label>
               <Select value={field} onValueChange={setField}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih bidang" />
+                  <SelectValue placeholder={tr("Pilih bidang")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE} disabled>
-                    Pilih bidang
-                  </SelectItem>
+                    {tr("Pilih bidang")}</SelectItem>
                   {programFieldOptions.map((o) => (
                     <SelectItem key={o.value} value={o.value}>
-                      {o.label}
+                      {tr(o.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="w-full space-y-2 md:w-1/2">
-              <Label>Status Program</Label>
+              <Label>{tr("Status Program")}</Label>
               <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger>
                   <SelectValue />
@@ -196,7 +334,7 @@ function ProgramFormDialog({
                 <SelectContent>
                   {programStatusOptions.map((o) => (
                     <SelectItem key={o.value} value={o.value}>
-                      {o.label}
+                      {tr(o.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -205,8 +343,9 @@ function ProgramFormDialog({
           </div>
 
           <div className="flex flex-col gap-4 md:flex-row">
+            {mode === "edit" && (
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="prg-target">Target Penggalangan Dana (Rp)</Label>
+              <Label htmlFor="prg-target">{tr("Target Penggalangan Dana (Rp)")}</Label>
               <Input
                 id="prg-target"
                 type="number"
@@ -216,8 +355,9 @@ function ProgramFormDialog({
                 placeholder="0"
               />
             </div>
+            )}
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="prg-budget">Anggaran Biaya Maksimal (Rp)</Label>
+              <Label htmlFor="prg-budget">{tr("Anggaran Biaya Maksimal (Rp)")}</Label>
               <Input
                 id="prg-budget"
                 type="number"
@@ -231,7 +371,7 @@ function ProgramFormDialog({
 
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="prg-start">Tanggal Mulai Program</Label>
+              <Label htmlFor="prg-start">{tr("Tanggal Mulai Program")}</Label>
               <Input
                 id="prg-start"
                 type="date"
@@ -240,15 +380,14 @@ function ProgramFormDialog({
               />
             </div>
             <div className="w-full space-y-2 md:w-1/2">
-              <Label>Penanggung Jawab *</Label>
+              <Label>{tr("Penanggung Jawab *")}</Label>
               <Select value={picId} onValueChange={setPicId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih penanggung jawab" />
+                  <SelectValue placeholder={tr("Pilih penanggung jawab")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE} disabled>
-                    Pilih penanggung jawab
-                  </SelectItem>
+                    {tr("Pilih penanggung jawab")}</SelectItem>
                   {staffOptions.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
@@ -260,7 +399,7 @@ function ProgramFormDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Aturan Sisa Dana</Label>
+            <Label>{tr("Aturan Sisa Dana")}</Label>
             <Select value={leftoverRule} onValueChange={setLeftoverRule}>
               <SelectTrigger>
                 <SelectValue />
@@ -268,7 +407,7 @@ function ProgramFormDialog({
               <SelectContent>
                 {leftoverRuleOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -276,12 +415,12 @@ function ProgramFormDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="prg-desc">Deskripsi &amp; Tujuan</Label>
+            <Label htmlFor="prg-desc">{tr("Deskripsi & Tujuan")}</Label>
             <Textarea
               id="prg-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Jelaskan latar belakang, tujuan, dan sasaran program..."
+              placeholder={tr("Jelaskan latar belakang, tujuan, dan sasaran program...")}
               rows={3}
               maxLength={2000}
             />
@@ -289,10 +428,9 @@ function ProgramFormDialog({
 
           <div className="space-y-2">
             <Label htmlFor="prg-proposal">
-              Upload Proposal{" "}
+              {tr("Upload Proposal")}{" "}
               <span className="font-normal text-muted-foreground">
-                (opsional, PDF maks 10MB)
-              </span>
+                {tr("(opsional, PDF maks 10MB)")}</span>
             </Label>
             <Input
               id="prg-proposal"
@@ -310,8 +448,7 @@ function ProgramFormDialog({
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             onClick={handleSubmit}
             disabled={
@@ -324,12 +461,11 @@ function ProgramFormDialog({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menyimpan...
-              </>
+                {tr("Menyimpan...")}</>
             ) : mode === "create" ? (
-              "Simpan Program"
+              tr("Simpan Program")
             ) : (
-              "Simpan Perubahan"
+              tr("Simpan Perubahan")
             )}
           </Button>
         </DialogFooter>
@@ -369,6 +505,8 @@ export function DeleteProgramButton({
   programId: string;
   programName: string;
 }) {
+  const { tr, locale } = useI18n();
+
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -376,7 +514,7 @@ export function DeleteProgramButton({
     startTransition(async () => {
       const result = await deleteProgram(programId);
       if (result.success) {
-        toast.success(`Program ${programName} dihapus`);
+        toast.success(tr("Program {0} dihapus", { "0": programName }));
         setOpen(false);
       } else {
         toast.error(result.error);
@@ -391,19 +529,17 @@ export function DeleteProgramButton({
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-destructive hover:text-destructive"
-          title="Hapus"
+          title={tr("Hapus")}
         >
           <Trash2 className="h-4 w-4" />
-          <span className="sr-only">Hapus program {programName}</span>
+          <span className="sr-only">{tr("Hapus program ")}{programName}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Hapus Program?</DialogTitle>
+          <DialogTitle>{tr("Hapus Program?")}</DialogTitle>
           <DialogDescription>
-            Program <b>{programName}</b> akan dihapus. Program yang sudah punya
-            transaksi tidak bisa dihapus.
-          </DialogDescription>
+            {tr("Program ")}<b>{programName}</b> {tr(" akan dihapus. Program yang sudah punya transaksi tidak bisa dihapus.")}</DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2">
           <Button
@@ -411,8 +547,7 @@ export function DeleteProgramButton({
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             variant="destructive"
             onClick={handleDelete}
@@ -421,10 +556,9 @@ export function DeleteProgramButton({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menghapus...
-              </>
+                {tr("Menghapus...")}</>
             ) : (
-              "Ya, Hapus"
+              tr("Ya, Hapus")
             )}
           </Button>
         </DialogFooter>
@@ -432,3 +566,7 @@ export function DeleteProgramButton({
     </Dialog>
   );
 }
+
+const __programFieldOptions = programFieldOptions;
+const __programStatusOptions = programStatusOptions;
+const __leftoverRuleOptions = leftoverRuleOptions;

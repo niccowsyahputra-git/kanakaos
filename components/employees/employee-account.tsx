@@ -26,6 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 const NONE = "NONE";
 
@@ -52,6 +55,9 @@ export function EmployeeAccountBadge({
   role: string;
   isActive: boolean;
 }) {
+  const { tr, locale } = useI18n();
+  const roleLabel = localizeLabels(__roleLabel, tr);
+
   return (
     <div className="flex flex-col gap-0.5">
       <Badge
@@ -63,7 +69,7 @@ export function EmployeeAccountBadge({
         }
       >
         {roleLabel[role] ?? role}
-        {!isActive && " (nonaktif)"}
+        {!isActive && tr(" (nonaktif)")}
       </Badge>
       <span className="text-xs text-muted-foreground">{email}</span>
     </div>
@@ -75,11 +81,16 @@ export function CreateAccountDialog({
   employeeId,
   employeeName,
   employeeEmail,
+  disabled = false,
 }: {
   employeeId: string;
   employeeName: string;
   employeeEmail: string | null;
+  disabled?: boolean;
 }) {
+  const { tr, locale } = useI18n();
+  const roleOptions = localizeLabels(__roleOptions, tr);
+
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -91,7 +102,7 @@ export function CreateAccountDialog({
 
   function handleSubmit() {
     if (role === NONE) {
-      toast.error("Pilih role akses");
+      toast.error(tr("Pilih role akses"));
       return;
     }
     startTransition(async () => {
@@ -102,7 +113,7 @@ export function CreateAccountDialog({
         password,
       });
       if (result.success) {
-        toast.success(`Akun login untuk ${name} berhasil dibuat`);
+        toast.success(tr("Akun login untuk {0} berhasil dibuat", { "0": name }));
         setOpen(false);
         router.refresh();
       } else {
@@ -114,23 +125,20 @@ export function CreateAccountDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8">
+        <Button variant="outline" size="sm" className="h-8" disabled={disabled} title={disabled ? tr("Aktifkan pegawai sebelum membuat akun login") : undefined}>
           <KeyRound className="h-3.5 w-3.5" />
-          Buatkan Akun
-        </Button>
+          {tr("Buatkan Akun")}</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Buat Akun Login</DialogTitle>
+          <DialogTitle>{tr("Buat Akun Login")}</DialogTitle>
           <DialogDescription>
-            Akun ini akan tertaut ke pegawai <b>{employeeName}</b> dan bisa
-            dipakai untuk login ke sistem.
-          </DialogDescription>
+            {tr("Akun ini akan tertaut ke pegawai ")}<b>{employeeName}</b> {tr(" dan bisa dipakai untuk login ke sistem.")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
           <div className="space-y-2">
-            <Label htmlFor="acc-name">Nama Tampilan</Label>
+            <Label htmlFor="acc-name">{tr("Nama Tampilan")}</Label>
             <Input
               id="acc-name"
               value={name}
@@ -138,7 +146,7 @@ export function CreateAccountDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="acc-email">Email Login</Label>
+            <Label htmlFor="acc-email">{tr("Email Login")}</Label>
             <Input
               id="acc-email"
               type="email"
@@ -148,31 +156,30 @@ export function CreateAccountDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>Role Akses</Label>
+            <Label>{tr("Role Akses")}</Label>
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih role" />
+                <SelectValue placeholder={tr("Pilih role")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE} disabled>
-                  Pilih role
-                </SelectItem>
+                  {tr("Pilih role")}</SelectItem>
                 {roleOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
-                    {o.label}
+                    {tr(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="acc-password">Password Awal</Label>
+            <Label htmlFor="acc-password">{tr("Password Awal")}</Label>
             <Input
               id="acc-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Minimal 8 karakter"
+              placeholder={tr("Minimal 8 karakter")}
             />
           </div>
         </div>
@@ -183,8 +190,7 @@ export function CreateAccountDialog({
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             onClick={handleSubmit}
             disabled={
@@ -198,10 +204,9 @@ export function CreateAccountDialog({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Membuat...
-              </>
+                {tr("Membuat...")}</>
             ) : (
-              "Buat Akun"
+              tr("Buat Akun")
             )}
           </Button>
         </DialogFooter>
@@ -209,3 +214,6 @@ export function CreateAccountDialog({
     </Dialog>
   );
 }
+
+const __roleLabel = roleLabel;
+const __roleOptions = roleOptions;

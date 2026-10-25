@@ -22,6 +22,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import type { VolunteerStatus } from "@prisma/client";
+import { useI18n } from "@/lib/i18n/client";
+
 
 export function VolunteerActions({
   volunteerId,
@@ -34,6 +36,8 @@ export function VolunteerActions({
   status: VolunteerStatus;
   hasSafeguardingCert: boolean;
 }) {
+  const { tr, locale } = useI18n();
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [approveOpen, setApproveOpen] = useState(false);
@@ -46,7 +50,7 @@ export function VolunteerActions({
         confirmCertificate,
       });
       if (result.success) {
-        toast.success(`${volunteerName} disetujui sebagai relawan`);
+        toast.success(tr("{0} disetujui sebagai relawan", { "0": volunteerName }));
         setApproveOpen(false);
         setCertConfirmed(false);
       } else {
@@ -69,7 +73,7 @@ export function VolunteerActions({
     startTransition(async () => {
       const result = await rejectVolunteer(volunteerId);
       if (result.success) {
-        toast.success(`Pendaftaran ${volunteerName} ditolak`);
+        toast.success(tr("Pendaftaran {0} ditolak", { "0": volunteerName }));
       } else {
         toast.error(result.error);
       }
@@ -80,7 +84,7 @@ export function VolunteerActions({
     startTransition(async () => {
       const result = await suspendVolunteer({ volunteerId, reason });
       if (result.success) {
-        toast.success(`${volunteerName} di-suspend dengan red flag`);
+        toast.success(tr("{0} di-suspend dengan red flag", { "0": volunteerName }));
         setDialogOpen(false);
         setReason("");
       } else {
@@ -96,13 +100,10 @@ export function VolunteerActions({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-green-700" />
-              Approve {volunteerName}
+              {tr("Approve ")}{volunteerName}
             </DialogTitle>
             <DialogDescription>
-              Sertifikat <b>child safeguarding</b> relawan ini belum tercatat.
-              Sesuai kebijakan perlindungan anak, relawan hanya boleh
-              di-approve setelah sertifikatnya diverifikasi.
-            </DialogDescription>
+              {tr("Sertifikat ")}<b>{tr("child safeguarding")}</b> {tr(" relawan ini belum tercatat. Sesuai kebijakan perlindungan anak, relawan hanya boleh di-approve setelah sertifikatnya diverifikasi.")}</DialogDescription>
           </DialogHeader>
 
           <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3">
@@ -113,8 +114,7 @@ export function VolunteerActions({
               className="mt-0.5 h-4 w-4 accent-primary"
             />
             <span className="text-sm">
-              Saya sudah memverifikasi sertifikat child safeguarding relawan
-              ini. Status sertifikat akan dicatat sebagai <b>Bersertifikat</b>.
+              {tr("Saya sudah memverifikasi sertifikat child safeguarding relawan ini. Status sertifikat akan dicatat sebagai ")}<b>{tr("Bersertifikat")}</b>.
             </span>
           </label>
 
@@ -124,8 +124,7 @@ export function VolunteerActions({
               onClick={() => setApproveOpen(false)}
               disabled={isPending}
             >
-              Batal
-            </Button>
+              {tr("Batal")}</Button>
             <Button
               onClick={() => approve(true)}
               disabled={isPending || !certConfirmed}
@@ -133,10 +132,9 @@ export function VolunteerActions({
               {isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Memproses...
-                </>
+                  {tr("Memproses...")}</>
               ) : (
-                "Verifikasi & Approve"
+                tr("Verifikasi & Approve")
               )}
             </Button>
           </DialogFooter>
@@ -153,8 +151,7 @@ export function VolunteerActions({
             disabled={isPending}
           >
             <Check className="h-3.5 w-3.5" />
-            Approve
-          </Button>
+            {tr("Approve")}</Button>
           <Button
             size="sm"
             variant="outline"
@@ -163,8 +160,7 @@ export function VolunteerActions({
             disabled={isPending}
           >
             <X className="h-3.5 w-3.5" />
-            Tolak
-          </Button>
+            {tr("Tolak")}</Button>
         </>
       )}
 
@@ -177,8 +173,7 @@ export function VolunteerActions({
           disabled={isPending}
         >
           <Check className="h-3.5 w-3.5" />
-          Aktifkan Lagi
-        </Button>
+          {tr("Aktifkan Lagi")}</Button>
       )}
 
       {status !== "SUSPENDED" && status !== "REJECTED" && (
@@ -191,29 +186,25 @@ export function VolunteerActions({
               disabled={isPending}
             >
               <Flag className="h-3.5 w-3.5" />
-              Mark Red Flag
-            </Button>
+              {tr("Mark Red Flag")}</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-destructive">
                 <Flag className="h-5 w-5" />
-                Red Flag: {volunteerName}
+                {tr("Red Flag: ")}{volunteerName}
               </DialogTitle>
               <DialogDescription>
-                Relawan akan otomatis di-<b>SUSPEND</b> dan tidak boleh
-                berinteraksi dengan anak sampai investigasi selesai. Alasan
-                akan tercatat permanen untuk audit child safeguarding.
-              </DialogDescription>
+                {tr("Relawan akan otomatis di-")}<b>{tr("SUSPEND")}</b> {tr(" dan tidak boleh berinteraksi dengan anak sampai investigasi selesai. Alasan akan tercatat permanen untuk audit child safeguarding.")}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-2">
-              <Label htmlFor="red-flag-reason">Alasan Red Flag</Label>
+              <Label htmlFor="red-flag-reason">{tr("Alasan Red Flag")}</Label>
               <Textarea
                 id="red-flag-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Jelaskan insiden/kekhawatiran secara spesifik (min. 10 karakter)..."
+                placeholder={tr("Jelaskan insiden/kekhawatiran secara spesifik (min. 10 karakter)...")}
                 rows={4}
               />
             </div>
@@ -224,8 +215,7 @@ export function VolunteerActions({
                 onClick={() => setDialogOpen(false)}
                 disabled={isPending}
               >
-                Batal
-              </Button>
+                {tr("Batal")}</Button>
               <Button
                 variant="destructive"
                 onClick={handleRedFlag}
@@ -234,10 +224,9 @@ export function VolunteerActions({
                 {isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Memproses...
-                  </>
+                    {tr("Memproses...")}</>
                 ) : (
-                  "Suspend & Catat Red Flag"
+                  tr("Suspend & Catat Red Flag")
                 )}
               </Button>
             </DialogFooter>

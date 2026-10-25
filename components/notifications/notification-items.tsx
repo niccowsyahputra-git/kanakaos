@@ -11,15 +11,20 @@ import {
 } from "@/lib/actions/notification";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/client";
+import { translateNotification } from "@/lib/i18n/notification";
+
 
 export function MarkAllReadButton({ unreadCount }: { unreadCount: number }) {
+  const { tr, locale } = useI18n();
+
   const [isPending, startTransition] = useTransition();
 
   function handleMarkAll() {
     startTransition(async () => {
       const result = await markAllNotificationsRead();
       if (result.success) {
-        toast.success("Semua notifikasi ditandai sudah dibaca");
+        toast.success(tr("Semua notifikasi ditandai sudah dibaca"));
       } else {
         toast.error(result.error);
       }
@@ -39,8 +44,7 @@ export function MarkAllReadButton({ unreadCount }: { unreadCount: number }) {
       ) : (
         <CheckCheck className="h-4 w-4" />
       )}
-      Tandai Semua Sudah Dibaca
-    </Button>
+      {tr("Tandai Semua Sudah Dibaca")}</Button>
   );
 }
 
@@ -56,6 +60,7 @@ export function NotificationItem({
     createdAtLabel: string;
   };
 }) {
+  const { tr } = useI18n();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -97,11 +102,11 @@ export function NotificationItem({
             notification.isRead ? "font-normal" : "font-semibold"
           )}
         >
-          {notification.title}
+          {translateNotification(notification.title, tr)}
         </span>
         {notification.description && (
           <span className="block text-sm text-muted-foreground">
-            {notification.description}
+            {translateNotification(notification.description, tr)}
           </span>
         )}
         <span className="mt-1 block text-xs text-muted-foreground">

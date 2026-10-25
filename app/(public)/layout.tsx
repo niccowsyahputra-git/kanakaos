@@ -4,6 +4,9 @@ import { Heart } from "lucide-react";
 import { getSiteSettings } from "@/lib/site-settings";
 import { fillPlaceholders } from "@/lib/site-content";
 import { Button } from "@/components/ui/button";
+import { getT } from "@/lib/i18n/server";
+import { LanguageSwitcher } from "@/components/shared/language-switcher";
+
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +15,8 @@ export default async function PublicLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { tr, locale } = await getT();
+
   const { identity: yayasan, landing } = await getSiteSettings();
   const copyright = fillPlaceholders(landing.copyright, yayasan.name);
 
@@ -39,20 +44,20 @@ export default async function PublicLayout({
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex">
+            <LanguageSwitcher className="mr-2" />
             <Button asChild variant="ghost" size="sm">
-              <Link href="/">Beranda</Link>
+              <Link href="/">{tr("Beranda")}</Link>
             </Button>
             <Button asChild variant="ghost" size="sm">
-              <Link href="/volunteer/apply">Jadi Relawan</Link>
+              <Link href="/volunteer/apply">{tr("Jadi Relawan")}</Link>
             </Button>
             <Button asChild variant="ghost" size="sm">
-              <Link href="/login">Login Staff</Link>
+              <Link href="/login">{tr("Login Staff")}</Link>
             </Button>
             <Button asChild size="sm" className="ml-2">
               <Link href="/donate">
                 <Heart className="h-4 w-4" />
-                Donasi Sekarang
-              </Link>
+                {tr("Donasi Sekarang")}</Link>
             </Button>
           </nav>
 
@@ -61,13 +66,15 @@ export default async function PublicLayout({
             <Button asChild size="sm">
               <Link href="/donate">
                 <Heart className="h-4 w-4" />
-                Donasi
-              </Link>
+                {tr("Donasi")}</Link>
             </Button>
             <Button asChild variant="ghost" size="sm">
-              <Link href="/login">Login</Link>
+              <Link href="/login">{tr("Login")}</Link>
             </Button>
           </div>
+        </div>
+        <div className="flex justify-end border-t px-4 py-2 md:hidden">
+          <LanguageSwitcher />
         </div>
       </header>
 
@@ -86,7 +93,7 @@ export default async function PublicLayout({
               )}
               {yayasan.phone && (
                 <p className="text-sm text-muted-foreground">
-                  Telp. {yayasan.phone}
+                  {tr("Telp. ")}{yayasan.phone}
                 </p>
               )}
               {yayasan.email && (
@@ -99,28 +106,25 @@ export default async function PublicLayout({
               )}
             </div>
             <div className="flex flex-col gap-1 text-sm">
-              <p className="font-semibold">Tautan</p>
+              <p className="font-semibold">{tr("Tautan")}</p>
               <Link
                 href="/donate"
                 className="text-muted-foreground hover:text-foreground"
               >
-                Donasi
-              </Link>
+                {tr("Donasi")}</Link>
               <Link
                 href="/volunteer/apply"
                 className="text-muted-foreground hover:text-foreground"
               >
-                Jadi Relawan
-              </Link>
+                {tr("Jadi Relawan")}</Link>
               <Link
                 href="/login"
                 className="text-muted-foreground hover:text-foreground"
               >
-                Login Staff
-              </Link>
+                {tr("Login Staff")}</Link>
             </div>
             <div className="flex flex-col gap-1 text-sm">
-              <p className="font-semibold">Sosial Media</p>
+              <p className="font-semibold">{tr("Sosial Media")}</p>
               <a
                 href="https://instagram.com"
                 target="_blank"

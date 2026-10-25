@@ -1,3 +1,4 @@
+import React from "react";
 import {
   Document,
   Page,
@@ -6,6 +7,8 @@ import {
   StyleSheet,
 } from "@react-pdf/renderer";
 import { formatRupiah } from "@/lib/utils";
+import { createTranslator } from "@/lib/i18n/translate";
+import { intlTags, type Locale } from "@/lib/i18n/config";
 
 export type ReportData = {
   title: string;
@@ -96,11 +99,12 @@ const styles = StyleSheet.create({
   },
 });
 
-function formatDateId(date: Date): string {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(date);
+function formatDateId(date: Date, locale: Locale): string {
+  return new Intl.DateTimeFormat(intlTags[locale], { dateStyle: "medium" }).format(date);
 }
 
-export function ReportPdf({ data }: { data: ReportData }) {
+export function ReportPdf({ data, locale = "id" }: { data: ReportData; locale?: Locale }) {
+  const tr = createTranslator(locale);
   const totalAmount = data.donations.reduce((sum, d) => sum + d.amount, 0);
 
   return (
@@ -109,52 +113,52 @@ export function ReportPdf({ data }: { data: ReportData }) {
         <View style={styles.header}>
           <Text style={styles.yayasan}>{data.yayasanName}</Text>
           <Text style={styles.title}>{data.title}</Text>
-          <Text style={styles.period}>Periode: {data.periodLabel}</Text>
+          <Text style={styles.period}>{tr("Periode:")} {data.periodLabel}</Text>
         </View>
 
-        <Text style={styles.sectionTitle}>Ringkasan</Text>
+        <Text style={styles.sectionTitle}>{tr("Ringkasan")}</Text>
         <View style={styles.statsGrid}>
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Total Anak Asuh</Text>
+            <Text style={styles.statLabel}>{tr("Total Anak Asuh")}</Text>
             <Text style={styles.statValue}>{data.stats.totalChildren}</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Anak Aktif</Text>
+            <Text style={styles.statLabel}>{tr("Anak Aktif")}</Text>
             <Text style={styles.statValue}>{data.stats.activeChildren}</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Relawan Aktif</Text>
+            <Text style={styles.statLabel}>{tr("Relawan Aktif")}</Text>
             <Text style={styles.statValue}>{data.stats.activeVolunteers}</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Jumlah Donasi</Text>
+            <Text style={styles.statLabel}>{tr("Jumlah Donasi")}</Text>
             <Text style={styles.statValue}>{data.stats.donationCount}</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Total Donasi</Text>
+            <Text style={styles.statLabel}>{tr("Total Donasi")}</Text>
             <Text style={styles.statValue}>
-              {formatRupiah(data.stats.totalDonations)}
+              {formatRupiah(data.stats.totalDonations, locale)}
             </Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Log Harian Tercatat</Text>
+            <Text style={styles.statLabel}>{tr("Log Harian Tercatat")}</Text>
             <Text style={styles.statValue}>{data.stats.dailyLogCount}</Text>
           </View>
         </View>
 
         <Text style={styles.sectionTitle}>
-          Rincian Donasi ({data.donations.length} transaksi)
+          {tr("Rincian Donasi")} ({data.donations.length} {tr("transaksi")})
         </Text>
         <View style={styles.tableHeader}>
-          <Text style={[styles.colNo, styles.bold]}>No. Kwitansi</Text>
-          <Text style={[styles.colName, styles.bold]}>Donatur</Text>
-          <Text style={[styles.colDate, styles.bold]}>Tanggal</Text>
-          <Text style={[styles.colAmount, styles.bold]}>Jumlah</Text>
+          <Text style={[styles.colNo, styles.bold]}>{tr("No. Kwitansi")}</Text>
+          <Text style={[styles.colName, styles.bold]}>{tr("Donatur")}</Text>
+          <Text style={[styles.colDate, styles.bold]}>{tr("Tanggal")}</Text>
+          <Text style={[styles.colAmount, styles.bold]}>{tr("Jumlah")}</Text>
         </View>
         {data.donations.length === 0 ? (
           <View style={styles.tableRow}>
             <Text style={{ fontSize: 8, color: "#6b7280" }}>
-              Tidak ada donasi pada periode ini.
+              {tr("Tidak ada donasi pada periode ini.")}
             </Text>
           </View>
         ) : (
@@ -162,9 +166,9 @@ export function ReportPdf({ data }: { data: ReportData }) {
             <View key={donation.receiptNumber} style={styles.tableRow} wrap={false}>
               <Text style={styles.colNo}>{donation.receiptNumber}</Text>
               <Text style={styles.colName}>{donation.donaturName}</Text>
-              <Text style={styles.colDate}>{formatDateId(donation.date)}</Text>
+              <Text style={styles.colDate}>{formatDateId(donation.date, locale)}</Text>
               <Text style={styles.colAmount}>
-                {formatRupiah(donation.amount)}
+                {formatRupiah(donation.amount, locale)}
               </Text>
             </View>
           ))
@@ -174,13 +178,13 @@ export function ReportPdf({ data }: { data: ReportData }) {
           <Text style={styles.colName} />
           <Text style={styles.colDate} />
           <Text style={[styles.colAmount, styles.bold]}>
-            {formatRupiah(totalAmount)}
+            {formatRupiah(totalAmount, locale)}
           </Text>
         </View>
 
         <Text style={styles.footer} fixed>
-          Dibuat oleh {data.generatedBy} pada {formatDateId(data.generatedAt)}{" "}
-          — Dokumen ini digenerate otomatis oleh sistem KanakaOS.
+          {tr("Dibuat oleh")} {data.generatedBy} {tr("pada")} {formatDateId(data.generatedAt, locale)}{" "}
+          — {tr("Dokumen ini digenerate otomatis oleh sistem KanakaOS.")}
         </Text>
       </Page>
     </Document>

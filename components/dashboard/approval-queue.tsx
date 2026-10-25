@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { formatRupiah } from "@/lib/utils";
 import { expenseCoaLabel } from "@/components/finance/finance-labels";
 import type { ExpenseCoa } from "@prisma/client";
+import { useI18n } from "@/lib/i18n/client";
+
 
 type ApprovalItem = {
   id: string;
@@ -21,6 +23,8 @@ type ApprovalItem = {
 };
 
 export function ApprovalQueue({ items }: { items: ApprovalItem[] }) {
+  const { tr, locale } = useI18n();
+
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -28,7 +32,7 @@ export function ApprovalQueue({ items }: { items: ApprovalItem[] }) {
     startTransition(async () => {
       const result = await advanceExpenseApproval(id);
       if (result.success) {
-        toast.success(`Voucher ${voucher} disetujui — dana cair`);
+        toast.success(tr("Voucher {0} disetujui — dana cair", { "0": voucher }));
         router.refresh();
       } else {
         toast.error(result.error);
@@ -39,9 +43,7 @@ export function ApprovalQueue({ items }: { items: ApprovalItem[] }) {
   if (items.length === 0) {
     return (
       <div className="rounded-md border border-dashed py-8 text-center text-sm text-muted-foreground">
-        Tidak ada pengajuan dana &gt; Rp 1.000.000 yang menunggu persetujuan
-        Anda. 🎉
-      </div>
+        {tr("Tidak ada pengajuan dana > Rp 1.000.000 yang menunggu persetujuan Anda. 🎉")}</div>
     );
   }
 
@@ -58,11 +60,11 @@ export function ApprovalQueue({ items }: { items: ApprovalItem[] }) {
                 {item.voucherNumber}
               </span>
               <span className="font-semibold text-red-600">
-                {formatRupiah(item.amount)}
+                {formatRupiah(item.amount, locale)}
               </span>
             </div>
             <p className="truncate text-sm">
-              {expenseCoaLabel[item.coa as ExpenseCoa]} · {item.beneficiary}
+              {tr(expenseCoaLabel[item.coa as ExpenseCoa])} · {item.beneficiary}
               {item.programName ? ` · ${item.programName}` : ""}
             </p>
           </div>
@@ -77,8 +79,7 @@ export function ApprovalQueue({ items }: { items: ApprovalItem[] }) {
             ) : (
               <CheckCircle2 className="h-4 w-4" />
             )}
-            Setujui &amp; Cairkan
-            <ArrowRight className="h-3.5 w-3.5" />
+            {tr("Setujui & Cairkan")}<ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </div>
       ))}

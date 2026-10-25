@@ -10,6 +10,8 @@ import {
   deleteFinanceExpense,
 } from "@/lib/actions/financeExpense";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/client";
+
 
 const nextActionLabel: Record<string, string> = {
   DRAFT: "Ajukan Review",
@@ -26,6 +28,8 @@ export function ExpenseWorkflowButtons({
   approval: string;
   isSuperAdmin: boolean;
 }) {
+  const { tr, locale } = useI18n();
+
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -39,7 +43,7 @@ export function ExpenseWorkflowButtons({
     startTransition(async () => {
       const result = await advanceExpenseApproval(expenseId);
       if (result.success) {
-        toast.success("Status voucher diperbarui");
+        toast.success(tr("Status voucher diperbarui"));
         router.refresh();
       } else {
         toast.error(result.error);
@@ -51,7 +55,7 @@ export function ExpenseWorkflowButtons({
     startTransition(async () => {
       const result = await deleteFinanceExpense(expenseId);
       if (result.success) {
-        toast.success("Voucher draft dihapus");
+        toast.success(tr("Voucher draft dihapus"));
         router.refresh();
       } else {
         toast.error(result.error);
@@ -77,24 +81,23 @@ export function ExpenseWorkflowButtons({
               onClick={handleAdvance}
             >
               <ArrowRightCircle className="h-3.5 w-3.5" />
-              {nextActionLabel[approval]}
+              {tr(nextActionLabel[approval])}
             </Button>
           )}
           {approval === "APPROVAL" && !isSuperAdmin && (
             <span className="text-xs text-muted-foreground">
-              Menunggu Ketua
-            </span>
+              {tr("Menunggu Ketua")}</span>
           )}
           {approval === "DRAFT" && (
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-destructive hover:text-destructive"
-              title="Hapus draft"
+              title={tr("Hapus draft")}
               onClick={handleDelete}
             >
               <Trash2 className="h-4 w-4" />
-              <span className="sr-only">Hapus draft</span>
+              <span className="sr-only">{tr("Hapus draft")}</span>
             </Button>
           )}
         </>

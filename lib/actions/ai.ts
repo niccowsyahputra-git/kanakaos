@@ -7,6 +7,9 @@ import { auth } from "@/auth";
 import { requireSuperAdminSession } from "@/lib/auth-guard";
 import { aiConfigSchema, type AIConfigInput } from "@/lib/validations";
 import { generateInsight, type AIResult } from "@/lib/ai-service";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type ActionResult = { success: true } | { success: false; error: string };
 
@@ -23,12 +26,15 @@ async function upsertConfig(configKey: string, configValue: string) {
 export async function saveAIConfig(
   values: AIConfigInput
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { aiConfigSchema } = getSchemas(locale);
+
   const session = await requireSuperAdminSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const parsed = aiConfigSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -45,15 +51,17 @@ export async function saveAIConfig(
     return { success: true };
   } catch (error) {
     console.error("saveAIConfig error:", error);
-    return { success: false, error: "Gagal menyimpan konfigurasi" };
+    return { success: false, error: tr("Gagal menyimpan konfigurasi") };
   }
 }
 
 export async function testAIConnection(): Promise<AIResult> {
-  const session = await requireSuperAdminSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  const { tr, locale } = await getT();
 
-  return generateInsight("Halo, balas dengan 'Koneksi Berhasil'", "");
+  const session = await requireSuperAdminSession();
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
+
+  return generateInsight(tr("Halo, balas dengan 'Koneksi Berhasil'"), "");
 }
 
 const sleepLabel: Record<string, string> = {
@@ -65,15 +73,17 @@ const sleepLabel: Record<string, string> = {
 export async function generateChildInsight(
   childId: string
 ): Promise<AIResult> {
+  const { tr, locale } = await getT();
+
   // Semua user login boleh meminta insight (pengasuh butuh fitur ini)
   const session = await auth();
   if (!session?.user) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const idParsed = z.string().cuid().safeParse(childId);
   if (!idParsed.success) {
-    return { success: false, error: "ID anak tidak valid" };
+    return { success: false, error: tr("ID anak tidak valid") };
   }
 
   const child = await prisma.child.findUnique({
@@ -87,12 +97,12 @@ export async function generateChildInsight(
   });
 
   if (!child) {
-    return { success: false, error: "Data anak tidak ditemukan" };
+    return { success: false, error: tr("Data anak tidak ditemukan") };
   }
   if (child.dailyLogs.length === 0) {
     return {
       success: false,
-      error: "Belum ada log harian untuk dianalisis. Catat log dulu.",
+      error: tr("Belum ada log harian untuk dianalisis. Catat log dulu."),
     };
   }
 
@@ -104,11 +114,11 @@ export async function generateChildInsight(
   // Nama anak sengaja TIDAK dikirim ke AI (minimisasi data pribadi).
   const logLines = child.dailyLogs
     .map((log) => {
-      const date = new Intl.DateTimeFormat("id-ID", {
+      const date = new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), {
         dateStyle: "medium",
       }).format(log.date);
       const evaluation = log.evaluationNotes
-        ? ` | Catatan evaluasi: ${log.evaluationNotes}`
+        ? tr(" | Catatan evaluasi: {0}", { "0": log.evaluationNotes })
         : "";
       const prayers = [
         log.prayerSubuh,
@@ -117,16 +127,14 @@ export async function generateChildInsight(
         log.prayerMaghrib,
         log.prayerIsya,
       ].filter(Boolean).length;
-      return `- ${date}: mood ${log.moodScore}/5, makan ${log.mealPercentage}%, tidur ${sleepLabel[log.sleepQuality] ?? log.sleepQuality}, sholat ${prayers}/5, piket ${log.piketDone ? "ya" : "tidak"}${evaluation}`;
+      return tr("- {0}: mood {1}/5, makan {2}%, tidur {3}, sholat {4}/5, piket {5}{6}", { "0": date, "1": log.moodScore, "2": log.mealPercentage, "3": sleepLabel[log.sleepQuality] ?? log.sleepQuality, "4": prayers, "5": log.piketDone ? "ya" : "tidak", "6": evaluation });
     })
     .join("\n");
 
-  const childContext = `Profil: anak ${
-    child.gender === "MALE" ? "laki-laki" : "perempuan"
-  }, usia ${ageYears} tahun.\nLog harian 5 hari terakhir (terbaru di atas):\n${logLines}`;
+  const childContext = tr("Profil: anak {0}, usia {1} tahun.\nLog harian 5 hari terakhir (terbaru di atas):\n{2}", { "0": child.gender === "MALE" ? "laki-laki" : "perempuan", "1": ageYears, "2": logLines });
 
   return generateInsight(
-    "Berdasarkan data harian anak ini, berikan ringkasan kondisi emosional/fisik dan 1 saran intervensi untuk pengasuh dalam bahasa Indonesia yang empatik.",
+    tr("Berdasarkan data harian anak ini, berikan ringkasan kondisi emosional/fisik dan 1 saran intervensi untuk pengasuh dalam bahasa Indonesia yang empatik."),
     childContext
   );
 }

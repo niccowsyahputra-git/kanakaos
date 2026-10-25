@@ -26,10 +26,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+
 
 // ---------- Filter ----------
 
 export function DonationFilters() {
+  const { tr, locale } = useI18n();
+
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -54,13 +58,13 @@ export function DonationFilters() {
         onValueChange={(v) => setParam("type", v)}
       >
         <SelectTrigger className="w-full md:w-44">
-          <SelectValue placeholder="Tipe donasi" />
+          <SelectValue placeholder={tr("Tipe donasi")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">Semua Tipe</SelectItem>
-          <SelectItem value="CASH">Tunai</SelectItem>
-          <SelectItem value="TRANSFER">Transfer Bank</SelectItem>
-          <SelectItem value="IN_KIND">Barang (In-Kind)</SelectItem>
+          <SelectItem value="ALL">{tr("Semua Tipe")}</SelectItem>
+          <SelectItem value="CASH">{tr("Tunai")}</SelectItem>
+          <SelectItem value="TRANSFER">{tr("Transfer Bank")}</SelectItem>
+          <SelectItem value="IN_KIND">{tr("Barang (In-Kind)")}</SelectItem>
         </SelectContent>
       </Select>
 
@@ -69,7 +73,7 @@ export function DonationFilters() {
         min={0}
         step={50000}
         inputMode="numeric"
-        placeholder="Jumlah minimum (Rp)"
+        placeholder={tr("Jumlah minimum (Rp)")}
         className="w-full md:w-48"
         defaultValue={searchParams.get("minAmount") ?? ""}
         onBlur={(e) => setParam("minAmount", e.target.value || null)}
@@ -86,15 +90,15 @@ export function DonationFilters() {
           className="w-full md:w-40"
           value={searchParams.get("from") ?? ""}
           onChange={(e) => setParam("from", e.target.value || null)}
-          aria-label="Dari tanggal"
+          aria-label={tr("Dari tanggal")}
         />
-        <span className="text-sm text-muted-foreground">s/d</span>
+        <span className="text-sm text-muted-foreground">{tr("s/d")}</span>
         <Input
           type="date"
           className="w-full md:w-40"
           value={searchParams.get("to") ?? ""}
           onChange={(e) => setParam("to", e.target.value || null)}
-          aria-label="Sampai tanggal"
+          aria-label={tr("Sampai tanggal")}
         />
       </div>
 
@@ -106,8 +110,7 @@ export function DonationFilters() {
           className="w-fit gap-1"
         >
           <X className="h-3.5 w-3.5" />
-          Reset
-        </Button>
+          {tr("Reset")}</Button>
       )}
     </div>
   );
@@ -124,6 +127,8 @@ export function ReceiptActions({
   receiptNumber: string;
   defaultEmail?: string;
 }) {
+  const { tr, locale } = useI18n();
+
   const [emailOpen, setEmailOpen] = useState(false);
   const [email, setEmail] = useState(defaultEmail ?? "");
   const [isPrinting, startPrinting] = useTransition();
@@ -134,7 +139,7 @@ export function ReceiptActions({
       const result = await reprintReceipt(donationId);
       if (result.success) {
         downloadBase64(result.contentBase64, result.fileName, result.mime);
-        toast.success(`Kwitansi ${receiptNumber} ter-download`);
+        toast.success(tr("Kwitansi {0} ter-download", { "0": receiptNumber }));
       } else {
         toast.error(result.error);
       }
@@ -145,7 +150,7 @@ export function ReceiptActions({
     startEmailing(async () => {
       const result = await emailReceipt({ donationId, email });
       if (result.success) {
-        toast.warning("Permintaan tercatat", {
+        toast.warning(tr("Permintaan tercatat"), {
           description: result.warning,
         });
         setEmailOpen(false);
@@ -163,14 +168,14 @@ export function ReceiptActions({
         className="h-8 w-8"
         onClick={handleReprint}
         disabled={isPrinting}
-        title="Cetak ulang kwitansi"
+        title={tr("Cetak ulang kwitansi")}
       >
         {isPrinting ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
           <Printer className="h-4 w-4" />
         )}
-        <span className="sr-only">Cetak ulang {receiptNumber}</span>
+        <span className="sr-only">{tr("Cetak ulang ")}{receiptNumber}</span>
       </Button>
 
       <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
@@ -179,21 +184,20 @@ export function ReceiptActions({
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            title="Kirim via email"
+            title={tr("Kirim via email")}
           >
             <Mail className="h-4 w-4" />
-            <span className="sr-only">Email kwitansi {receiptNumber}</span>
+            <span className="sr-only">{tr("Email kwitansi ")}{receiptNumber}</span>
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Kirim Kwitansi via Email</DialogTitle>
+            <DialogTitle>{tr("Kirim Kwitansi via Email")}</DialogTitle>
             <DialogDescription>
-              Kwitansi {receiptNumber} akan dikirim ke email donatur.
-            </DialogDescription>
+              {tr("Kwitansi ")}{receiptNumber} {tr(" akan dikirim ke email donatur.")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="donatur-email">Email Donatur</Label>
+            <Label htmlFor="donatur-email">{tr("Email Donatur")}</Label>
             <Input
               id="donatur-email"
               type="email"
@@ -208,8 +212,7 @@ export function ReceiptActions({
               onClick={() => setEmailOpen(false)}
               disabled={isEmailing}
             >
-              Batal
-            </Button>
+              {tr("Batal")}</Button>
             <Button
               onClick={handleEmail}
               disabled={isEmailing || !email.includes("@")}
@@ -217,10 +220,9 @@ export function ReceiptActions({
               {isEmailing ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Mengirim...
-                </>
+                  {tr("Mengirim...")}</>
               ) : (
-                "Kirim"
+                tr("Kirim")
               )}
             </Button>
           </DialogFooter>

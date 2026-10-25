@@ -16,11 +16,18 @@ import {
   incidentUrgencyLabel,
   incidentUrgencyClass,
 } from "@/components/incidents/incident-labels";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export const dynamic = "force-dynamic";
 
-function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
+function formatDateTime(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
@@ -31,6 +38,10 @@ export default async function IncidentDetailPage({
 }: {
   params: { id: string };
 }) {
+  const { tr, locale } = await getT();
+  const incidentStatusClass = localizeLabels(__incidentStatusClass, tr);
+  const incidentUrgencyClass = localizeLabels(__incidentUrgencyClass, tr);
+
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -53,8 +64,7 @@ export default async function IncidentDetailPage({
       <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
         <Link href="/dashboard/incidents">
           <ArrowLeft className="h-4 w-4" />
-          Semua Insiden
-        </Link>
+          {tr("Semua Insiden")}</Link>
       </Button>
 
       {/* Info insiden */}
@@ -62,25 +72,25 @@ export default async function IncidentDetailPage({
         <CardContent className="space-y-3 p-4 md:p-6">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-xl font-bold tracking-tight md:text-2xl">
-              Insiden {incidentTypeLabel[incident.incidentType]}
+              {tr("Insiden ")}{tr(incidentTypeLabel[incident.incidentType])}
             </h2>
             <Badge
               variant="outline"
               className={incidentStatusClass[incident.status]}
             >
-              {incidentStatusLabel[incident.status]}
+              {tr(incidentStatusLabel[incident.status])}
             </Badge>
             <Badge
               variant="outline"
               className={incidentUrgencyClass[incident.urgency]}
             >
-              {incidentUrgencyLabel[incident.urgency]}
+              {tr(incidentUrgencyLabel[incident.urgency])}
             </Badge>
           </div>
 
           <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
             <div className="flex justify-between sm:block">
-              <dt className="text-muted-foreground">Anak Terlibat</dt>
+              <dt className="text-muted-foreground">{tr("Anak Terlibat")}</dt>
               <dd className="font-medium">
                 <Link
                   href={`/dashboard/children/${incident.child.id}`}
@@ -91,21 +101,20 @@ export default async function IncidentDetailPage({
               </dd>
             </div>
             <div className="flex justify-between sm:block">
-              <dt className="text-muted-foreground">Dilaporkan oleh</dt>
+              <dt className="text-muted-foreground">{tr("Dilaporkan oleh")}</dt>
               <dd className="font-medium">{incident.reportedBy.name}</dd>
             </div>
             <div className="flex justify-between sm:block">
-              <dt className="text-muted-foreground">Waktu Laporan</dt>
+              <dt className="text-muted-foreground">{tr("Waktu Laporan")}</dt>
               <dd className="font-medium">
-                {formatDateTime(incident.createdAt)}
+                {formatDateTime(incident.createdAt, locale)}
               </dd>
             </div>
           </dl>
 
           <div className="rounded-md bg-muted/60 p-3">
             <p className="text-xs font-medium uppercase text-muted-foreground">
-              Deskripsi Kejadian
-            </p>
+              {tr("Deskripsi Kejadian")}</p>
             <p className="mt-1 whitespace-pre-line text-sm">
               {incident.description}
             </p>
@@ -114,11 +123,10 @@ export default async function IncidentDetailPage({
           {incident.photoUrl && (
             <div>
               <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">
-                Foto Pendukung
-              </p>
+                {tr("Foto Pendukung")}</p>
               <Image
                 src={incident.photoUrl}
-                alt="Foto insiden"
+                alt={tr("Foto insiden")}
                 width={600}
                 height={400}
                 className="w-full max-w-md rounded-lg object-cover"
@@ -140,10 +148,8 @@ export default async function IncidentDetailPage({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
-            Timeline Penanganan
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
-              ({incident.updates.length} update)
-            </span>
+            {tr("Timeline Penanganan")}<span className="ml-2 text-sm font-normal text-muted-foreground">
+              ({incident.updates.length} {tr(" update)")}</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -154,8 +160,7 @@ export default async function IncidentDetailPage({
 
           {incident.updates.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">
-              Belum ada update penanganan.
-            </p>
+              {tr("Belum ada update penanganan.")}</p>
           ) : (
             <ol className="relative border-l border-border pl-6">
               {incident.updates.map((update) => (
@@ -163,7 +168,7 @@ export default async function IncidentDetailPage({
                   <span className="absolute -left-[31px] flex h-4 w-4 items-center justify-center rounded-full border-2 border-primary bg-background" />
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">
-                      {formatDateTime(update.createdAt)} ·{" "}
+                      {formatDateTime(update.createdAt, locale)} ·{" "}
                       {update.createdBy.name}
                     </p>
                     <p className="whitespace-pre-line text-sm">
@@ -174,7 +179,7 @@ export default async function IncidentDetailPage({
                         variant="outline"
                         className={incidentStatusClass[update.newStatus]}
                       >
-                        Status → {incidentStatusLabel[update.newStatus]}
+                        {tr("Status → ")}{tr(incidentStatusLabel[update.newStatus])}
                       </Badge>
                     )}
                   </div>
@@ -187,3 +192,6 @@ export default async function IncidentDetailPage({
     </div>
   );
 }
+
+const __incidentStatusClass = incidentStatusClass;
+const __incidentUrgencyClass = incidentUrgencyClass;

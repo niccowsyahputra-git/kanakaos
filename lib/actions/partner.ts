@@ -5,6 +5,9 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireStaffSession } from "@/lib/auth-guard";
 import { partnerSchema, type PartnerInput } from "@/lib/validations";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type ActionResult =
   | { success: true; id?: string }
@@ -16,12 +19,15 @@ const FORBIDDEN_ERROR =
 export async function createPartner(
   values: PartnerInput
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { partnerSchema } = getSchemas(locale);
+
   const session = await requireStaffSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const parsed = partnerSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -39,17 +45,19 @@ export async function createPartner(
     return { success: true, id: partner.id };
   } catch (error) {
     console.error("createPartner error:", error);
-    return { success: false, error: "Gagal menyimpan data mitra" };
+    return { success: false, error: tr("Gagal menyimpan data mitra") };
   }
 }
 
 export async function deletePartner(id: string): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+
   const session = await requireStaffSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const idParsed = z.string().cuid().safeParse(id);
   if (!idParsed.success) {
-    return { success: false, error: "ID mitra tidak valid" };
+    return { success: false, error: tr("ID mitra tidak valid") };
   }
 
   try {
@@ -59,6 +67,6 @@ export async function deletePartner(id: string): Promise<ActionResult> {
     return { success: true };
   } catch (error) {
     console.error("deletePartner error:", error);
-    return { success: false, error: "Gagal menghapus mitra" };
+    return { success: false, error: tr("Gagal menghapus mitra") };
   }
 }

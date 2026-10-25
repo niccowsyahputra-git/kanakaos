@@ -25,6 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+
 
 type ChildOption = { id: string; fullName: string; guardianName: string | null };
 type StaffOption = { id: string; name: string };
@@ -36,6 +38,8 @@ export function ScheduleVisitDialog({
   children: ChildOption[];
   staffOptions: StaffOption[];
 }) {
+  const { tr, locale } = useI18n();
+
   const [open, setOpen] = useState(false);
   const [childId, setChildId] = useState("");
   const [officerId, setOfficerId] = useState("");
@@ -54,7 +58,7 @@ export function ScheduleVisitDialog({
         purpose,
       });
       if (result.success) {
-        toast.success("Kunjungan berhasil dijadwalkan");
+        toast.success(tr("Kunjungan berhasil dijadwalkan"));
         setOpen(false);
         setChildId("");
         setOfficerId("");
@@ -71,51 +75,47 @@ export function ScheduleVisitDialog({
       <DialogTrigger asChild>
         <Button className="w-full sm:w-auto">
           <CalendarPlus className="h-4 w-4" />
-          Jadwalkan Kunjungan
-        </Button>
+          {tr("Jadwalkan Kunjungan")}</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Jadwalkan Kunjungan Rumah</DialogTitle>
+          <DialogTitle>{tr("Jadwalkan Kunjungan Rumah")}</DialogTitle>
           <DialogDescription>
-            Kunjungan asesmen ke rumah wali/keluarga anak.
-          </DialogDescription>
+            {tr("Kunjungan asesmen ke rumah wali/keluarga anak.")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
           <div className="space-y-2">
-            <Label>Anak</Label>
+            <Label>{tr("Anak")}</Label>
             <Select value={childId} onValueChange={setChildId}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih anak" />
+                <SelectValue placeholder={tr("Pilih anak")} />
               </SelectTrigger>
               <SelectContent>
                 {children.map((child) => (
                   <SelectItem key={child.id} value={child.id}>
                     {child.fullName}
-                    {child.guardianName ? ` — wali: ${child.guardianName}` : ""}
+                    {child.guardianName ? tr(" — wali: {0}", { "0": child.guardianName }) : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {selectedChild && !selectedChild.guardianName && (
               <p className="text-xs text-destructive">
-                Anak ini belum punya wali terdaftar — lengkapi dulu data wali.
-              </p>
+                {tr("Anak ini belum punya wali terdaftar — lengkapi dulu data wali.")}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label>Petugas Kunjungan</Label>
+            <Label>{tr("Petugas Kunjungan")}</Label>
             <Select value={officerId} onValueChange={setOfficerId}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih petugas yang melakukan kunjungan" />
+                <SelectValue placeholder={tr("Pilih petugas yang melakukan kunjungan")} />
               </SelectTrigger>
               <SelectContent>
                 {staffOptions.length === 0 ? (
                   <SelectItem value="EMPTY" disabled>
-                    Belum ada staff aktif
-                  </SelectItem>
+                    {tr("Belum ada staff aktif")}</SelectItem>
                 ) : (
                   staffOptions.map((staff) => (
                     <SelectItem key={staff.id} value={staff.id}>
@@ -128,7 +128,7 @@ export function ScheduleVisitDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="visit-date">Tanggal Kunjungan</Label>
+            <Label htmlFor="visit-date">{tr("Tanggal Kunjungan")}</Label>
             <Input
               id="visit-date"
               type="date"
@@ -138,12 +138,12 @@ export function ScheduleVisitDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="visit-purpose">Tujuan Kunjungan</Label>
+            <Label htmlFor="visit-purpose">{tr("Tujuan Kunjungan")}</Label>
             <Textarea
               id="visit-purpose"
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
-              placeholder="Contoh: Asesmen kelayakan rumah untuk reunifikasi..."
+              placeholder={tr("Contoh: Asesmen kelayakan rumah untuk reunifikasi...")}
               rows={3}
             />
           </div>
@@ -155,8 +155,7 @@ export function ScheduleVisitDialog({
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             onClick={handleSubmit}
             disabled={
@@ -170,10 +169,9 @@ export function ScheduleVisitDialog({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menyimpan...
-              </>
+                {tr("Menyimpan...")}</>
             ) : (
-              "Jadwalkan"
+              tr("Jadwalkan")
             )}
           </Button>
         </DialogFooter>

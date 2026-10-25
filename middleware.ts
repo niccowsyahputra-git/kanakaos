@@ -28,10 +28,7 @@ export default withAuth(
     const { pathname } = req.nextUrl;
     const token = req.nextauth.token;
 
-    // Redirect authenticated users from login to dashboard
-    if (pathname === "/login" && token) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
-    }
+    // A JWT may outlive account access; the login page must remain reachable.
 
     // Allow public routes to be accessed by everyone (including logged-in users)
     const publicRoutes = ["/donate", "/volunteer/apply", "/verify"];

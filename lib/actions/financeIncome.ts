@@ -5,12 +5,14 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireFinanceSession } from "@/lib/auth-guard";
 import { logAudit } from "@/lib/audit";
-import {
-  financeIncomeSchema,
-  type FinanceIncomeInput,
-} from "@/lib/validations";
-import { nextDocNumber } from "@/lib/finance-balance";
+import type { FinanceIncomeInput } from "@/lib/validations";
+import type { Prisma } from "@prisma/client";
+import { nextDocNumber, assertFundraisingProgram, FundingRuleError, lockFundingWallets } from "@/lib/finance-balance";
 import { incomeFundCategoryLabel } from "@/components/finance/finance-labels";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 type ActionResult =
   | { success: true; id?: string; refNumber?: string }
@@ -23,24 +25,27 @@ const FORBIDDEN =
  * Sinkronkan pemasukan VERIFIED ke buku besar lama (Transaction DEBIT)
  * agar dashboard keuangan & laporan bulanan tetap akurat.
  */
-async function syncIncomeToLedger(incomeId: string) {
-  const income = await prisma.financeIncome.findUnique({
+async function syncIncomeToLedger(incomeId: string, db: Prisma.TransactionClient) {
+  const { tr, locale } = await getT();
+  const incomeFundCategoryLabel = localizeLabels(__incomeFundCategoryLabel, tr);
+
+  const income = await db.financeIncome.findUnique({
     where: { id: incomeId },
   });
   if (!income || income.verification !== "VERIFIED") return;
 
   const categoryName =
     income.fundCategory === "PENDAPATAN_USAHA"
-      ? "Pendapatan Usaha"
-      : "Donasi & Dana Sosial";
+      ? tr("Pendapatan Usaha")
+      : tr("Donasi & Dana Sosial");
 
-  const category = await prisma.financeCategory.upsert({
+  const category = await db.financeCategory.upsert({
     where: { name: categoryName },
     update: {},
     create: { name: categoryName },
   });
 
-  await prisma.transaction.create({
+  await db.transaction.create({
     data: {
       date: income.date,
       description: `${income.refNumber} — ${income.sourceName} (${incomeFundCategoryLabel[income.fundCategory]})`,
@@ -55,31 +60,26 @@ async function syncIncomeToLedger(incomeId: string) {
 export async function createFinanceIncome(
   values: FinanceIncomeInput
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { financeIncomeSchema } = getSchemas(locale);
+
   const session = await requireFinanceSession();
-  if (!session) return { success: false, error: FORBIDDEN };
+  if (!session) return { success: false, error: tr(FORBIDDEN) };
 
   const parsed = financeIncomeSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
     // Validasi referensi
-    if (parsed.data.programId) {
-      const program = await prisma.program.findUnique({
-        where: { id: parsed.data.programId },
-        select: { id: true, status: true },
-      });
-      if (!program) {
-        return { success: false, error: "Program tidak ditemukan" };
-      }
-    }
+    if (parsed.data.programId) await assertFundraisingProgram(prisma, parsed.data.programId);
     if (parsed.data.donorId) {
       const donor = await prisma.donor.findUnique({
         where: { id: parsed.data.donorId },
         select: { id: true },
       });
-      if (!donor) return { success: false, error: "Donatur tidak ditemukan" };
+      if (!donor) return { success: false, error: tr("Donatur tidak ditemukan") };
     }
 
     // Status verifikasi otomatis: transfer bank menunggu cek mutasi,
@@ -90,27 +90,25 @@ export async function createFinanceIncome(
     let income;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const count = await prisma.financeIncome.count();
-        income = await prisma.financeIncome.create({
-          data: {
-            refNumber: await nextDocNumber("KM", count + attempt),
-            date: parsed.data.date,
-            contactCategory: parsed.data.contactCategory,
-            donorId: parsed.data.donorId ?? null,
-            sourceName: parsed.data.sourceName,
-            restriction: parsed.data.restriction,
-            fundCategory: parsed.data.fundCategory,
-            programId:
-              parsed.data.restriction === "TIDAK_TERIKAT"
-                ? null
-                : parsed.data.programId,
-            method: parsed.data.method,
-            amount: parsed.data.amount,
-            verification,
-            accountId: parsed.data.accountId ?? null,
-            memo: parsed.data.memo ?? null,
-            createdById: session.user.id,
-          },
+        income = await prisma.$transaction(async tx => {
+          await lockFundingWallets(tx);
+          if (parsed.data.programId) await assertFundraisingProgram(tx, parsed.data.programId);
+          const count = await tx.financeIncome.count();
+          const created = await tx.financeIncome.create({
+            data: {
+              refNumber: await nextDocNumber("KM", count + attempt),
+              ...parsed.data,
+              donorId: parsed.data.donorId ?? null,
+              // A linked receipt belongs only to its program, regardless of the restriction label.
+              programId: parsed.data.programId ?? null,
+              verification,
+              accountId: parsed.data.accountId ?? null,
+              memo: parsed.data.memo ?? null,
+              createdById: session.user.id,
+            },
+          });
+          if (verification === "VERIFIED") await syncIncomeToLedger(created.id, tx);
+          return created;
         });
         break;
       } catch (e) {
@@ -122,11 +120,7 @@ export async function createFinanceIncome(
           throw e;
       }
     }
-    if (!income) throw new Error("Gagal membuat nomor referensi");
-
-    if (verification === "VERIFIED") {
-      await syncIncomeToLedger(income.id);
-    }
+    if (!income) throw new Error(tr("Gagal membuat nomor referensi"));
 
     await logAudit({
       userId: session.user.id,
@@ -137,12 +131,13 @@ export async function createFinanceIncome(
       detail: `Kas masuk ${income.refNumber} dari ${income.sourceName} (Rp ${income.amount.toLocaleString("id-ID")})`,
     });
 
-    revalidatePath("/dashboard/finance/income");
-    revalidatePath("/dashboard/finance");
+    revalidatePath("/dashboard/finance", "layout");
+    revalidatePath("/dashboard");
     return { success: true, id: income.id, refNumber: income.refNumber };
   } catch (error) {
+    if (error instanceof FundingRuleError) return { success: false, error: tr(error.message) };
     console.error("createFinanceIncome error:", error);
-    return { success: false, error: "Gagal mencatat kas masuk" };
+    return { success: false, error: tr("Gagal mencatat kas masuk") };
   }
 }
 
@@ -151,34 +146,32 @@ export async function setIncomeVerification(
   id: string,
   status: "VERIFIED" | "REJECTED"
 ): Promise<ActionResult> {
-  const session = await requireFinanceSession();
-  if (!session) return { success: false, error: FORBIDDEN };
+  const { tr, locale } = await getT();
 
+  const session = await requireFinanceSession();
+  if (!session) return { success: false, error: tr(FORBIDDEN) };
+
+  if (!z.enum(["VERIFIED", "REJECTED"]).safeParse(status).success) {
+    return { success: false, error: tr("Status verifikasi tidak valid") };
+  }
   const idParsed = z.string().cuid().safeParse(id);
   if (!idParsed.success) {
-    return { success: false, error: "ID pemasukan tidak valid" };
+    return { success: false, error: tr("ID pemasukan tidak valid") };
   }
 
   try {
-    const income = await prisma.financeIncome.findUnique({
-      where: { id: idParsed.data },
+    const income = await prisma.$transaction(async tx => {
+      await lockFundingWallets(tx);
+      const existing = await tx.financeIncome.findUnique({ where: { id: idParsed.data } });
+      if (!existing) throw new FundingRuleError("Pemasukan tidak ditemukan");
+      if (existing.verification !== "PENDING") {
+        throw new FundingRuleError("Hanya pemasukan berstatus Pending yang bisa diproses");
+      }
+      if (status === "VERIFIED" && existing.programId) await assertFundraisingProgram(tx, existing.programId);
+      await tx.financeIncome.update({ where: { id: existing.id }, data: { verification: status } });
+      if (status === "VERIFIED") await syncIncomeToLedger(existing.id, tx);
+      return existing;
     });
-    if (!income) return { success: false, error: "Pemasukan tidak ditemukan" };
-    if (income.verification !== "PENDING") {
-      return {
-        success: false,
-        error: "Hanya pemasukan berstatus Pending yang bisa diproses",
-      };
-    }
-
-    await prisma.financeIncome.update({
-      where: { id: idParsed.data },
-      data: { verification: status },
-    });
-
-    if (status === "VERIFIED") {
-      await syncIncomeToLedger(idParsed.data);
-    }
 
     await logAudit({
       userId: session.user.id,
@@ -189,11 +182,14 @@ export async function setIncomeVerification(
       detail: `${status === "VERIFIED" ? "Memverifikasi" : "Menolak"} kas masuk ${income.refNumber}`,
     });
 
-    revalidatePath("/dashboard/finance/income");
-    revalidatePath("/dashboard/finance");
+    revalidatePath("/dashboard/finance", "layout");
+    revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
+    if (error instanceof FundingRuleError) return { success: false, error: tr(error.message) };
     console.error("setIncomeVerification error:", error);
-    return { success: false, error: "Gagal memproses verifikasi" };
+    return { success: false, error: tr("Gagal memproses verifikasi") };
   }
 }
+
+const __incomeFundCategoryLabel = incomeFundCategoryLabel;

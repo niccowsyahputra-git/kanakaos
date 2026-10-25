@@ -26,6 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 const TYPE_OPTIONS = [
   { value: "HEALTH", label: "Kesehatan" },
@@ -48,6 +51,10 @@ export function ReportIncidentDialog({
 }: {
   children: ChildOption[];
 }) {
+  const { tr, locale } = useI18n();
+  const TYPE_OPTIONS = localizeLabels(__TYPE_OPTIONS, tr);
+  const URGENCY_OPTIONS = localizeLabels(__URGENCY_OPTIONS, tr);
+
   const router = useRouter();
   const photoRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -72,9 +79,9 @@ export function ReportIncidentDialog({
       const result = await reportIncident(formData);
       if (result.success) {
         if (result.warning) {
-          toast.warning("Insiden dilaporkan", { description: result.warning });
+          toast.warning(tr("Insiden dilaporkan"), { description: result.warning });
         } else {
-          toast.success("Insiden berhasil dilaporkan");
+          toast.success(tr("Insiden berhasil dilaporkan"));
         }
         setOpen(false);
         setChildId("");
@@ -93,23 +100,21 @@ export function ReportIncidentDialog({
       <DialogTrigger asChild>
         <Button className="w-full sm:w-auto">
           <Siren className="h-4 w-4" />
-          Lapor Insiden
-        </Button>
+          {tr("Lapor Insiden")}</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Lapor Insiden</DialogTitle>
+          <DialogTitle>{tr("Lapor Insiden")}</DialogTitle>
           <DialogDescription>
-            Laporkan kejadian penting yang menimpa anak sesegera mungkin.
-          </DialogDescription>
+            {tr("Laporkan kejadian penting yang menimpa anak sesegera mungkin.")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
           <div className="space-y-2">
-            <Label>Anak yang Terlibat</Label>
+            <Label>{tr("Anak yang Terlibat")}</Label>
             <Select value={childId} onValueChange={setChildId}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih anak" />
+                <SelectValue placeholder={tr("Pilih anak")} />
               </SelectTrigger>
               <SelectContent>
                 {children.map((child) => (
@@ -123,30 +128,30 @@ export function ReportIncidentDialog({
 
           <div className="flex flex-col gap-4 sm:flex-row">
             <div className="w-full space-y-2 sm:w-1/2">
-              <Label>Jenis Insiden</Label>
+              <Label>{tr("Jenis Insiden")}</Label>
               <Select value={incidentType} onValueChange={setIncidentType}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih jenis" />
+                  <SelectValue placeholder={tr("Pilih jenis")} />
                 </SelectTrigger>
                 <SelectContent>
                   {TYPE_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                      {tr(option.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="w-full space-y-2 sm:w-1/2">
-              <Label>Tingkat Urgensi</Label>
+              <Label>{tr("Tingkat Urgensi")}</Label>
               <Select value={urgency} onValueChange={setUrgency}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih urgensi" />
+                  <SelectValue placeholder={tr("Pilih urgensi")} />
                 </SelectTrigger>
                 <SelectContent>
                   {URGENCY_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                      {tr(option.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -155,38 +160,36 @@ export function ReportIncidentDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="incident-desc">Deskripsi Kejadian</Label>
+            <Label htmlFor="incident-desc">{tr("Deskripsi Kejadian")}</Label>
             <Textarea
               id="incident-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Apa yang terjadi, kapan, di mana, tindakan awal yang sudah dilakukan..."
+              placeholder={tr("Apa yang terjadi, kapan, di mana, tindakan awal yang sudah dilakukan...")}
               rows={4}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="incident-handling">
-              Penanganan Insiden{" "}
+              {tr("Penanganan Insiden")}{" "}
               <span className="font-normal text-muted-foreground">
-                (opsional)
-              </span>
+                {tr("(opsional)")}</span>
             </Label>
             <Textarea
               id="incident-handling"
               value={handling}
               onChange={(e) => setHandling(e.target.value)}
-              placeholder="Tindakan penanganan yang sudah/akan dilakukan..."
+              placeholder={tr("Tindakan penanganan yang sudah/akan dilakukan...")}
               rows={3}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="incident-photo">
-              Foto Pendukung{" "}
+              {tr("Foto Pendukung")}{" "}
               <span className="font-normal text-muted-foreground">
-                (opsional, maks 5MB)
-              </span>
+                {tr("(opsional, maks 5MB)")}</span>
             </Label>
             <Input
               id="incident-photo"
@@ -204,8 +207,7 @@ export function ReportIncidentDialog({
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             onClick={handleSubmit}
             disabled={
@@ -218,10 +220,9 @@ export function ReportIncidentDialog({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Melaporkan...
-              </>
+                {tr("Melaporkan...")}</>
             ) : (
-              "Kirim Laporan"
+              tr("Kirim Laporan")
             )}
           </Button>
         </DialogFooter>
@@ -229,3 +230,6 @@ export function ReportIncidentDialog({
     </Dialog>
   );
 }
+
+const __TYPE_OPTIONS = TYPE_OPTIONS;
+const __URGENCY_OPTIONS = URGENCY_OPTIONS;

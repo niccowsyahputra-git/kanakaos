@@ -19,16 +19,26 @@ import {
   prStatusLabel,
   prStatusClass,
 } from "@/components/inventory/pr-labels";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export const dynamic = "force-dynamic";
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(
     date
   );
 }
 
 export default async function PurchaseRequestsPage() {
+  const { tr, locale } = await getT();
+  const prStatusClass = localizeLabels(__prStatusClass, tr);
+
   const session = await requireLogisticsSession();
   if (!session) redirect("/dashboard");
 
@@ -59,19 +69,16 @@ export default async function PurchaseRequestsPage() {
       <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
         <Link href="/dashboard/inventory">
           <ArrowLeft className="h-4 w-4" />
-          Inventori
-        </Link>
+          {tr("Inventori")}</Link>
       </Button>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Purchase Requests
-          </h2>
+            {tr("Purchase Requests")}</h2>
           <p className="text-sm text-muted-foreground">
-            {pendingCount} menunggu persetujuan dari total {requests.length}{" "}
-            PR.
-          </p>
+            {pendingCount} {tr(" menunggu persetujuan dari total ")}{requests.length}{" "}
+            {tr("PR.")}</p>
         </div>
         <NewPRDialog items={items} />
       </div>
@@ -79,8 +86,7 @@ export default async function PurchaseRequestsPage() {
       {requests.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Belum ada purchase request.
-          </CardContent>
+            {tr("Belum ada purchase request.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -99,10 +105,10 @@ export default async function PurchaseRequestsPage() {
                         {pr.inventory.unit}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {pr.requestedBy.name} · {formatDate(pr.createdAt)}
+                        {pr.requestedBy.name} · {formatDate(pr.createdAt, locale)}
                       </p>
                       <Badge variant="outline" className={prStatusClass[pr.status]}>
-                        {prStatusLabel[pr.status]}
+                        {tr(prStatusLabel[pr.status])}
                       </Badge>
                     </div>
                     <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
@@ -117,18 +123,18 @@ export default async function PurchaseRequestsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Barang</TableHead>
-                  <TableHead className="text-right">Jumlah</TableHead>
-                  <TableHead>Pemohon</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{tr("Tanggal")}</TableHead>
+                  <TableHead>{tr("Barang")}</TableHead>
+                  <TableHead className="text-right">{tr("Jumlah")}</TableHead>
+                  <TableHead>{tr("Pemohon")}</TableHead>
+                  <TableHead>{tr("Status")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {requests.map((pr) => (
                   <TableRow key={pr.id}>
                     <TableCell className="whitespace-nowrap">
-                      {formatDate(pr.createdAt)}
+                      {formatDate(pr.createdAt, locale)}
                     </TableCell>
                     <TableCell className="font-medium">
                       <Link
@@ -147,7 +153,7 @@ export default async function PurchaseRequestsPage() {
                         variant="outline"
                         className={prStatusClass[pr.status]}
                       >
-                        {prStatusLabel[pr.status]}
+                        {tr(prStatusLabel[pr.status])}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -160,3 +166,5 @@ export default async function PurchaseRequestsPage() {
     </div>
   );
 }
+
+const __prStatusClass = prStatusClass;

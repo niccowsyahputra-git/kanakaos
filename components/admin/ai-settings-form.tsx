@@ -35,6 +35,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+
 
 const formSchema = z.object({
   provider: z.enum(["QWEN", "OPENAI", "CUSTOM"], {
@@ -89,6 +91,8 @@ export function AISettingsForm({
     hasApiKey: boolean;
   } | null;
 }) {
+  const { tr, locale } = useI18n();
+
   const [isSaving, startSaving] = useTransition();
   const [isTesting, startTesting] = useTransition();
   const [testResult, setTestResult] = useState<TestResult>(null);
@@ -117,7 +121,7 @@ export function AISettingsForm({
   function onSubmit(values: FormValues) {
     // Wajib isi API key saat setup pertama kali
     if (!values.apiKey && !initialConfig?.hasApiKey) {
-      form.setError("apiKey", { message: "API Key wajib diisi" });
+      form.setError("apiKey", { message: tr("API Key wajib diisi") });
       return;
     }
 
@@ -130,7 +134,7 @@ export function AISettingsForm({
       });
 
       if (result.success) {
-        toast.success("Konfigurasi AI berhasil disimpan");
+        toast.success(tr("Konfigurasi AI berhasil disimpan"));
         setTestResult(null);
         form.setValue("apiKey", "");
       } else {
@@ -146,7 +150,7 @@ export function AISettingsForm({
       if (result.success) {
         setTestResult({
           status: "success",
-          message: `AI merespons: "${result.text}"`,
+          message: tr("AI merespons: \"{0}\"", { "0": result.text }),
         });
       } else {
         setTestResult({ status: "error", message: result.error });
@@ -167,14 +171,14 @@ export function AISettingsForm({
               name="provider"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Provider</FormLabel>
+                  <FormLabel>{tr("Provider")}</FormLabel>
                   <Select
                     onValueChange={handleProviderChange}
                     value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Pilih provider AI" />
+                        <SelectValue placeholder={tr("Pilih provider AI")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -183,13 +187,11 @@ export function AISettingsForm({
                       </SelectItem>
                       <SelectItem value="OPENAI">OpenAI</SelectItem>
                       <SelectItem value="CUSTOM">
-                        Custom (OpenAI-compatible)
-                      </SelectItem>
+                        {tr("Custom (OpenAI-compatible)")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    Memilih provider akan mengisi Base URL & model default.
-                  </FormDescription>
+                    {tr("Memilih provider akan mengisi Base URL & model default.")}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -202,15 +204,14 @@ export function AISettingsForm({
                 <FormItem>
                   <FormLabel className="flex items-center gap-1.5">
                     <KeyRound className="h-3.5 w-3.5" />
-                    API Key
-                  </FormLabel>
+                    {tr("API Key")}</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
                       autoComplete="off"
                       placeholder={
                         initialConfig?.hasApiKey
-                          ? "••••••••  (sudah tersimpan — isi hanya jika ingin ganti)"
+                          ? tr("••••••••  (sudah tersimpan — isi hanya jika ingin ganti)")
                           : "sk-..."
                       }
                       {...field}
@@ -226,7 +227,7 @@ export function AISettingsForm({
               name="baseUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Base URL</FormLabel>
+                  <FormLabel>{tr("Base URL")}</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"
@@ -244,7 +245,7 @@ export function AISettingsForm({
               name="modelName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Model Name</FormLabel>
+                  <FormLabel>{tr("Model Name")}</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="qwen-max"
@@ -271,8 +272,8 @@ export function AISettingsForm({
                 )}
                 <AlertTitle>
                   {testResult.status === "success"
-                    ? "Koneksi Berhasil"
-                    : "Koneksi Gagal"}
+                    ? tr("Koneksi Berhasil")
+                    : tr("Koneksi Gagal")}
                 </AlertTitle>
                 <AlertDescription>{testResult.message}</AlertDescription>
               </Alert>
@@ -289,13 +290,11 @@ export function AISettingsForm({
                 {isTesting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Menguji koneksi...
-                  </>
+                    {tr("Menguji koneksi...")}</>
                 ) : (
                   <>
                     <PlugZap className="h-4 w-4" />
-                    Test Connection
-                  </>
+                    {tr("Test Connection")}</>
                 )}
               </Button>
               <Button
@@ -306,21 +305,17 @@ export function AISettingsForm({
                 {isSaving ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Menyimpan...
-                  </>
+                    {tr("Menyimpan...")}</>
                 ) : (
                   <>
                     <Save className="h-4 w-4" />
-                    Simpan Konfigurasi
-                  </>
+                    {tr("Simpan Konfigurasi")}</>
                 )}
               </Button>
             </div>
             {!initialConfig?.hasApiKey && (
               <p className="text-xs text-muted-foreground">
-                Simpan konfigurasi terlebih dahulu sebelum melakukan Test
-                Connection.
-              </p>
+                {tr("Simpan konfigurasi terlebih dahulu sebelum melakukan Test Connection.")}</p>
             )}
           </form>
         </Form>

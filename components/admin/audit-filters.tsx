@@ -11,6 +11,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 const ACTION_OPTIONS = [
   { value: "ALL", label: "Semua Aksi" },
@@ -25,6 +28,9 @@ export function AuditFilters({
 }: {
   users: { id: string; name: string }[];
 }) {
+  const { tr, locale } = useI18n();
+  const ACTION_OPTIONS = localizeLabels(__ACTION_OPTIONS, tr);
+
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -53,12 +59,12 @@ export function AuditFilters({
         onValueChange={(v) => setParam("action", v)}
       >
         <SelectTrigger className="w-full md:w-40">
-          <SelectValue placeholder="Aksi" />
+          <SelectValue placeholder={tr("Aksi")} />
         </SelectTrigger>
         <SelectContent>
           {ACTION_OPTIONS.map((option) => (
             <SelectItem key={option.value} value={option.value}>
-              {option.label}
+              {tr(option.label)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -69,10 +75,10 @@ export function AuditFilters({
         onValueChange={(v) => setParam("userId", v)}
       >
         <SelectTrigger className="w-full md:w-52">
-          <SelectValue placeholder="User" />
+          <SelectValue placeholder={tr("User")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">Semua User</SelectItem>
+          <SelectItem value="ALL">{tr("Semua User")}</SelectItem>
           {users.map((user) => (
             <SelectItem key={user.id} value={user.id}>
               {user.name}
@@ -87,15 +93,15 @@ export function AuditFilters({
           className="w-full md:w-40"
           value={searchParams.get("from") ?? ""}
           onChange={(e) => setParam("from", e.target.value || null)}
-          aria-label="Dari tanggal"
+          aria-label={tr("Dari tanggal")}
         />
-        <span className="text-sm text-muted-foreground">s/d</span>
+        <span className="text-sm text-muted-foreground">{tr("s/d")}</span>
         <Input
           type="date"
           className="w-full md:w-40"
           value={searchParams.get("to") ?? ""}
           onChange={(e) => setParam("to", e.target.value || null)}
-          aria-label="Sampai tanggal"
+          aria-label={tr("Sampai tanggal")}
         />
       </div>
 
@@ -111,9 +117,10 @@ export function AuditFilters({
           className="w-fit gap-1"
         >
           <X className="h-3.5 w-3.5" />
-          Reset
-        </Button>
+          {tr("Reset")}</Button>
       )}
     </div>
   );
 }
+
+const __ACTION_OPTIONS = ACTION_OPTIONS;

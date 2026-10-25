@@ -32,6 +32,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useI18n } from "@/lib/i18n/client";
+
 
 type Intervention = {
   id: string;
@@ -70,6 +72,8 @@ export function CaseDetailTabs({
   documents: CaseDoc[];
   notes: Note[];
 }) {
+  const { tr, locale } = useI18n();
+
   // --- Dialog tambah intervensi ---
   const [interventionOpen, setInterventionOpen] = useState(false);
   const [interventionDate, setInterventionDate] = useState(
@@ -101,11 +105,11 @@ export function CaseDetailTabs({
       const result = await addIntervention(formData);
       if (result.success) {
         if (result.warning) {
-          toast.warning("Intervensi tersimpan", {
+          toast.warning(tr("Intervensi tersimpan"), {
             description: result.warning,
           });
         } else {
-          toast.success("Intervensi tersimpan");
+          toast.success(tr("Intervensi tersimpan"));
         }
         setInterventionOpen(false);
         setInterventionType("");
@@ -119,7 +123,7 @@ export function CaseDetailTabs({
   function handleUploadDocument() {
     const file = documentRef.current?.files?.[0];
     if (!file) {
-      toast.error("Pilih file terlebih dahulu");
+      toast.error(tr("Pilih file terlebih dahulu"));
       return;
     }
     startUploadingDoc(async () => {
@@ -128,7 +132,7 @@ export function CaseDetailTabs({
       formData.set("file", file);
       const result = await uploadCaseDocument(formData);
       if (result.success) {
-        toast.success("Dokumen ter-upload");
+        toast.success(tr("Dokumen ter-upload"));
         if (documentRef.current) documentRef.current.value = "";
       } else {
         toast.error(result.error);
@@ -140,7 +144,7 @@ export function CaseDetailTabs({
     startSavingNote(async () => {
       const result = await addCaseNote({ caseId, content: noteContent });
       if (result.success) {
-        toast.success("Catatan tersimpan");
+        toast.success(tr("Catatan tersimpan"));
         setNoteContent("");
       } else {
         toast.error(result.error);
@@ -152,12 +156,12 @@ export function CaseDetailTabs({
     <Tabs defaultValue="timeline" className="w-full">
       <TabsList className="grid w-full grid-cols-3">
         <TabsTrigger value="timeline">
-          Timeline ({interventions.length})
+          {tr("Timeline (")}{interventions.length})
         </TabsTrigger>
         <TabsTrigger value="documents">
-          Dokumen ({documents.length})
+          {tr("Dokumen (")}{documents.length})
         </TabsTrigger>
-        <TabsTrigger value="notes">Catatan ({notes.length})</TabsTrigger>
+        <TabsTrigger value="notes">{tr("Catatan (")}{notes.length})</TabsTrigger>
       </TabsList>
 
       {/* ============ TAB TIMELINE ============ */}
@@ -172,20 +176,18 @@ export function CaseDetailTabs({
                 <DialogTrigger asChild>
                   <Button className="w-full md:w-auto">
                     <Plus className="h-4 w-4" />
-                    Tambah Intervensi
-                  </Button>
+                    {tr("Tambah Intervensi")}</Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Tambah Intervensi</DialogTitle>
+                    <DialogTitle>{tr("Tambah Intervensi")}</DialogTitle>
                     <DialogDescription>
-                      Catat tindakan yang sudah dilakukan untuk kasus ini.
-                    </DialogDescription>
+                      {tr("Catat tindakan yang sudah dilakukan untuk kasus ini.")}</DialogDescription>
                   </DialogHeader>
                   <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-4 sm:flex-row">
                       <div className="w-full space-y-2 sm:w-1/2">
-                        <Label htmlFor="int-date">Tanggal</Label>
+                        <Label htmlFor="int-date">{tr("Tanggal")}</Label>
                         <Input
                           id="int-date"
                           type="date"
@@ -194,29 +196,28 @@ export function CaseDetailTabs({
                         />
                       </div>
                       <div className="w-full space-y-2 sm:w-1/2">
-                        <Label htmlFor="int-type">Jenis Intervensi</Label>
+                        <Label htmlFor="int-type">{tr("Jenis Intervensi")}</Label>
                         <Input
                           id="int-type"
                           value={interventionType}
                           onChange={(e) => setInterventionType(e.target.value)}
-                          placeholder="Konseling, kunjungan, rujukan..."
+                          placeholder={tr("Konseling, kunjungan, rujukan...")}
                         />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="int-notes">Catatan</Label>
+                      <Label htmlFor="int-notes">{tr("Catatan")}</Label>
                       <Textarea
                         id="int-notes"
                         value={interventionNotes}
                         onChange={(e) => setInterventionNotes(e.target.value)}
-                        placeholder="Hasil/temuan intervensi..."
+                        placeholder={tr("Hasil/temuan intervensi...")}
                         rows={4}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="int-file">
-                        Lampiran (opsional, JPG/PNG/PDF maks 5MB)
-                      </Label>
+                        {tr("Lampiran (opsional, JPG/PNG/PDF maks 5MB)")}</Label>
                       <Input
                         id="int-file"
                         ref={attachmentRef}
@@ -232,8 +233,7 @@ export function CaseDetailTabs({
                       onClick={() => setInterventionOpen(false)}
                       disabled={isSavingIntervention}
                     >
-                      Batal
-                    </Button>
+                      {tr("Batal")}</Button>
                     <Button
                       onClick={handleAddIntervention}
                       disabled={
@@ -245,10 +245,9 @@ export function CaseDetailTabs({
                       {isSavingIntervention ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          Menyimpan...
-                        </>
+                          {tr("Menyimpan...")}</>
                       ) : (
-                        "Simpan Intervensi"
+                        tr("Simpan Intervensi")
                       )}
                     </Button>
                   </DialogFooter>
@@ -258,8 +257,7 @@ export function CaseDetailTabs({
 
             {interventions.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                Belum ada intervensi tercatat.
-              </p>
+                {tr("Belum ada intervensi tercatat.")}</p>
             ) : (
               <ol className="relative border-l border-border pl-6">
                 {interventions.map((intervention) => (
@@ -270,7 +268,7 @@ export function CaseDetailTabs({
                         {intervention.interventionType}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {intervention.date} · oleh {intervention.createdByName}
+                        {intervention.date} {tr(" · oleh ")}{intervention.createdByName}
                       </p>
                       <p className="whitespace-pre-line text-sm">
                         {intervention.notes}
@@ -283,8 +281,7 @@ export function CaseDetailTabs({
                           className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                         >
                           <Paperclip className="h-3 w-3" />
-                          Lihat lampiran
-                        </a>
+                          {tr("Lihat lampiran")}</a>
                       )}
                     </div>
                   </li>
@@ -315,13 +312,11 @@ export function CaseDetailTabs({
                   {isUploadingDoc ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Meng-upload...
-                    </>
+                      {tr("Meng-upload...")}</>
                   ) : (
                     <>
                       <Upload className="h-4 w-4" />
-                      Upload Dokumen
-                    </>
+                      {tr("Upload Dokumen")}</>
                   )}
                 </Button>
               </div>
@@ -329,8 +324,7 @@ export function CaseDetailTabs({
 
             {documents.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                Belum ada dokumen ter-upload.
-              </p>
+                {tr("Belum ada dokumen ter-upload.")}</p>
             ) : (
               <ul className="divide-y">
                 {documents.map((doc) => (
@@ -356,8 +350,7 @@ export function CaseDetailTabs({
                         rel="noopener noreferrer"
                       >
                         <ExternalLink className="h-4 w-4" />
-                        Buka
-                      </a>
+                        {tr("Buka")}</a>
                     </Button>
                   </li>
                 ))}
@@ -376,7 +369,7 @@ export function CaseDetailTabs({
                 <Textarea
                   value={noteContent}
                   onChange={(e) => setNoteContent(e.target.value)}
-                  placeholder="Tulis catatan pribadi terkait kasus ini..."
+                  placeholder={tr("Tulis catatan pribadi terkait kasus ini...")}
                   rows={3}
                 />
                 <div className="flex justify-end">
@@ -388,13 +381,11 @@ export function CaseDetailTabs({
                     {isSavingNote ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Menyimpan...
-                      </>
+                        {tr("Menyimpan...")}</>
                     ) : (
                       <>
                         <StickyNote className="h-4 w-4" />
-                        Simpan Catatan
-                      </>
+                        {tr("Simpan Catatan")}</>
                     )}
                   </Button>
                 </div>
@@ -403,8 +394,7 @@ export function CaseDetailTabs({
 
             {notes.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                Belum ada catatan.
-              </p>
+                {tr("Belum ada catatan.")}</p>
             ) : (
               <ul className="space-y-3">
                 {notes.map((note) => (

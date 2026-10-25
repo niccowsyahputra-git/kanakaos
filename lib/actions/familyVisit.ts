@@ -6,6 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { logAudit } from "@/lib/audit";
 import { familyVisitSchema, type FamilyVisitInput } from "@/lib/validations";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type ActionResult =
   | { success: true; id?: string }
@@ -14,14 +17,17 @@ type ActionResult =
 export async function createFamilyVisit(
   values: FamilyVisitInput
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { familyVisitSchema } = getSchemas(locale);
+
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const parsed = familyVisitSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -29,7 +35,7 @@ export async function createFamilyVisit(
       where: { id: parsed.data.childId },
       select: { id: true, fullName: true },
     });
-    if (!child) return { success: false, error: "Data anak tidak ditemukan" };
+    if (!child) return { success: false, error: tr("Data anak tidak ditemukan") };
 
     const visit = await prisma.familyVisit.create({
       data: {
@@ -55,7 +61,7 @@ export async function createFamilyVisit(
     return { success: true, id: visit.id };
   } catch (error) {
     console.error("createFamilyVisit error:", error);
-    return { success: false, error: "Gagal mencatat kunjungan" };
+    return { success: false, error: tr("Gagal mencatat kunjungan") };
   }
 }
 
@@ -63,19 +69,22 @@ export async function updateFamilyVisit(
   id: string,
   values: FamilyVisitInput
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { familyVisitSchema } = getSchemas(locale);
+
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const idParsed = z.string().cuid().safeParse(id);
   if (!idParsed.success) {
-    return { success: false, error: "ID kunjungan tidak valid" };
+    return { success: false, error: tr("ID kunjungan tidak valid") };
   }
 
   const parsed = familyVisitSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -84,7 +93,7 @@ export async function updateFamilyVisit(
       select: { id: true },
     });
     if (!existing) {
-      return { success: false, error: "Data kunjungan tidak ditemukan" };
+      return { success: false, error: tr("Data kunjungan tidak ditemukan") };
     }
 
     await prisma.familyVisit.update({
@@ -111,19 +120,21 @@ export async function updateFamilyVisit(
     return { success: true, id: idParsed.data };
   } catch (error) {
     console.error("updateFamilyVisit error:", error);
-    return { success: false, error: "Gagal memperbarui kunjungan" };
+    return { success: false, error: tr("Gagal memperbarui kunjungan") };
   }
 }
 
 export async function deleteFamilyVisit(id: string): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Tidak terautentikasi" };
+    return { success: false, error: tr("Tidak terautentikasi") };
   }
 
   const idParsed = z.string().cuid().safeParse(id);
   if (!idParsed.success) {
-    return { success: false, error: "ID kunjungan tidak valid" };
+    return { success: false, error: tr("ID kunjungan tidak valid") };
   }
 
   try {
@@ -132,7 +143,7 @@ export async function deleteFamilyVisit(id: string): Promise<ActionResult> {
       include: { child: { select: { fullName: true } } },
     });
     if (!visit) {
-      return { success: false, error: "Data kunjungan tidak ditemukan" };
+      return { success: false, error: tr("Data kunjungan tidak ditemukan") };
     }
 
     await prisma.familyVisit.delete({ where: { id: idParsed.data } });
@@ -150,6 +161,6 @@ export async function deleteFamilyVisit(id: string): Promise<ActionResult> {
     return { success: true };
   } catch (error) {
     console.error("deleteFamilyVisit error:", error);
-    return { success: false, error: "Gagal menghapus data kunjungan" };
+    return { success: false, error: tr("Gagal menghapus data kunjungan") };
   }
 }

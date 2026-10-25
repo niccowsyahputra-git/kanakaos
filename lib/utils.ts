@@ -1,8 +1,21 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { intlTags, type Locale } from "@/lib/i18n/config";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+const EN_ONES = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+const EN_TENS = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+function toEnglishWords(n: number): string {
+  if (n < 20) return EN_ONES[n];
+  if (n < 100) return EN_TENS[Math.floor(n / 10)] + (n % 10 ? `-${EN_ONES[n % 10]}` : "");
+  for (const [scale, name] of [[1e12, "Trillion"], [1e9, "Billion"], [1e6, "Million"], [1e3, "Thousand"], [100, "Hundred"]] as const) {
+    if (n >= scale) return `${toEnglishWords(Math.floor(n / scale))} ${name}${n % scale ? ` ${toEnglishWords(n % scale)}` : ""}`;
+  }
+  return "Zero";
 }
 
 // ---------- Terbilang Bahasa Indonesia ----------
@@ -65,7 +78,11 @@ function toWords(n: number): string {
  * Mengubah angka menjadi terbilang Bahasa Indonesia dengan suffix "Rupiah".
  * Contoh: 1500000 -> "Satu Juta Lima Ratus Ribu Rupiah"
  */
-export function numberToWords(amount: number): string {
+export function numberToWords(amount: number, locale: Locale = "id"): string {
+  if (locale === "en") {
+    const n = Number.isFinite(amount) ? Math.floor(Math.abs(amount)) : 0;
+    return `${amount < 0 && n ? "Minus " : ""}${toEnglishWords(n)} Rupiah`;
+  }
   if (!Number.isFinite(amount)) return "Nol Rupiah";
 
   const n = Math.floor(Math.abs(amount));
@@ -76,8 +93,8 @@ export function numberToWords(amount: number): string {
 }
 
 /** Format angka ke Rupiah, contoh: 1500000 -> "Rp 1.500.000" */
-export function formatRupiah(amount: number): string {
-  return new Intl.NumberFormat("id-ID", {
+export function formatRupiah(amount: number, locale: Locale = "id"): string {
+  return new Intl.NumberFormat(intlTags[locale], {
     style: "currency",
     currency: "IDR",
     minimumFractionDigits: 0,

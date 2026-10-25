@@ -19,6 +19,11 @@ import {
   DeleteGuardianButton,
 } from "@/components/guardians/guardian-tools";
 import { occupationLabel } from "@/components/children/child-labels";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export const dynamic = "force-dynamic";
 
@@ -26,32 +31,34 @@ function toDateInput(date: Date | null): string | null {
   return date ? date.toISOString().slice(0, 10) : null;
 }
 
-function vulnerabilityBadge(score: number | null) {
+function vulnerabilityBadge(score: number | null, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
   if (score === null) {
-    return <Badge variant="outline">Belum dinilai</Badge>;
+    return <Badge variant="outline">{tr("Belum dinilai")}</Badge>;
   }
   if (score >= 7) {
     return (
       <Badge variant="outline" className="border-transparent bg-red-100 text-red-800">
-        Tinggi ({score}/10)
+        {tr("Tinggi (")}{score}/10)
       </Badge>
     );
   }
   if (score >= 4) {
     return (
       <Badge variant="outline" className="border-transparent bg-yellow-100 text-yellow-800">
-        Sedang ({score}/10)
+        {tr("Sedang (")}{score}/10)
       </Badge>
     );
   }
   return (
     <Badge variant="outline" className="border-transparent bg-green-100 text-green-800">
-      Rendah ({score}/10)
+      {tr("Rendah (")}{score}/10)
     </Badge>
   );
 }
 
-function DocBadges({
+async function DocBadges({
   ktp,
   kk,
   selfie,
@@ -62,11 +69,13 @@ function DocBadges({
   selfie: string | null;
   other: string | null;
 }) {
+  const { tr, locale } = await getT();
+
   const docs = [
     { url: ktp, label: "KTP" },
     { url: kk, label: "KK" },
     { url: selfie, label: "Selfie" },
-    { url: other, label: "Lainnya" },
+    { url: other, label: tr("Lainnya") },
   ].filter((d) => d.url);
   if (docs.length === 0) {
     return <span className="text-xs text-muted-foreground">-</span>;
@@ -90,6 +99,9 @@ function DocBadges({
 }
 
 export default async function GuardiansPage() {
+  const { tr, locale } = await getT();
+  const occupationLabel = localizeLabels(__occupationLabel, tr);
+
   const session = await requireStaffSession();
   if (!session) redirect("/dashboard");
 
@@ -111,11 +123,9 @@ export default async function GuardiansPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Wali Anak</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{tr("Wali Anak")}</h2>
           <p className="text-sm text-muted-foreground">
-            {guardians.length} wali terdaftar. Skor kerentanan diperbarui
-            otomatis dari hasil kunjungan rumah.
-          </p>
+            {guardians.length} {tr(" wali terdaftar. Skor kerentanan diperbarui otomatis dari hasil kunjungan rumah.")}</p>
         </div>
         <AddGuardianDialog childrenOptions={childrenOptions} />
       </div>
@@ -123,8 +133,7 @@ export default async function GuardiansPage() {
       {guardians.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Belum ada wali. Tambahkan wali pertama.
-          </CardContent>
+            {tr("Belum ada wali. Tambahkan wali pertama.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -137,7 +146,7 @@ export default async function GuardiansPage() {
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{guardian.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {guardian.relationship ?? "Hubungan belum diisi"}
+                        {guardian.relationship ? tr(guardian.relationship) : tr("Hubungan belum diisi")}
                         {guardian.occupation
                           ? ` · ${occupationLabel[guardian.occupation]}`
                           : ""}
@@ -180,19 +189,17 @@ export default async function GuardiansPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    {vulnerabilityBadge(guardian.vulnerabilityScore)}
+                    {vulnerabilityBadge(guardian.vulnerabilityScore, locale)}
                     <Badge variant="secondary">
-                      {guardian._count.children} anak
-                    </Badge>
+                      {guardian._count.children} {tr(" anak")}</Badge>
                     {guardian.monthlyIncome != null && (
                       <Badge variant="outline">
-                        {formatRupiah(guardian.monthlyIncome)}/bln
-                      </Badge>
+                        {formatRupiah(guardian.monthlyIncome, locale)}{tr("/bln")}</Badge>
                     )}
                   </div>
                   {guardian.children.length > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      Anak:{" "}
+                      {tr("Anak:")}{" "}
                       {guardian.children.map((c) => c.fullName).join(", ")}
                     </p>
                   )}
@@ -212,13 +219,13 @@ export default async function GuardiansPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nama Wali</TableHead>
-                  <TableHead>Hubungan</TableHead>
-                  <TableHead>Pekerjaan</TableHead>
-                  <TableHead>Anak Terkait</TableHead>
-                  <TableHead>Skor Kerentanan</TableHead>
-                  <TableHead>Dokumen</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{tr("Nama Wali")}</TableHead>
+                  <TableHead>{tr("Hubungan")}</TableHead>
+                  <TableHead>{tr("Pekerjaan")}</TableHead>
+                  <TableHead>{tr("Anak Terkait")}</TableHead>
+                  <TableHead>{tr("Skor Kerentanan")}</TableHead>
+                  <TableHead>{tr("Dokumen")}</TableHead>
+                  <TableHead className="text-right">{tr("Aksi")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -229,11 +236,11 @@ export default async function GuardiansPage() {
                       <span className="block text-xs text-muted-foreground">
                         {guardian.phone ?? "-"}
                         {guardian.monthlyIncome != null
-                          ? ` · ${formatRupiah(guardian.monthlyIncome)}/bln`
+                          ? tr(" · {0}/bln", { "0": formatRupiah(guardian.monthlyIncome, locale) })
                           : ""}
                       </span>
                     </TableCell>
-                    <TableCell>{guardian.relationship ?? "-"}</TableCell>
+                    <TableCell>{guardian.relationship ? tr(guardian.relationship) : "-"}</TableCell>
                     <TableCell>
                       {guardian.occupation
                         ? occupationLabel[guardian.occupation]
@@ -247,7 +254,7 @@ export default async function GuardiansPage() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      {vulnerabilityBadge(guardian.vulnerabilityScore)}
+                      {vulnerabilityBadge(guardian.vulnerabilityScore, locale)}
                     </TableCell>
                     <TableCell>
                       <DocBadges
@@ -303,3 +310,5 @@ export default async function GuardiansPage() {
     </div>
   );
 }
+
+const __occupationLabel = occupationLabel;

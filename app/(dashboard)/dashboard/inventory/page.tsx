@@ -25,6 +25,10 @@ import {
   AdjustStockDialog,
   InventoryFilters,
 } from "@/components/inventory/inventory-tools";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+
 
 export const dynamic = "force-dynamic";
 
@@ -36,8 +40,10 @@ const categoryLabel: Record<InventoryCategory, string> = {
   LAINNYA: "Lainnya",
 };
 
-function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
+function formatDateTime(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
@@ -48,6 +54,8 @@ export default async function InventoryPage({
 }: {
   searchParams: { category?: string };
 }) {
+  const { tr, locale } = await getT();
+
   const session = await requireLogisticsSession();
   if (!session) redirect("/dashboard");
 
@@ -80,14 +88,12 @@ export default async function InventoryPage({
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Inventori</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{tr("Inventori")}</h2>
           <p className="text-sm text-muted-foreground">
-            {items.length} barang
-            {lowStockCount > 0 && (
+            {items.length} {tr(" barang")}{lowStockCount > 0 && (
               <span className="text-destructive">
                 {" "}
-                · {lowStockCount} stok menipis
-              </span>
+                · {lowStockCount} {tr(" stok menipis")}</span>
             )}
           </p>
         </div>
@@ -95,8 +101,7 @@ export default async function InventoryPage({
           <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link href="/dashboard/inventory/purchase-requests">
               <ShoppingCart className="h-4 w-4" />
-              Purchase Requests
-            </Link>
+              {tr("Purchase Requests")}</Link>
           </Button>
           <AddItemDialog />
         </div>
@@ -107,8 +112,7 @@ export default async function InventoryPage({
       {items.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Tidak ada barang untuk kategori ini.
-          </CardContent>
+            {tr("Tidak ada barang untuk kategori ini.")}</CardContent>
         </Card>
       ) : (
         <>
@@ -123,7 +127,7 @@ export default async function InventoryPage({
                       <div>
                         <p className="font-semibold">{item.itemName}</p>
                         <p className="text-xs text-muted-foreground">
-                          {categoryLabel[item.category]} · min {item.minStock}{" "}
+                          {tr(categoryLabel[item.category])} · min {item.minStock}{" "}
                           {item.unit}
                         </p>
                       </div>
@@ -138,22 +142,23 @@ export default async function InventoryPage({
                       {isLow ? (
                         <Badge variant="destructive" className="gap-1">
                           <AlertTriangle className="h-3 w-3" />
-                          Stok Menipis
-                        </Badge>
+                          {tr("Stok Menipis")}</Badge>
                       ) : (
                         <Badge
                           variant="outline"
                           className="border-transparent bg-green-100 text-green-800"
                         >
-                          Aman
-                        </Badge>
+                          {tr("Aman")}</Badge>
                       )}
+                      <div className="flex flex-wrap justify-end gap-2">
+                      <AddItemDialog item={item} />
                       <AdjustStockDialog
                         inventoryId={item.id}
                         itemName={item.itemName}
                         unit={item.unit}
                         currentQuantity={item.quantity}
                       />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -166,12 +171,12 @@ export default async function InventoryPage({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Barang</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead className="text-right">Stok</TableHead>
-                  <TableHead className="text-right">Min. Stok</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{tr("Barang")}</TableHead>
+                  <TableHead>{tr("Kategori")}</TableHead>
+                  <TableHead className="text-right">{tr("Stok")}</TableHead>
+                  <TableHead className="text-right">{tr("Min. Stok")}</TableHead>
+                  <TableHead>{tr("Status")}</TableHead>
+                  <TableHead className="text-right">{tr("Aksi")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -182,7 +187,7 @@ export default async function InventoryPage({
                       <TableCell className="font-medium">
                         {item.itemName}
                       </TableCell>
-                      <TableCell>{categoryLabel[item.category]}</TableCell>
+                      <TableCell>{tr(categoryLabel[item.category])}</TableCell>
                       <TableCell
                         className={`text-right font-semibold ${isLow ? "text-destructive" : ""}`}
                       >
@@ -195,24 +200,25 @@ export default async function InventoryPage({
                         {isLow ? (
                           <Badge variant="destructive" className="gap-1">
                             <AlertTriangle className="h-3 w-3" />
-                            Stok Menipis
-                          </Badge>
+                            {tr("Stok Menipis")}</Badge>
                         ) : (
                           <Badge
                             variant="outline"
                             className="border-transparent bg-green-100 text-green-800"
                           >
-                            Aman
-                          </Badge>
+                            {tr("Aman")}</Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
+                        <div className="flex flex-wrap justify-end gap-2">
+                        <AddItemDialog item={item} />
                         <AdjustStockDialog
                           inventoryId={item.id}
                           itemName={item.itemName}
                           unit={item.unit}
                           currentQuantity={item.quantity}
                         />
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -227,17 +233,14 @@ export default async function InventoryPage({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
-            Riwayat Adjustment
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
-              (10 terakhir)
-            </span>
+            {tr("Riwayat Adjustment")}<span className="ml-2 text-sm font-normal text-muted-foreground">
+              {tr("(10 terakhir)")}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {recentAdjustments.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">
-              Belum ada riwayat adjustment.
-            </p>
+              {tr("Belum ada riwayat adjustment.")}</p>
           ) : (
             <ul className="divide-y">
               {recentAdjustments.map((adjustment) => (
@@ -266,7 +269,7 @@ export default async function InventoryPage({
                   </div>
                   <p className="shrink-0 text-xs text-muted-foreground">
                     {adjustment.createdBy.name} ·{" "}
-                    {formatDateTime(adjustment.createdAt)}
+                    {formatDateTime(adjustment.createdAt, locale)}
                   </p>
                 </li>
               ))}

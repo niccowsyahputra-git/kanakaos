@@ -36,6 +36,13 @@ import {
   employmentStatusOptions,
   PTKP_OPTIONS,
 } from "@/components/employees/employee-labels";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+import { EMPLOYEE_DEPARTMENTS, EMPLOYEE_POSITIONS } from "@/lib/option-catalogs";
+import type { LocationOption } from "@/components/admin/employee-location-settings";
+import type { EmployeeStatus } from "@prisma/client";
+import Link from "next/link";
+
 
 const NONE = "NONE";
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -58,6 +65,9 @@ export type EmployeeData = {
   employmentStatus: string;
   ptkpStatus: string | null;
   entityLocation: string | null;
+  entityLocationId: string | null;
+  status: EmployeeStatus;
+  account?: { email: string; role: string; isActive: boolean } | null;
   basicSalary: number | null;
   salaryEffectiveDate: string | null;
   npwp: string | null;
@@ -75,13 +85,32 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
+function CatalogSelect({ id, value, values, onChange }: { id: string; value: string; values: readonly string[]; onChange: (value: string) => void }) {
+  const { tr } = useI18n();
+  return <Select value={value || NONE} onValueChange={v => onChange(v === NONE ? "" : v)}>
+    <SelectTrigger id={id} className="h-auto min-h-10 [&>span]:whitespace-normal [&>span]:text-left"><SelectValue /></SelectTrigger>
+    <SelectContent>
+      <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
+      {value && !values.includes(value) && <SelectItem value={value} disabled>{value} ({tr("Data lama")})</SelectItem>}
+      {values.map(v => <SelectItem value={v} key={v}>{tr(v)}</SelectItem>)}
+    </SelectContent>
+  </Select>;
+}
+
 function EmployeeFormDialog({
   mode,
   employee,
+  locations,
 }: {
   mode: "create" | "edit";
   employee?: EmployeeData;
+  locations: LocationOption[];
 }) {
+  const { tr, locale } = useI18n();
+  const religionOptions = localizeLabels(__religionOptions, tr);
+  const employmentStatusOptions = localizeLabels(__employmentStatusOptions, tr);
+  const PTKP_OPTIONS = localizeLabels(__PTKP_OPTIONS, tr);
+
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -102,7 +131,7 @@ function EmployeeFormDialog({
     grade: employee?.grade ?? "",
     employmentStatus: employee?.employmentStatus ?? "TETAP",
     ptkpStatus: employee?.ptkpStatus ?? NONE,
-    entityLocation: employee?.entityLocation ?? "",
+    entityLocationId: employee?.entityLocationId ?? "",
     basicSalary:
       employee?.basicSalary != null ? String(employee.basicSalary) : "",
     salaryEffectiveDate: employee?.salaryEffectiveDate ?? "",
@@ -123,19 +152,19 @@ function EmployeeFormDialog({
 
   function handleSubmit() {
     if (form.firstName.trim().length < 2) {
-      toast.error("Nama depan minimal 2 karakter");
+      toast.error(tr("Nama depan minimal 2 karakter"));
       return;
     }
     if (!form.gender) {
-      toast.error("Pilih jenis kelamin");
+      toast.error(tr("Pilih jenis kelamin"));
       return;
     }
     if (form.employeeCode.trim().length < 2) {
-      toast.error("Kode karyawan wajib diisi");
+      toast.error(tr("Kode karyawan wajib diisi"));
       return;
     }
     if (form.nik && !/^\d{16}$/.test(form.nik)) {
-      toast.error("No. KTP harus 16 digit angka");
+      toast.error(tr("No. KTP harus 16 digit angka"));
       return;
     }
 
@@ -156,7 +185,7 @@ function EmployeeFormDialog({
         grade: form.grade,
         employmentStatus: form.employmentStatus as "TETAP",
         ptkpStatus: (form.ptkpStatus === NONE ? "" : form.ptkpStatus) as "TK/0",
-        entityLocation: form.entityLocation,
+        entityLocationId: form.entityLocationId,
         basicSalary: form.basicSalary,
         salaryEffectiveDate: form.salaryEffectiveDate
           ? new Date(form.salaryEffectiveDate)
@@ -176,8 +205,8 @@ function EmployeeFormDialog({
       if (result.success) {
         toast.success(
           mode === "create"
-            ? `Pegawai ${form.firstName} berhasil ditambahkan`
-            : `Data pegawai ${form.firstName} diperbarui`
+            ? tr("Pegawai {0} berhasil ditambahkan", { "0": form.firstName })
+            : tr("Data pegawai {0} diperbarui", { "0": form.firstName })
         );
         if (mode === "create") setForm(initialForm);
         setOpen(false);
@@ -189,71 +218,69 @@ function EmployeeFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={next => { if (next) setForm(initialForm); setOpen(next); }}>
       <DialogTrigger asChild>
         {mode === "create" ? (
           <Button className="w-full sm:w-auto">
             <Plus className="h-4 w-4" />
-            Tambah Pegawai
-          </Button>
+            {tr("Tambah Pegawai")}</Button>
         ) : (
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit">
+          <Button variant="ghost" size="icon" className="h-8 w-8" title={tr("Edit")}>
             <Pencil className="h-4 w-4" />
-            <span className="sr-only">Edit {employee?.firstName}</span>
+            <span className="sr-only">{tr("Edit ")}{employee?.firstName}</span>
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Tambah Pegawai Baru" : "Edit Pegawai"}
+            {mode === "create" ? tr("Tambah Pegawai Baru") : tr("Edit Pegawai")}
           </DialogTitle>
           <DialogDescription>
-            Lengkapi data pegawai yayasan di bawah ini.
-          </DialogDescription>
+            {tr("Lengkapi data pegawai yayasan di bawah ini.")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
           {/* 1. Data Pribadi */}
-          <SectionTitle>Data Pribadi</SectionTitle>
+          <SectionTitle>{tr("Data Pribadi")}</SectionTitle>
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="emp-firstname">Nama Depan *</Label>
+              <Label htmlFor="emp-firstname">{tr("Nama Depan *")}</Label>
               <Input
                 id="emp-firstname"
                 value={form.firstName}
                 onChange={(e) => set("firstName", e.target.value)}
-                placeholder="mis. Budi"
+                placeholder={tr("mis. Budi")}
               />
             </div>
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="emp-lastname">Nama Belakang</Label>
+              <Label htmlFor="emp-lastname">{tr("Nama Belakang")}</Label>
               <Input
                 id="emp-lastname"
                 value={form.lastName}
                 onChange={(e) => set("lastName", e.target.value)}
-                placeholder="mis. Santoso"
+                placeholder={tr("mis. Santoso")}
               />
             </div>
           </div>
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full space-y-2 md:w-1/2">
-              <Label>Jenis Kelamin *</Label>
+              <Label>{tr("Jenis Kelamin *")}</Label>
               <Select
                 value={form.gender}
                 onValueChange={(v) => set("gender", v)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih" />
+                  <SelectValue placeholder={tr("Pilih")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="MALE">Laki-laki</SelectItem>
-                  <SelectItem value="FEMALE">Perempuan</SelectItem>
+                  <SelectItem value="MALE">{tr("Laki-laki")}</SelectItem>
+                  <SelectItem value="FEMALE">{tr("Perempuan")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="emp-dob">Tanggal Lahir</Label>
+              <Label htmlFor="emp-dob">{tr("Tanggal Lahir")}</Label>
               <Input
                 id="emp-dob"
                 type="date"
@@ -265,30 +292,30 @@ function EmployeeFormDialog({
           </div>
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="emp-nik">No. KTP (NIK)</Label>
+              <Label htmlFor="emp-nik">{tr("No. KTP (NIK)")}</Label>
               <Input
                 id="emp-nik"
                 value={form.nik}
                 onChange={(e) => set("nik", e.target.value.replace(/\D/g, ""))}
-                placeholder="16 digit"
+                placeholder={tr("16 digit")}
                 inputMode="numeric"
                 maxLength={16}
               />
             </div>
             <div className="w-full space-y-2 md:w-1/2">
-              <Label>Agama</Label>
+              <Label>{tr("Agama")}</Label>
               <Select
                 value={form.religion}
                 onValueChange={(v) => set("religion", v)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih agama" />
+                  <SelectValue placeholder={tr("Pilih agama")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE}>Belum ditentukan</SelectItem>
+                  <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
                   {religionOptions.map((o) => (
                     <SelectItem key={o.value} value={o.value}>
-                      {o.label}
+                      {tr(o.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -297,17 +324,17 @@ function EmployeeFormDialog({
           </div>
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="emp-phone">No. Telp</Label>
+              <Label htmlFor="emp-phone">{tr("No. Telp")}</Label>
               <Input
                 id="emp-phone"
                 value={form.phone}
                 onChange={(e) => set("phone", e.target.value)}
-                placeholder="08xxxxxxxxxx"
+                placeholder={tr("08xxxxxxxxxx")}
                 inputMode="tel"
               />
             </div>
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="emp-email">Email</Label>
+              <Label htmlFor="emp-email">{tr("Email")}</Label>
               <Input
                 id="emp-email"
                 type="email"
@@ -319,19 +346,19 @@ function EmployeeFormDialog({
           </div>
 
           {/* 2. Kepegawaian */}
-          <SectionTitle>Kepegawaian</SectionTitle>
+          <SectionTitle>{tr("Kepegawaian")}</SectionTitle>
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="emp-code">Kode Karyawan *</Label>
+              <Label htmlFor="emp-code">{tr("Kode Karyawan *")}</Label>
               <Input
                 id="emp-code"
                 value={form.employeeCode}
                 onChange={(e) => set("employeeCode", e.target.value)}
-                placeholder="mis. KNK-001"
+                placeholder={tr("mis. KNK-001")}
               />
             </div>
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="emp-join">Tanggal Bergabung</Label>
+              <Label htmlFor="emp-join">{tr("Tanggal Bergabung")}</Label>
               <Input
                 id="emp-join"
                 type="date"
@@ -342,36 +369,26 @@ function EmployeeFormDialog({
           </div>
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="emp-dept">Department</Label>
-              <Input
-                id="emp-dept"
-                value={form.department}
-                onChange={(e) => set("department", e.target.value)}
-                placeholder="mis. Pengasuhan / Keuangan / Umum"
-              />
+              <Label htmlFor="emp-dept">{tr("Department")}</Label>
+              <CatalogSelect id="emp-dept" value={form.department} values={EMPLOYEE_DEPARTMENTS} onChange={v => set("department", v)} />
             </div>
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="emp-position">Jabatan</Label>
-              <Input
-                id="emp-position"
-                value={form.position}
-                onChange={(e) => set("position", e.target.value)}
-                placeholder="mis. Pengasuh Senior"
-              />
+              <Label htmlFor="emp-position">{tr("Jabatan")}</Label>
+              <CatalogSelect id="emp-position" value={form.position} values={EMPLOYEE_POSITIONS} onChange={v => set("position", v)} />
             </div>
           </div>
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="emp-grade">Grade</Label>
+              <Label htmlFor="emp-grade">{tr("Grade")}</Label>
               <Input
                 id="emp-grade"
                 value={form.grade}
                 onChange={(e) => set("grade", e.target.value)}
-                placeholder="mis. G3"
+                placeholder={tr("mis. G3")}
               />
             </div>
             <div className="w-full space-y-2 md:w-1/2">
-              <Label>Status Kepegawaian *</Label>
+              <Label>{tr("Status Kepegawaian *")}</Label>
               <Select
                 value={form.employmentStatus}
                 onValueChange={(v) => set("employmentStatus", v)}
@@ -382,7 +399,7 @@ function EmployeeFormDialog({
                 <SelectContent>
                   {employmentStatusOptions.map((o) => (
                     <SelectItem key={o.value} value={o.value}>
-                      {o.label}
+                      {tr(o.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -391,16 +408,16 @@ function EmployeeFormDialog({
           </div>
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full space-y-2 md:w-1/2">
-              <Label>Status PTKP</Label>
+              <Label>{tr("Status PTKP")}</Label>
               <Select
                 value={form.ptkpStatus}
                 onValueChange={(v) => set("ptkpStatus", v)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih PTKP" />
+                  <SelectValue placeholder={tr("Pilih PTKP")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE}>Belum ditentukan</SelectItem>
+                  <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
                   {PTKP_OPTIONS.map((ptkp) => (
                     <SelectItem key={ptkp} value={ptkp}>
                       {ptkp}
@@ -410,21 +427,27 @@ function EmployeeFormDialog({
               </Select>
             </div>
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="emp-entity">Entitas Lokasi</Label>
-              <Input
-                id="emp-entity"
-                value={form.entityLocation}
-                onChange={(e) => set("entityLocation", e.target.value)}
-                placeholder="mis. Yayasan Kanaka - Denpasar"
-              />
+              <Label htmlFor="emp-entity">{tr("Entitas Lokasi")}</Label>
+              <Select value={form.entityLocationId || NONE} onValueChange={v => set("entityLocationId", v === NONE ? "" : v)}>
+                <SelectTrigger id="emp-entity"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>{tr("Belum ditentukan")}</SelectItem>
+                  {locations.filter(location => location.isActive || location.id === employee?.entityLocationId).map(location => (
+                    <SelectItem key={location.id} value={location.id} disabled={!location.isActive}>
+                      {location.name}{!location.isActive && ` (${tr("Tidak aktif")})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!locations.some(location => location.isActive) && <Link className="text-xs text-primary underline" href="/dashboard/admin/settings?tab=locations">{tr("Atur entitas lokasi di Pengaturan Sistem")}</Link>}
             </div>
           </div>
 
           {/* 3. Gaji & Pajak */}
-          <SectionTitle>Gaji &amp; Pajak</SectionTitle>
+          <SectionTitle>{tr("Gaji & Pajak")}</SectionTitle>
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="emp-salary">Gaji Pokok (Rp)</Label>
+              <Label htmlFor="emp-salary">{tr("Gaji Pokok (Rp)")}</Label>
               <Input
                 id="emp-salary"
                 type="number"
@@ -433,16 +456,15 @@ function EmployeeFormDialog({
                 inputMode="numeric"
                 value={form.basicSalary}
                 onChange={(e) => set("basicSalary", e.target.value)}
-                placeholder="mis. 3500000"
+                placeholder={tr("mis. 3500000")}
               />
               {salaryNumber > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  {formatRupiah(salaryNumber)} / bulan
-                </p>
+                  {formatRupiah(salaryNumber, locale)} {tr(" / bulan")}</p>
               )}
             </div>
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="emp-salary-date">Tanggal Efektif Gaji</Label>
+              <Label htmlFor="emp-salary-date">{tr("Tanggal Efektif Gaji")}</Label>
               <Input
                 id="emp-salary-date"
                 type="date"
@@ -452,55 +474,55 @@ function EmployeeFormDialog({
             </div>
           </div>
           <div className="w-full space-y-2 md:w-1/2">
-            <Label htmlFor="emp-npwp">No. NPWP</Label>
+            <Label htmlFor="emp-npwp">{tr("No. NPWP")}</Label>
             <Input
               id="emp-npwp"
               value={form.npwp}
               onChange={(e) => set("npwp", e.target.value)}
-              placeholder="mis. 12.345.678.9-012.345"
+              placeholder={tr("mis. 12.345.678.9-012.345")}
             />
           </div>
 
           {/* 4. Alamat */}
-          <SectionTitle>Alamat</SectionTitle>
+          <SectionTitle>{tr("Alamat")}</SectionTitle>
           <div className="space-y-2">
-            <Label htmlFor="emp-address">Alamat Lengkap</Label>
+            <Label htmlFor="emp-address">{tr("Alamat Lengkap")}</Label>
             <Textarea
               id="emp-address"
               value={form.fullAddress}
               onChange={(e) => set("fullAddress", e.target.value)}
-              placeholder="Jalan, nomor, RT/RW, kelurahan, kecamatan"
+              placeholder={tr("Jalan, nomor, RT/RW, kelurahan, kecamatan")}
               rows={2}
             />
           </div>
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full space-y-2 md:w-1/3">
-              <Label htmlFor="emp-city">Kota</Label>
+              <Label htmlFor="emp-city">{tr("Kota")}</Label>
               <Input
                 id="emp-city"
                 value={form.city}
                 onChange={(e) => set("city", e.target.value)}
-                placeholder="mis. Denpasar"
+                placeholder={tr("mis. Denpasar")}
               />
             </div>
             <div className="w-full space-y-2 md:w-1/3">
-              <Label htmlFor="emp-province">Provinsi</Label>
+              <Label htmlFor="emp-province">{tr("Provinsi")}</Label>
               <Input
                 id="emp-province"
                 value={form.province}
                 onChange={(e) => set("province", e.target.value)}
-                placeholder="mis. Bali"
+                placeholder={tr("mis. Bali")}
               />
             </div>
             <div className="w-full space-y-2 md:w-1/3">
-              <Label htmlFor="emp-postal">Kode Pos</Label>
+              <Label htmlFor="emp-postal">{tr("Kode Pos")}</Label>
               <Input
                 id="emp-postal"
                 value={form.postalCode}
                 onChange={(e) =>
                   set("postalCode", e.target.value.replace(/\D/g, ""))
                 }
-                placeholder="5 digit"
+                placeholder={tr("5 digit")}
                 inputMode="numeric"
                 maxLength={5}
               />
@@ -514,8 +536,7 @@ function EmployeeFormDialog({
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             onClick={handleSubmit}
             disabled={
@@ -528,12 +549,11 @@ function EmployeeFormDialog({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menyimpan...
-              </>
+                {tr("Menyimpan...")}</>
             ) : mode === "create" ? (
-              "Simpan"
+              tr("Simpan")
             ) : (
-              "Simpan Perubahan"
+              tr("Simpan Perubahan")
             )}
           </Button>
         </DialogFooter>
@@ -542,12 +562,12 @@ function EmployeeFormDialog({
   );
 }
 
-export function AddEmployeeDialog() {
-  return <EmployeeFormDialog mode="create" />;
+export function AddEmployeeDialog({ locations }: { locations: LocationOption[] }) {
+  return <EmployeeFormDialog mode="create" locations={locations} />;
 }
 
-export function EditEmployeeDialog({ employee }: { employee: EmployeeData }) {
-  return <EmployeeFormDialog mode="edit" employee={employee} />;
+export function EditEmployeeDialog({ employee, locations }: { employee: EmployeeData; locations: LocationOption[] }) {
+  return <EmployeeFormDialog mode="edit" employee={employee} locations={locations} />;
 }
 
 export function DeleteEmployeeButton({
@@ -557,6 +577,8 @@ export function DeleteEmployeeButton({
   employeeId: string;
   employeeName: string;
 }) {
+  const { tr, locale } = useI18n();
+
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -564,7 +586,7 @@ export function DeleteEmployeeButton({
     startTransition(async () => {
       const result = await deleteEmployee(employeeId);
       if (result.success) {
-        toast.success(`Pegawai ${employeeName} dihapus`);
+        toast.success(tr("Pegawai {0} dihapus", { "0": employeeName }));
         setOpen(false);
       } else {
         toast.error(result.error);
@@ -579,18 +601,17 @@ export function DeleteEmployeeButton({
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-destructive hover:text-destructive"
-          title="Hapus"
+          title={tr("Hapus")}
         >
           <Trash2 className="h-4 w-4" />
-          <span className="sr-only">Hapus {employeeName}</span>
+          <span className="sr-only">{tr("Hapus ")}{employeeName}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Hapus Pegawai?</DialogTitle>
+          <DialogTitle>{tr("Hapus Pegawai?")}</DialogTitle>
           <DialogDescription>
-            Data pegawai <b>{employeeName}</b> akan dihapus permanen.
-          </DialogDescription>
+            {tr("Data pegawai ")}<b>{employeeName}</b> {tr(" akan dihapus permanen.")}</DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2">
           <Button
@@ -598,8 +619,7 @@ export function DeleteEmployeeButton({
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
-            Batal
-          </Button>
+            {tr("Batal")}</Button>
           <Button
             variant="destructive"
             onClick={handleDelete}
@@ -608,10 +628,9 @@ export function DeleteEmployeeButton({
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menghapus...
-              </>
+                {tr("Menghapus...")}</>
             ) : (
-              "Ya, Hapus"
+              tr("Ya, Hapus")
             )}
           </Button>
         </DialogFooter>
@@ -619,3 +638,7 @@ export function DeleteEmployeeButton({
     </Dialog>
   );
 }
+
+const __religionOptions = religionOptions;
+const __employmentStatusOptions = employmentStatusOptions;
+const __PTKP_OPTIONS = PTKP_OPTIONS;

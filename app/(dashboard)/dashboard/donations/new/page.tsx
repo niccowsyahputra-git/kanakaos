@@ -1,13 +1,16 @@
 import { DonationForm } from "@/components/donations/donation-form";
+import { getT } from "@/lib/i18n/server";
 
-export default function NewDonationPage() {
+
+export default async function NewDonationPage() {
+  const { tr, locale } = await getT();
+
   return (
     <div className="mx-auto w-full max-w-lg space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Catat Donasi</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{tr("Catat Donasi")}</h2>
         <p className="text-sm text-muted-foreground">
-          Simpan donasi dan kwitansi PDF akan otomatis ter-download.
-        </p>
+          {tr("Simpan donasi dan kwitansi PDF akan otomatis ter-download.")}</p>
       </div>
       <DonationForm />
     </div>

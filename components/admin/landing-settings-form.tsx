@@ -25,6 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n/client";
+
 
 type TextField = Exclude<keyof LandingContent, "programs">;
 type EditableProgram = ProgramItem & { key: number };
@@ -52,6 +54,8 @@ function Section({
 }
 
 export function LandingSettingsForm({ initial }: { initial: LandingContent }) {
+  const { tr, locale } = useI18n();
+
   const { programs: initialPrograms, ...initialTexts } = initial;
   const [texts, setTexts] = useState<Record<TextField, string>>(initialTexts);
   const nextKey = useRef(initialPrograms.length);
@@ -104,7 +108,7 @@ export function LandingSettingsForm({ initial }: { initial: LandingContent }) {
         })),
       });
       if (result.success) {
-        toast.success("Konten halaman publik tersimpan");
+        toast.success(tr("Konten halaman publik tersimpan"));
       } else {
         toast.error(result.error);
       }
@@ -114,71 +118,68 @@ export function LandingSettingsForm({ initial }: { initial: LandingContent }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Halaman Publik</CardTitle>
+        <CardTitle className="text-lg">{tr("Halaman Publik")}</CardTitle>
         <CardDescription>
-          Konten beranda website yang dilihat pengunjung & donatur. Gunakan{" "}
-          <code className="rounded bg-muted px-1">{"{nama}"}</code> untuk nama
-          yayasan dan{" "}
-          <code className="rounded bg-muted px-1">{"{tahun}"}</code> untuk
-          tahun berjalan.
-        </CardDescription>
+          {tr("Konten beranda website yang dilihat pengunjung & donatur. Gunakan")}{" "}
+          <code className="rounded bg-muted px-1">{"{nama}"}</code> {tr(" untuk nama yayasan dan")}{" "}
+          <code className="rounded bg-muted px-1">{"{tahun}"}</code> {tr(" untuk tahun berjalan.")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <Section title="Bagian Atas (Hero)">
+        <Section title={tr("Bagian Atas (Hero)")}>
           <div className="space-y-2">
-            <Label htmlFor="landing-heroBadge">Label di Atas Judul</Label>
+            <Label htmlFor="landing-heroBadge">{tr("Label di Atas Judul")}</Label>
             <Input {...textInput("heroBadge")} maxLength={100} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="landing-heroTitle">Judul</Label>
+            <Label htmlFor="landing-heroTitle">{tr("Judul")}</Label>
             <Input {...textInput("heroTitle")} maxLength={200} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="landing-heroSubtitle">Sub Judul</Label>
+            <Label htmlFor="landing-heroSubtitle">{tr("Sub Judul")}</Label>
             <Textarea {...textInput("heroSubtitle")} rows={3} maxLength={500} />
           </div>
         </Section>
 
         <Section
-          title="Tentang Kami"
-          description="Kosongkan bagian yang tidak ingin ditampilkan."
+          title={tr("Tentang Kami")}
+          description={tr("Kosongkan bagian yang tidak ingin ditampilkan.")}
         >
           <div className="space-y-2">
-            <Label htmlFor="landing-aboutTitle">Judul Bagian</Label>
+            <Label htmlFor="landing-aboutTitle">{tr("Judul Bagian")}</Label>
             <Input {...textInput("aboutTitle")} maxLength={100} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="landing-about">Deskripsi Yayasan</Label>
+            <Label htmlFor="landing-about">{tr("Deskripsi Yayasan")}</Label>
             <Textarea
               {...textInput("about")}
               rows={4}
               maxLength={2000}
-              placeholder="Gambaran singkat tentang yayasan"
+              placeholder={tr("Gambaran singkat tentang yayasan")}
             />
           </div>
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="landing-vision">Visi</Label>
+              <Label htmlFor="landing-vision">{tr("Visi")}</Label>
               <Textarea {...textInput("vision")} rows={4} maxLength={1000} />
             </div>
             <div className="w-full space-y-2 md:w-1/2">
-              <Label htmlFor="landing-mission">Misi</Label>
+              <Label htmlFor="landing-mission">{tr("Misi")}</Label>
               <Textarea
                 {...textInput("mission")}
                 rows={4}
                 maxLength={2000}
-                placeholder="Bisa ditulis poin per baris"
+                placeholder={tr("Bisa ditulis poin per baris")}
               />
             </div>
           </div>
         </Section>
 
         <Section
-          title="Program Kami"
-          description={`Maksimal ${MAX_PROGRAMS} program. Kosongkan semua program untuk menyembunyikan bagian ini.`}
+          title={tr("Program Kami")}
+          description={tr("Maksimal {0} program. Kosongkan semua program untuk menyembunyikan bagian ini.", { "0": MAX_PROGRAMS })}
         >
           <div className="space-y-2">
-            <Label htmlFor="landing-programsTitle">Judul Bagian</Label>
+            <Label htmlFor="landing-programsTitle">{tr("Judul Bagian")}</Label>
             <Input {...textInput("programsTitle")} maxLength={100} />
           </div>
           {programs.map((program, index) => (
@@ -187,7 +188,7 @@ export function LandingSettingsForm({ initial }: { initial: LandingContent }) {
               className="space-y-3 rounded-md border bg-muted/30 p-3"
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">Program {index + 1}</p>
+                <p className="text-sm font-medium">{tr("Program ")}{index + 1}</p>
                 <div className="flex gap-1">
                   <Button
                     type="button"
@@ -196,7 +197,7 @@ export function LandingSettingsForm({ initial }: { initial: LandingContent }) {
                     className="h-8 w-8"
                     disabled={index === 0}
                     onClick={() => moveProgram(index, -1)}
-                    aria-label="Naikkan urutan"
+                    aria-label={tr("Naikkan urutan")}
                   >
                     <ArrowUp className="h-4 w-4" />
                   </Button>
@@ -207,7 +208,7 @@ export function LandingSettingsForm({ initial }: { initial: LandingContent }) {
                     className="h-8 w-8"
                     disabled={index === programs.length - 1}
                     onClick={() => moveProgram(index, 1)}
-                    aria-label="Turunkan urutan"
+                    aria-label={tr("Turunkan urutan")}
                   >
                     <ArrowDown className="h-4 w-4" />
                   </Button>
@@ -221,7 +222,7 @@ export function LandingSettingsForm({ initial }: { initial: LandingContent }) {
                         prev.filter((item) => item.key !== program.key)
                       )
                     }
-                    aria-label="Hapus program"
+                    aria-label={tr("Hapus program")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -229,7 +230,7 @@ export function LandingSettingsForm({ initial }: { initial: LandingContent }) {
               </div>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-[180px_1fr]">
                 <div className="space-y-2">
-                  <Label>Ikon</Label>
+                  <Label>{tr("Ikon")}</Label>
                   <Select
                     value={program.icon}
                     onValueChange={(value) =>
@@ -246,7 +247,7 @@ export function LandingSettingsForm({ initial }: { initial: LandingContent }) {
                           <SelectItem key={key} value={key}>
                             <span className="flex items-center gap-2">
                               <Icon className="h-4 w-4" />
-                              {label}
+                              {tr(label)}
                             </span>
                           </SelectItem>
                         );
@@ -256,8 +257,7 @@ export function LandingSettingsForm({ initial }: { initial: LandingContent }) {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor={`program-title-${program.key}`}>
-                    Nama Program
-                  </Label>
+                    {tr("Nama Program")}</Label>
                   <Input
                     id={`program-title-${program.key}`}
                     value={program.title}
@@ -269,7 +269,7 @@ export function LandingSettingsForm({ initial }: { initial: LandingContent }) {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor={`program-desc-${program.key}`}>Deskripsi</Label>
+                <Label htmlFor={`program-desc-${program.key}`}>{tr("Deskripsi")}</Label>
                 <Textarea
                   id={`program-desc-${program.key}`}
                   value={program.description}
@@ -289,24 +289,23 @@ export function LandingSettingsForm({ initial }: { initial: LandingContent }) {
             disabled={programs.length >= MAX_PROGRAMS}
             className="w-full md:w-auto"
           >
-            <Plus className="h-4 w-4" /> Tambah Program
-          </Button>
+            <Plus className="h-4 w-4" /> {tr(" Tambah Program")}</Button>
         </Section>
 
-        <Section title="Ajakan Donasi">
+        <Section title={tr("Ajakan Donasi")}>
           <div className="space-y-2">
-            <Label htmlFor="landing-ctaTitle">Judul</Label>
+            <Label htmlFor="landing-ctaTitle">{tr("Judul")}</Label>
             <Input {...textInput("ctaTitle")} maxLength={150} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="landing-ctaSubtitle">Teks</Label>
+            <Label htmlFor="landing-ctaSubtitle">{tr("Teks")}</Label>
             <Textarea {...textInput("ctaSubtitle")} rows={3} maxLength={500} />
           </div>
         </Section>
 
         <Section title="Footer">
           <div className="space-y-2">
-            <Label htmlFor="landing-copyright">Teks Copyright</Label>
+            <Label htmlFor="landing-copyright">{tr("Teks Copyright")}</Label>
             <Input {...textInput("copyright")} maxLength={200} />
           </div>
         </Section>
@@ -318,9 +317,9 @@ export function LandingSettingsForm({ initial }: { initial: LandingContent }) {
             className="w-full md:w-auto"
           >
             {isSaving ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> Menyimpan...</>
+              <><Loader2 className="h-4 w-4 animate-spin" /> {tr(" Menyimpan...")}</>
             ) : (
-              <><Save className="h-4 w-4" /> Simpan Halaman Publik</>
+              <><Save className="h-4 w-4" /> {tr(" Simpan Halaman Publik")}</>
             )}
           </Button>
         </div>

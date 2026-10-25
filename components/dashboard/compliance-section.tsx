@@ -8,6 +8,11 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ApprovalQueue } from "@/components/dashboard/approval-queue";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 const PARTNER_TYPE_LABEL: Record<string, string> = {
   RS: "Rumah Sakit",
@@ -16,11 +21,16 @@ const PARTNER_TYPE_LABEL: Record<string, string> = {
   CSR: "CSR/Perusahaan",
 };
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(date);
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "medium" }).format(date);
 }
 
 export async function ComplianceSection() {
+  const { tr, locale } = await getT();
+  const PARTNER_TYPE_LABEL = localizeLabels(__PARTNER_TYPE_LABEL, tr);
+
   const data = await getComplianceData();
 
   return (
@@ -31,11 +41,9 @@ export async function ComplianceSection() {
         </div>
         <div>
           <h3 className="text-lg font-bold tracking-tight">
-            Pengingat &amp; Kepatuhan Hukum
-          </h3>
+            {tr("Pengingat & Kepatuhan Hukum")}</h3>
           <p className="text-xs text-muted-foreground">
-            Kontrol legalitas &amp; pusat kendali persetujuan Ketua.
-          </p>
+            {tr("Kontrol legalitas & pusat kendali persetujuan Ketua.")}</p>
         </div>
       </div>
 
@@ -45,15 +53,12 @@ export async function ComplianceSection() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <CalendarClock className="h-4 w-4 text-amber-600" />
-              Kalender Jatuh Tempo (90 Hari)
-            </CardTitle>
+              {tr("Kalender Jatuh Tempo (90 Hari)")}</CardTitle>
           </CardHeader>
           <CardContent>
             {data.mouReminders.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                Tidak ada MoU/perjanjian mitra yang akan jatuh tempo dalam 90
-                hari.
-              </p>
+                {tr("Tidak ada MoU/perjanjian mitra yang akan jatuh tempo dalam 90 hari.")}</p>
             ) : (
               <ul className="flex flex-col divide-y">
                 {data.mouReminders.map((m) => (
@@ -65,7 +70,7 @@ export async function ComplianceSection() {
                       <p className="truncate font-medium">{m.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {PARTNER_TYPE_LABEL[m.type] ?? m.type} ·{" "}
-                        {formatDate(m.expiry)}
+                        {formatDate(m.expiry, locale)}
                       </p>
                     </div>
                     <Badge
@@ -79,18 +84,15 @@ export async function ComplianceSection() {
                       }
                     >
                       {m.daysLeft <= 0
-                        ? "Kadaluarsa"
-                        : `${m.daysLeft} hari lagi`}
+                        ? tr("Kadaluarsa")
+                        : tr("{0} hari lagi", { "0": m.daysLeft })}
                     </Badge>
                   </li>
                 ))}
               </ul>
             )}
             <p className="mt-3 text-xs text-muted-foreground">
-              Sumber data: MoU mitra (RS, sekolah, kepolisian, CSR). Untuk
-              pengingat izin operasional &amp; kontrak pengasuh, lengkapi
-              tanggal berlaku di modul terkait.
-            </p>
+              {tr("Sumber data: MoU mitra (RS, sekolah, kepolisian, CSR). Untuk pengingat izin operasional & kontrak pengasuh, lengkapi tanggal berlaku di modul terkait.")}</p>
           </CardContent>
         </Card>
 
@@ -99,8 +101,7 @@ export async function ComplianceSection() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <Gavel className="h-4 w-4 text-blue-600" />
-              Antrean Approval Ketua
-            </CardTitle>
+              {tr("Antrean Approval Ketua")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ApprovalQueue items={data.approvalQueue} />
@@ -110,3 +111,5 @@ export async function ComplianceSection() {
     </section>
   );
 }
+
+const __PARTNER_TYPE_LABEL = PARTNER_TYPE_LABEL;

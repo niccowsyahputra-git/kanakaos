@@ -14,6 +14,9 @@ import {
 } from "@/lib/validations";
 import { ReceiptPdf, type ReceiptData } from "@/lib/receipt-pdf";
 import { getReceiptYayasan } from "@/lib/site-settings";
+import { getT } from "@/lib/i18n/server";
+import { getSchemas } from "@/lib/validations";
+
 
 type ActionResult =
   | { success: true; id?: string; warning?: string }
@@ -30,12 +33,15 @@ export async function updateBudget(values: {
   categoryId: string;
   monthlyBudget: number;
 }): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { budgetSchema } = getSchemas(locale);
+
   const session = await requireFinanceSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const parsed = budgetSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -58,7 +64,7 @@ export async function updateBudget(values: {
     return { success: true };
   } catch (error) {
     console.error("updateBudget error:", error);
-    return { success: false, error: "Gagal memperbarui budget" };
+    return { success: false, error: tr("Gagal memperbarui budget") };
   }
 }
 
@@ -70,8 +76,10 @@ function csvCell(value: unknown): string {
 }
 
 export async function exportTransactionsCsv(): Promise<FileResult> {
+  const { tr, locale } = await getT();
+
   const session = await requireFinanceSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   try {
     const transactions = await prisma.transaction.findMany({
@@ -87,14 +95,14 @@ export async function exportTransactionsCsv(): Promise<FileResult> {
         transaction.date.toISOString().slice(0, 10),
         transaction.description,
         transaction.category.name,
-        transaction.type === "DEBIT" ? "Masuk" : "Keluar",
+        transaction.type === "DEBIT" ? tr("Masuk") : tr("Keluar"),
         amount,
         balance,
       ];
     });
 
     const csv = [
-      ["Tanggal", "Deskripsi", "Kategori", "Tipe", "Jumlah", "Saldo"].join(","),
+      [tr("Tanggal"), tr("Deskripsi"), tr("Kategori"), tr("Tipe"), tr("Jumlah"), tr("Saldo")].join(","),
       ...rows.map((row) => row.map(csvCell).join(",")),
     ].join("\n");
 
@@ -114,25 +122,27 @@ export async function exportTransactionsCsv(): Promise<FileResult> {
     };
   } catch (error) {
     console.error("exportTransactionsCsv error:", error);
-    return { success: false, error: "Gagal meng-export transaksi" };
+    return { success: false, error: tr("Gagal meng-export transaksi") };
   }
 }
 
 /** Cetak ulang kwitansi donasi: regenerate PDF dari data tersimpan */
 export async function reprintReceipt(donationId: string): Promise<FileResult> {
+  const { tr, locale } = await getT();
+
   const session = await requireFinanceSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const idParsed = z.string().cuid().safeParse(donationId);
   if (!idParsed.success) {
-    return { success: false, error: "ID donasi tidak valid" };
+    return { success: false, error: tr("ID donasi tidak valid") };
   }
 
   try {
     const donation = await prisma.donation.findUnique({
       where: { id: idParsed.data },
     });
-    if (!donation) return { success: false, error: "Donasi tidak ditemukan" };
+    if (!donation) return { success: false, error: tr("Donasi tidak ditemukan") };
 
     const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
     const verifyUrl = `${baseUrl}/verify/${encodeURIComponent(donation.receiptNumber)}`;
@@ -156,6 +166,7 @@ export async function reprintReceipt(donationId: string): Promise<FileResult> {
     const pdfBuffer = await renderToBuffer(
       createElement(ReceiptPdf, {
         data: receiptData,
+        locale,
       }) as ReactElement<DocumentProps>
     );
 
@@ -176,7 +187,7 @@ export async function reprintReceipt(donationId: string): Promise<FileResult> {
     };
   } catch (error) {
     console.error("reprintReceipt error:", error);
-    return { success: false, error: "Gagal mencetak ulang kwitansi" };
+    return { success: false, error: tr("Gagal mencetak ulang kwitansi") };
   }
 }
 
@@ -188,12 +199,15 @@ export async function emailReceipt(values: {
   donationId: string;
   email: string;
 }): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+  const { emailReceiptSchema } = getSchemas(locale);
+
   const session = await requireFinanceSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const parsed = emailReceiptSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
+    return { success: false, error: tr(parsed.error.errors[0].message) };
   }
 
   try {
@@ -201,7 +215,7 @@ export async function emailReceipt(values: {
       where: { id: parsed.data.donationId },
       select: { id: true, receiptNumber: true },
     });
-    if (!donation) return { success: false, error: "Donasi tidak ditemukan" };
+    if (!donation) return { success: false, error: tr("Donasi tidak ditemukan") };
 
     await logAudit({
       userId: session.user.id,
@@ -215,11 +229,11 @@ export async function emailReceipt(values: {
     return {
       success: true,
       warning:
-        "Permintaan tercatat. Pengiriman otomatis aktif setelah SMTP dikonfigurasi — sementara silakan download & kirim manual",
+        tr("Permintaan tercatat. Pengiriman otomatis aktif setelah SMTP dikonfigurasi — sementara silakan download & kirim manual"),
     };
   } catch (error) {
     console.error("emailReceipt error:", error);
-    return { success: false, error: "Gagal mencatat permintaan email" };
+    return { success: false, error: tr("Gagal mencatat permintaan email") };
   }
 }
 
@@ -227,12 +241,14 @@ export async function emailReceipt(values: {
 export async function markPledgeFollowedUp(
   pledgeId: string
 ): Promise<ActionResult> {
+  const { tr, locale } = await getT();
+
   const session = await requireFinanceSession();
-  if (!session) return { success: false, error: FORBIDDEN_ERROR };
+  if (!session) return { success: false, error: tr(FORBIDDEN_ERROR) };
 
   const idParsed = z.string().cuid().safeParse(pledgeId);
   if (!idParsed.success) {
-    return { success: false, error: "ID pledge tidak valid" };
+    return { success: false, error: tr("ID pledge tidak valid") };
   }
 
   try {
@@ -245,6 +261,6 @@ export async function markPledgeFollowedUp(
     return { success: true };
   } catch (error) {
     console.error("markPledgeFollowedUp error:", error);
-    return { success: false, error: "Gagal menandai pledge" };
+    return { success: false, error: tr("Gagal menandai pledge") };
   }
 }

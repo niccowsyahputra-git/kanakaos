@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { CompleteVisitForm } from "@/components/home-visits/complete-visit-form";
+import { getT } from "@/lib/i18n/server";
+import { createTranslator } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/config";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 export const dynamic = "force-dynamic";
 
@@ -40,8 +45,10 @@ type ChecklistShape = {
   foodSecurityOk: boolean | null;
 };
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "long" }).format(date);
+function formatDate(date: Date, locale: Locale = "id") {
+  const tr = createTranslator(locale);
+
+  return new Intl.DateTimeFormat((locale === "en" ? "en-US" : "id-ID"), { dateStyle: "long" }).format(date);
 }
 
 export default async function HomeVisitDetailPage({
@@ -49,6 +56,9 @@ export default async function HomeVisitDetailPage({
 }: {
   params: { id: string };
 }) {
+  const { tr, locale } = await getT();
+  const CHECKLIST_LABELS = localizeLabels(__CHECKLIST_LABELS, tr);
+
   const session = await requireStaffSession();
   if (!session) redirect("/dashboard");
 
@@ -74,8 +84,7 @@ export default async function HomeVisitDetailPage({
       <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
         <Link href="/dashboard/home-visits">
           <ArrowLeft className="h-4 w-4" />
-          Semua Kunjungan
-        </Link>
+          {tr("Semua Kunjungan")}</Link>
       </Button>
 
       {/* Info kunjungan */}
@@ -83,28 +92,28 @@ export default async function HomeVisitDetailPage({
         <CardContent className="space-y-3 p-4 md:p-6">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-xl font-bold tracking-tight md:text-2xl">
-              Kunjungan: {visit.child.fullName}
+              {tr("Kunjungan: ")}{visit.child.fullName}
             </h2>
             <Badge variant="outline" className={statusClass[visit.status]}>
-              {statusLabel[visit.status]}
+              {tr(statusLabel[visit.status])}
             </Badge>
           </div>
 
           <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
             <div className="flex justify-between sm:block">
-              <dt className="text-muted-foreground">Tanggal</dt>
-              <dd className="font-medium">{formatDate(visit.scheduledDate)}</dd>
+              <dt className="text-muted-foreground">{tr("Tanggal")}</dt>
+              <dd className="font-medium">{formatDate(visit.scheduledDate, locale)}</dd>
             </div>
             <div className="flex justify-between sm:block">
-              <dt className="text-muted-foreground">Petugas Kunjungan</dt>
+              <dt className="text-muted-foreground">{tr("Petugas Kunjungan")}</dt>
               <dd className="font-medium">{visit.officer?.name ?? "-"}</dd>
             </div>
             <div className="flex justify-between sm:block">
-              <dt className="text-muted-foreground">Dijadwalkan oleh</dt>
+              <dt className="text-muted-foreground">{tr("Dijadwalkan oleh")}</dt>
               <dd className="font-medium">{visit.createdBy.name}</dd>
             </div>
             <div className="flex justify-between sm:block">
-              <dt className="text-muted-foreground">Wali</dt>
+              <dt className="text-muted-foreground">{tr("Wali")}</dt>
               <dd className="font-medium">
                 {visit.child.guardian?.name ?? "-"}
                 {visit.child.guardian?.phone
@@ -113,7 +122,7 @@ export default async function HomeVisitDetailPage({
               </dd>
             </div>
             <div className="flex justify-between sm:block">
-              <dt className="text-muted-foreground">Alamat</dt>
+              <dt className="text-muted-foreground">{tr("Alamat")}</dt>
               <dd className="font-medium">
                 {visit.child.guardian?.address ?? "-"}
               </dd>
@@ -122,8 +131,7 @@ export default async function HomeVisitDetailPage({
 
           <div className="rounded-md bg-muted/60 p-3">
             <p className="text-xs font-medium uppercase text-muted-foreground">
-              Tujuan Kunjungan
-            </p>
+              {tr("Tujuan Kunjungan")}</p>
             <p className="mt-1 whitespace-pre-line text-sm">{visit.purpose}</p>
           </div>
         </CardContent>
@@ -135,7 +143,7 @@ export default async function HomeVisitDetailPage({
       ) : visit.status === "DONE" ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Hasil Asesmen</CardTitle>
+            <CardTitle className="text-lg">{tr("Hasil Asesmen")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-2 sm:grid-cols-2">
@@ -155,7 +163,7 @@ export default async function HomeVisitDetailPage({
                     ) : (
                       <XCircle className="h-4 w-4 text-red-500" />
                     )}
-                    {item.label}
+                    {tr(item.label)}
                   </div>
                 );
               })}
@@ -163,8 +171,7 @@ export default async function HomeVisitDetailPage({
 
             <div className="flex items-center justify-between rounded-md border p-3">
               <span className="text-sm font-medium">
-                Skor Kerentanan Keluarga
-              </span>
+                {tr("Skor Kerentanan Keluarga")}</span>
               <Badge
                 variant="outline"
                 className={
@@ -182,8 +189,7 @@ export default async function HomeVisitDetailPage({
             {visit.visitNotes && (
               <div className="rounded-md bg-muted/60 p-3">
                 <p className="text-xs font-medium uppercase text-muted-foreground">
-                  Hasil Kunjungan
-                </p>
+                  {tr("Hasil Kunjungan")}</p>
                 <p className="mt-1 whitespace-pre-line text-sm">
                   {visit.visitNotes}
                 </p>
@@ -193,11 +199,10 @@ export default async function HomeVisitDetailPage({
             {visit.photoUrl && (
               <div>
                 <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">
-                  Foto Rumah
-                </p>
+                  {tr("Foto Rumah")}</p>
                 <Image
                   src={visit.photoUrl}
-                  alt="Foto rumah"
+                  alt={tr("Foto rumah")}
                   width={600}
                   height={400}
                   className="w-full max-w-md rounded-lg object-cover"
@@ -209,10 +214,11 @@ export default async function HomeVisitDetailPage({
       ) : (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            Kunjungan ini dibatalkan.
-          </CardContent>
+            {tr("Kunjungan ini dibatalkan.")}</CardContent>
         </Card>
       )}
     </div>
   );
 }
+
+const __CHECKLIST_LABELS = CHECKLIST_LABELS;

@@ -13,6 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
+import { useI18n } from "@/lib/i18n/client";
+import { localizeLabels } from "@/lib/i18n/translate";
+
 
 const CHECKLIST_ITEMS = [
   { key: "sanitationOk", label: "Sanitasi layak", desc: "MCK berfungsi & bersih" },
@@ -25,6 +28,9 @@ const CHECKLIST_ITEMS = [
 type ChecklistKey = (typeof CHECKLIST_ITEMS)[number]["key"];
 
 export function CompleteVisitForm({ visitId }: { visitId: string }) {
+  const { tr, locale } = useI18n();
+  const CHECKLIST_ITEMS = localizeLabels(__CHECKLIST_ITEMS, tr);
+
   const router = useRouter();
   const photoRef = useRef<HTMLInputElement>(null);
   const [checklist, setChecklist] = useState<Record<ChecklistKey, boolean>>({
@@ -58,9 +64,9 @@ export function CompleteVisitForm({ visitId }: { visitId: string }) {
       const result = await completeHomeVisit(formData);
       if (result.success) {
         if (result.warning) {
-          toast.warning("Kunjungan selesai", { description: result.warning });
+          toast.warning(tr("Kunjungan selesai"), { description: result.warning });
         } else {
-          toast.success("Kunjungan selesai dicatat");
+          toast.success(tr("Kunjungan selesai dicatat"));
         }
         router.refresh();
       } else {
@@ -73,7 +79,7 @@ export function CompleteVisitForm({ visitId }: { visitId: string }) {
     startCancelling(async () => {
       const result = await cancelHomeVisit(visitId);
       if (result.success) {
-        toast.success("Kunjungan dibatalkan");
+        toast.success(tr("Kunjungan dibatalkan"));
         router.refresh();
       } else {
         toast.error(result.error);
@@ -84,12 +90,12 @@ export function CompleteVisitForm({ visitId }: { visitId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Hasil Kunjungan</CardTitle>
+        <CardTitle className="text-lg">{tr("Hasil Kunjungan")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         {/* Checklist kelayakan rumah: kartu besar, mudah ditekan di HP */}
         <div className="space-y-2">
-          <Label className="text-base">Checklist Kelayakan Rumah</Label>
+          <Label className="text-base">{tr("Checklist Kelayakan Rumah")}</Label>
           <div className="grid gap-2 sm:grid-cols-2">
             {CHECKLIST_ITEMS.map((item) => {
               const checked = checklist[item.key];
@@ -112,7 +118,7 @@ export function CompleteVisitForm({ visitId }: { visitId: string }) {
                   )}
                   <span>
                     <span className="block text-sm font-medium">
-                      {item.label}
+                      {tr(item.label)}
                     </span>
                     <span className="block text-xs text-muted-foreground">
                       {item.desc}
@@ -127,7 +133,7 @@ export function CompleteVisitForm({ visitId }: { visitId: string }) {
         {/* Skor kerentanan */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-base">Skor Kerentanan Keluarga</Label>
+            <Label className="text-base">{tr("Skor Kerentanan Keluarga")}</Label>
             <span
               className={cn(
                 "rounded-md px-2 py-1 text-sm font-semibold",
@@ -150,31 +156,30 @@ export function CompleteVisitForm({ visitId }: { visitId: string }) {
             className="py-3"
           />
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Aman (0)</span>
-            <span>Sangat rentan (10)</span>
+            <span>{tr("Aman (0)")}</span>
+            <span>{tr("Sangat rentan (10)")}</span>
           </div>
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="visit-notes">
-            Hasil Kunjungan{" "}
-            <span className="font-normal text-muted-foreground">(wajib)</span>
+            {tr("Hasil Kunjungan")}{" "}
+            <span className="font-normal text-muted-foreground">{tr("(wajib)")}</span>
           </Label>
           <Textarea
             id="visit-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Tuliskan hasil & temuan penting selama kunjungan (min. 10 karakter)..."
+            placeholder={tr("Tuliskan hasil & temuan penting selama kunjungan (min. 10 karakter)...")}
             rows={4}
           />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="visit-photo">
-            Foto Rumah{" "}
+            {tr("Foto Rumah")}{" "}
             <span className="font-normal text-muted-foreground">
-              (opsional, maks 5MB)
-            </span>
+              {tr("(opsional, maks 5MB)")}</span>
           </Label>
           <Input
             id="visit-photo"
@@ -195,10 +200,9 @@ export function CompleteVisitForm({ visitId }: { visitId: string }) {
             {isCancelling ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Membatalkan...
-              </>
+                {tr("Membatalkan...")}</>
             ) : (
-              "Batalkan Kunjungan"
+              tr("Batalkan Kunjungan")
             )}
           </Button>
           <Button
@@ -211,10 +215,9 @@ export function CompleteVisitForm({ visitId }: { visitId: string }) {
             {isCompleting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Menyimpan...
-              </>
+                {tr("Menyimpan...")}</>
             ) : (
-              "Selesaikan Kunjungan"
+              tr("Selesaikan Kunjungan")
             )}
           </Button>
         </div>
@@ -222,3 +225,5 @@ export function CompleteVisitForm({ visitId }: { visitId: string }) {
     </Card>
   );
 }
+
+const __CHECKLIST_ITEMS = CHECKLIST_ITEMS;
